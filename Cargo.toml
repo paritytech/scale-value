@@ -1,0 +1,15 @@
+[package]
+name = "scale-value"
+version = "0.0.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2021"
+
+license = "GPL-3.0"
+readme = "README.md"
+repository = "https://github.com/paritytech/subxt"
+documentation = "https://docs.rs/subxt"
+homepage = "https://www.parity.io/"
+description = "Encode and decode values of arbitrary shapes to SCALE bytes"
+keywords = ["parity", "substrate", "blockchain", "scale"]
+
+[dependencies]
