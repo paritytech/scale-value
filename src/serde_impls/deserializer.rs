@@ -347,7 +347,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 		if let ValueDef::Variant(Variant { name, values: Composite::Unnamed(mut vs) }) = self {
 			if name == "Some" && vs.len() == 1 {
 				visitor.visit_some(vs.pop().expect("length checked"))
-			} else if name == "None" && vs.len() == 0 {
+			} else if name == "None" && vs.is_empty() {
 				visitor.visit_none()
 			} else {
 				// Reconstruct the variant and try to deserialize without the option hint:
