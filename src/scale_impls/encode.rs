@@ -655,7 +655,7 @@ mod test {
 		}
 
 		let named_value = Value::variant(
-			"Named".into(),
+			"Named",
 			Composite::Named(vec![
 				// Deliverately a different order; order shouldn't matter:
 				("foo".into(), Value::bool(true)),
@@ -665,7 +665,7 @@ mod test {
 		assert_can_encode_to_type(named_value, Foo::Named { hello: "world".into(), foo: true });
 
 		let unnamed_value = Value::variant(
-			"Unnamed".into(),
+			"Unnamed",
 			Composite::Unnamed(vec![
 				Value::u64(123),
 				Value::unnamed_composite(vec![

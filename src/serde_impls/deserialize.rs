@@ -154,13 +154,6 @@ impl<'de> Visitor<'de> for PrimitiveVisitor {
 			.map_err(|_| serde::de::Error::invalid_length(len, &"exactly 32 bytes"))?;
 		Ok(Primitive::U256(arr))
 	}
-
-	fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-	where
-		D: serde::Deserializer<'de>,
-	{
-		Primitive::deserialize(deserializer)
-	}
 }
 
 struct CompositeVisitor;
@@ -178,20 +171,6 @@ impl<'de> Visitor<'de> for CompositeVisitor {
 	{
 		let byte_values = v.iter().map(|&b| Value::u8(b)).collect();
 		Ok(Composite::Unnamed(byte_values))
-	}
-
-	fn visit_none<E>(self) -> Result<Self::Value, E>
-	where
-		E: serde::de::Error,
-	{
-		Ok(Composite::Unnamed(Vec::new()))
-	}
-
-	fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-	where
-		D: Deserializer<'de>,
-	{
-		Composite::deserialize(deserializer)
 	}
 
 	fn visit_unit<E>(self) -> Result<Self::Value, E>
@@ -253,6 +232,25 @@ impl<'de> Visitor<'de> for VariantVisitor {
 			let values = variant_access.newtype_variant()?;
 			Ok(Variant { name, values })
 		})
+	}
+
+	fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+	where
+		D: serde::Deserializer<'de>,
+	{
+		// Wrap "Some"-like things in a Some variant.
+		// This aligns with how we serialize these back to optionals.
+		let inner = Value::deserialize(deserializer)?;
+		Ok(Variant { name: "Some".to_string(), values: Composite::Unnamed(vec![inner]) })
+	}
+
+	fn visit_none<E>(self) -> Result<Self::Value, E>
+	where
+		E: Error,
+	{
+		// If the thing is "none", wrap it in a None variant.
+		// This aligns with how we serialize these back to optionals.
+		Ok(Variant { name: "None".to_string(), values: Composite::Unnamed(Vec::new()) })
 	}
 
 	fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -337,26 +335,18 @@ impl<'de> Visitor<'de> for ValueDefVisitor {
 		visit_bytes(&[u8])
 	);
 
-	fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-	where
-		D: serde::Deserializer<'de>,
-	{
-		// Wrap "Some"-like things in a Some variant.
-		let inner = Value::deserialize(deserializer)?;
-		Ok(ValueDef::Variant(Variant {
-			name: "Some".to_string(),
-			values: Composite::Unnamed(vec![inner]),
-		}))
-	}
-
 	fn visit_none<E>(self) -> Result<Self::Value, E>
 	where
 		E: Error,
 	{
-		Ok(ValueDef::Variant(Variant {
-			name: "None".to_string(),
-			values: Composite::Unnamed(Vec::new()),
-		}))
+		VariantVisitor.visit_none().map(ValueDef::Variant)
+	}
+
+	fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+	where
+		D: serde::Deserializer<'de>,
+	{
+		VariantVisitor.visit_some(deserializer).map(ValueDef::Variant)
 	}
 
 	fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>

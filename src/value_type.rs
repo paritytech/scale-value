@@ -51,8 +51,8 @@ impl Value<()> {
 		Value { value: ValueDef::Composite(Composite::Unnamed(values)), context: () }
 	}
 	/// Create a new variant value without additional context.
-	pub fn variant(name: String, values: Composite<()>) -> Value<()> {
-		Value { value: ValueDef::Variant(Variant { name, values }), context: () }
+	pub fn variant<S: Into<String>>(name: S, values: Composite<()>) -> Value<()> {
+		Value { value: ValueDef::Variant(Variant { name: name.into(), values }), context: () }
 	}
 	/// Create a new bit sequence value without additional context.
 	pub fn bit_sequence(bitseq: BitSequence) -> Value<()> {

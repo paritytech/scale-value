@@ -152,11 +152,11 @@ impl Serializer for ValueSerializer {
 	}
 
 	fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
-		Ok(Self::SerializeSeq::new())
+		Ok(Self::SerializeSeq::new_composite())
 	}
 
 	fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple, Self::Error> {
-		Ok(Self::SerializeTuple::new())
+		Ok(Self::SerializeTuple::new_composite())
 	}
 
 	fn serialize_tuple_struct(
@@ -164,21 +164,21 @@ impl Serializer for ValueSerializer {
 		_name: &'static str,
 		_len: usize,
 	) -> Result<Self::SerializeTupleStruct, Self::Error> {
-		Ok(Self::SerializeTupleStruct::new())
+		Ok(Self::SerializeTupleStruct::new_composite())
 	}
 
 	fn serialize_tuple_variant(
 		self,
 		_name: &'static str,
 		_variant_index: u32,
-		_variant: &'static str,
+		variant: &'static str,
 		_len: usize,
 	) -> Result<Self::SerializeTupleVariant, Self::Error> {
-		Ok(Self::SerializeTupleVariant::new())
+		Ok(Self::SerializeTupleVariant::new_variant(variant.into()))
 	}
 
 	fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
-		Ok(Self::SerializeMap::new())
+		Ok(Self::SerializeMap::new_composite())
 	}
 
 	fn serialize_struct(
@@ -186,26 +186,34 @@ impl Serializer for ValueSerializer {
 		_name: &'static str,
 		_len: usize,
 	) -> Result<Self::SerializeStruct, Self::Error> {
-		Ok(Self::SerializeStruct::new())
+		Ok(Self::SerializeStruct::new_composite())
 	}
 
 	fn serialize_struct_variant(
 		self,
 		_name: &'static str,
 		_variant_index: u32,
-		_variant: &'static str,
+		variant: &'static str,
 		_len: usize,
 	) -> Result<Self::SerializeStructVariant, Self::Error> {
-		Ok(Self::SerializeStructVariant::new())
+		Ok(Self::SerializeStructVariant::new_variant(variant.into()))
 	}
 }
 
 // Serializes anything that should end up as an unnamed composite value:
-pub struct UnnamedCompositeSerializer(Vec<Value<()>>);
+pub struct UnnamedCompositeSerializer {
+	// Only present if the thing should be a variant:
+	variant_name: Option<String>,
+	values: Vec<Value<()>>,
+}
 
 impl UnnamedCompositeSerializer {
-	fn new() -> UnnamedCompositeSerializer {
-		UnnamedCompositeSerializer(Vec::new())
+	fn new_composite() -> UnnamedCompositeSerializer {
+		UnnamedCompositeSerializer { variant_name: None, values: Vec::new() }
+	}
+
+	fn new_variant(variant_name: String) -> UnnamedCompositeSerializer {
+		UnnamedCompositeSerializer { variant_name: Some(variant_name), values: Vec::new() }
 	}
 
 	fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Error>
@@ -213,12 +221,15 @@ impl UnnamedCompositeSerializer {
 		T: serde::Serialize,
 	{
 		let inner = value.serialize(ValueSerializer)?;
-		self.0.push(inner);
+		self.values.push(inner);
 		Ok(())
 	}
 
 	fn end(self) -> Result<Value<()>, Error> {
-		Ok(Value::unnamed_composite(self.0))
+		match self.variant_name {
+			Some(name) => Ok(Value::variant(name, Composite::Unnamed(self.values))),
+			None => Ok(Value::unnamed_composite(self.values)),
+		}
 	}
 }
 
@@ -288,13 +299,19 @@ impl SerializeTupleVariant for UnnamedCompositeSerializer {
 
 // Serializes things into named composite types.
 pub struct NamedCompositeSerializer {
+	// Only present if the thing should be a variant:
+	variant_name: Option<String>,
 	values: Vec<(String, Value<()>)>,
 	key: Option<String>,
 }
 
 impl NamedCompositeSerializer {
-	fn new() -> Self {
-		NamedCompositeSerializer { values: Vec::new(), key: None }
+	fn new_composite() -> Self {
+		NamedCompositeSerializer { variant_name: None, values: Vec::new(), key: None }
+	}
+
+	fn new_variant(variant_name: String) -> Self {
+		NamedCompositeSerializer { variant_name: Some(variant_name), values: Vec::new(), key: None }
 	}
 
 	fn serialize_field<T: ?Sized>(&mut self, key: &str, value: &T) -> Result<(), Error>
@@ -308,7 +325,10 @@ impl NamedCompositeSerializer {
 	}
 
 	fn end(self) -> Result<Value<()>, Error> {
-		Ok(Value::named_composite(self.values))
+		match self.variant_name {
+			Some(name) => Ok(Value::variant(name, Composite::Named(self.values))),
+			None => Ok(Value::named_composite(self.values)),
+		}
 	}
 }
 

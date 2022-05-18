@@ -1131,7 +1131,7 @@ mod test {
 
 	#[test]
 	fn de_into_unit_variants() {
-		let val = Value::variant("Foo".into(), Composite::Named(vec![]));
+		let val = Value::variant("Foo", Composite::Named(vec![]));
 		let unwrapped_val = Variant::<()> { name: "Foo".into(), values: Composite::Named(vec![]) };
 
 		#[derive(Deserialize, Debug, PartialEq)]

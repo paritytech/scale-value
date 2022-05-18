@@ -166,7 +166,7 @@ mod test {
 	fn serialize_variants() {
 		assert_value(
 			Value::variant(
-				"Foo".into(),
+				"Foo",
 				Composite::Named(vec![
 					("a".into(), Value::bool(true)),
 					("b".into(), Value::string("hello")),
@@ -184,7 +184,7 @@ mod test {
 		);
 		assert_value(
 			Value::variant(
-				"Bar".into(),
+				"Bar",
 				Composite::Unnamed(vec![
 					Value::bool(true),
 					Value::string("hello"),
