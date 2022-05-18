@@ -29,13 +29,7 @@ type ScaleTypeId = scale_info::interner::UntrackedSymbol<std::any::TypeId>; // e
 type ScaleTypeDef = scale_info::TypeDef<scale_info::form::PortableForm>;
 
 pub use bit_sequence::BitSequenceError;
-pub use decode::{
-    decode_value_as_type,
-    DecodeError,
-};
-pub use encode::{
-    encode_value_as_type,
-    EncodeError,
-};
+pub use decode::{decode_value_as_type, DecodeError};
+pub use encode::{encode_value_as_type, EncodeError};
 
 pub use type_id::TypeId;
