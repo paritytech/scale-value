@@ -339,11 +339,32 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 		}
 	}
 
+	fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+	where
+		V: de::Visitor<'de>,
+	{
+		// Special handling to turn a variant value of "Some" or "None" into an option.
+		if let ValueDef::Variant(Variant { name, values: Composite::Unnamed(mut vs) }) = self {
+			if name == "Some" && vs.len() == 1 {
+				visitor.visit_some(vs.pop().expect("length checked"))
+			} else if name == "None" && vs.len() == 0 {
+				visitor.visit_none()
+			} else {
+				// Reconstruct the variant and try to deserialize without the option hint:
+				ValueDef::Variant(Variant { name, values: Composite::Unnamed(vs) })
+					.deserialize_any(visitor)
+			}
+		} else {
+			// fall back to deserializing based on the value type if it doesn't look like an Option:
+			self.deserialize_any(visitor)
+		}
+	}
+
 	// None of the sub types particularly care about these, so we just allow them to forward to
 	// deserialize_any and go from there.
 	forward_to_deserialize_any! {
 		bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-		option struct identifier ignored_any
+		struct identifier ignored_any
 	}
 }
 

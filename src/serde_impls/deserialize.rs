@@ -333,7 +333,6 @@ impl<'de> Visitor<'de> for ValueDefVisitor {
 
 	delegate_visitor_fn!(
 		CompositeVisitor ValueDef::Composite,
-		visit_none()
 		visit_unit()
 		visit_bytes(&[u8])
 	);
@@ -342,7 +341,22 @@ impl<'de> Visitor<'de> for ValueDefVisitor {
 	where
 		D: serde::Deserializer<'de>,
 	{
-		ValueDef::deserialize(deserializer)
+		// Wrap "Some"-like things in a Some variant.
+		let inner = Value::deserialize(deserializer)?;
+		Ok(ValueDef::Variant(Variant {
+			name: "Some".to_string(),
+			values: Composite::Unnamed(vec![inner]),
+		}))
+	}
+
+	fn visit_none<E>(self) -> Result<Self::Value, E>
+	where
+		E: Error,
+	{
+		Ok(ValueDef::Variant(Variant {
+			name: "None".to_string(),
+			values: Composite::Unnamed(Vec::new()),
+		}))
 	}
 
 	fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>

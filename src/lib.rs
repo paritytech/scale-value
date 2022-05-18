@@ -28,7 +28,7 @@ pub use value_type::{BitSequence, Composite, Primitive, Value, ValueDef, Variant
 /// Serializing and deserializing a [`crate::Value`] into/from other types via serde.
 #[cfg(feature = "serde")]
 pub mod serde {
-	pub use crate::serde_impls::DeserializeError;
+	pub use crate::serde_impls::{DeserializeError, SerializeError, ValueSerializer};
 
 	/// Attempt to deserialize a [`crate::Value`] into another type.
 	pub fn from_value<'de, Ctx, T: serde::Deserialize<'de>>(
@@ -37,12 +37,12 @@ pub mod serde {
 		T::deserialize(value)
 	}
 
-	// TODO: Eventually let's implement Serializer on Value so that we can convert from some type into a Value:
-	//
-	// /// Attempt to serialize some type into a [`crate::Value`].
-	// pub fn to_value<'de, Ctx, T: serde::Serialize>(ty: T) -> Result<crate::Value<()>, SerializeError> {
-	//     ty.serialize(serializer)
-	// }
+	/// Attempt to serialize some type into a [`crate::Value`].
+	pub fn to_value<'de, Ctx, T: serde::Serialize>(
+		ty: T,
+	) -> Result<crate::Value<()>, SerializeError> {
+		ty.serialize(ValueSerializer)
+	}
 }
 
 /// Encoding and decoding SCALE bytes into a [`crate::Value`].
