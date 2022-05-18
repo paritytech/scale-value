@@ -38,9 +38,7 @@ pub mod serde {
 	}
 
 	/// Attempt to serialize some type into a [`crate::Value`].
-	pub fn to_value<Ctx, T: serde::Serialize>(
-		ty: T,
-	) -> Result<crate::Value<()>, SerializeError> {
+	pub fn to_value<Ctx, T: serde::Serialize>(ty: T) -> Result<crate::Value<()>, SerializeError> {
 		ty.serialize(ValueSerializer)
 	}
 }
