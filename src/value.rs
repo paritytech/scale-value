@@ -24,7 +24,7 @@ use std::{convert::From, fmt::Debug};
 /// is preserved here to to be able to encode and decode SCALE bytes with a known type to and from [`Value`]s
 /// losslessly.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Value<T> {
+pub struct Value<T = ()> {
 	/// The shape and associated data for this Value
 	pub value: ValueDef<T>,
 	/// Some additional arbitrary context that can be associated with a value.

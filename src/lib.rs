@@ -31,20 +31,142 @@ pub use value::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
 pub mod serde {
 	pub use crate::serde_impls::{DeserializerError, SerializerError, ValueSerializer};
 
-	/// Attempt to deserialize a [`crate::Value`] into another type.
+	/// Attempt to convert a [`crate::Value`] into another type via serde.
+	///
+	/// # Examples
+	///
+	/// Use serde to convert a value into a built-in type:
+	///
+	/// ```rust
+	/// use scale_value::Value;
+	///
+	/// let value = Value::unnamed_composite(vec![
+	/// 	Value::u8(1),
+	/// 	Value::u8(2),
+	/// 	Value::u8(3),
+	/// ]);
+	///
+	/// let arr: [u8; 3] = scale_value::serde::from_value(value).unwrap();
+	/// ```
+	///
+	/// Converting values to a custom type:
+	///
+	/// ```rust
+	/// use scale_value::Value;
+	/// use serde::{ Serialize, Deserialize };
+	///
+	/// #[derive(Serialize, Deserialize, PartialEq, Debug)]
+	/// enum Foo {
+	/// 	A { is_valid: bool, name: String },
+	/// 	B(u8, bool)
+	/// }
+	///
+	/// let value1 = Value::named_variant("A", vec![
+	/// 	("name".into(), Value::string("James")),
+	/// 	("is_valid".into(), Value::bool(true)),
+	/// ]);
+	/// let foo1: Foo = scale_value::serde::from_value(value1).unwrap();
+	/// assert_eq!(foo1, Foo::A { is_valid: true, name: "James".into() });
+	///
+	/// let value2 = Value::unnamed_variant("B", vec![
+	/// 	Value::u8(123),
+	/// 	Value::bool(true),
+	/// ]);
+	/// let foo2: Foo = scale_value::serde::from_value(value2).unwrap();
+	/// assert_eq!(foo2, Foo::B(123, true));
+	/// ```
 	pub fn from_value<'de, Ctx, T: serde::Deserialize<'de>>(
 		value: crate::Value<Ctx>,
 	) -> Result<T, DeserializerError> {
 		T::deserialize(value)
 	}
 
-	/// Attempt to serialize some type into a [`crate::Value`].
-	pub fn to_value<Ctx, T: serde::Serialize>(ty: T) -> Result<crate::Value<()>, SerializerError> {
+	/// Attempt to convert some type into a [`crate::Value`] via serde.
+	///
+	/// # Examples
+	///
+	/// Convert a built-in array of values into a [`crate::Value`]:
+	///
+	/// ```rust
+	/// use scale_value::Value;
+	///
+	/// let arr = [1u8, 2u8, 3u8];
+	///
+	/// let val = scale_value::serde::to_value(arr).unwrap();
+	/// assert_eq!(val, Value::unnamed_composite(vec![
+	/// 	Value::u8(1),
+	/// 	Value::u8(2),
+	/// 	Value::u8(3),
+	/// ]));
+	/// ```
+	///
+	/// Converting some custom type to a [`crate::Value`]:
+	///
+	/// ```rust
+	/// use scale_value::Value;
+	/// use serde::{ Serialize, Deserialize };
+	///
+	/// #[derive(Serialize, Deserialize, PartialEq, Debug)]
+	/// enum Foo {
+	/// 	A { is_valid: bool, name: String },
+	/// 	B(u8, bool)
+	/// }
+	///
+	/// let foo = Foo::A { is_valid: true, name: "James".into() };
+	///
+	/// let value = scale_value::serde::to_value(foo).unwrap();
+	/// assert_eq!(value, Value::named_variant("A", vec![
+	/// 	("is_valid".into(), Value::bool(true)),
+	/// 	("name".into(), Value::string("James")),
+	/// ]));
+	/// ```
+	pub fn to_value<T: serde::Serialize>(ty: T) -> Result<crate::Value<()>, SerializerError> {
 		ty.serialize(ValueSerializer)
 	}
 }
 
 /// Encoding and decoding SCALE bytes into a [`crate::Value`].
+///
+/// # Exmaple
+///
+/// Given some known metadata type ID, encode and desome some [`crate::Value`]
+/// to SCALE bytes.
+///
+/// ```rust
+/// # fn make_type<T: scale_info::TypeInfo + 'static>() -> (u32, scale_info::PortableRegistry) {
+/// # 	let m = scale_info::MetaType::new::<T>();
+/// # 	let mut types = scale_info::Registry::new();
+/// # 	let id = types.register_type(&m);
+/// # 	let portable_registry: scale_info::PortableRegistry = types.into();
+/// # 	(id.id(), portable_registry)
+/// # }
+/// # let (type_id, registry) = make_type::<Foo>();
+/// use scale_value::Value;
+///
+/// // Imagine we have a `registry` (of type [`scale_info::PortableRegistry`]) containing this type,
+/// // and a `type_id` (a `u32`) pointing to it in the registry.
+/// #[derive(scale_info::TypeInfo)]
+/// enum Foo {
+/// 	A { is_valid: bool, name: String }
+/// }
+///
+/// // Given that, we can encode/decode something with that shape to/from SCALE bytes:
+/// let value = Value::named_variant("A", vec![
+/// 	("is_valid".into(), Value::bool(true)),
+/// 	("name".into(), Value::string("James")),
+/// ]);
+///
+/// // Encode the Value to bytes:
+/// let mut bytes = Vec::new();
+/// scale_value::scale::encode_as_type(value.clone(), type_id, &registry, &mut bytes).unwrap();
+///
+/// // Decode the bytes back into a matching Value.
+/// // This value contains contextual information about which type was used
+/// // to decode each part of it, which we can throw away with `.remove_context()`.
+/// let new_value = scale_value::scale::decode_as_type(&mut &*bytes, type_id, &registry).unwrap();
+///
+/// assert_eq!(value, new_value.remove_context());
+/// ```
 pub mod scale {
 	pub use crate::scale_impls::{BitSequenceError, DecodeError, EncodeError, TypeId};
 	pub use scale_info::PortableRegistry;
