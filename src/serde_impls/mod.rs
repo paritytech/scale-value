@@ -23,4 +23,3 @@ mod serializer;
 pub use deserializer::Error as DeserializeError;
 
 pub use serializer::{Error as SerializeError, ValueSerializer};
-
