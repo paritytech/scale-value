@@ -53,6 +53,14 @@ impl Value<()> {
 	pub fn variant<S: Into<String>>(name: S, values: Composite<()>) -> Value<()> {
 		Value { value: ValueDef::Variant(Variant { name: name.into(), values }), context: () }
 	}
+	/// Create a new variant value with named fields and without additional context.
+	pub fn named_variant<S: Into<String>>(name: S, fields: Vec<(String, Value<()>)>) -> Value<()> {
+		Value { value: ValueDef::Variant(Variant::named_fields(name, fields)), context: () }
+	}
+	/// Create a new variant value with tuple-like fields and without additional context.
+	pub fn unnamed_variant<S: Into<String>>(name: S, fields: Vec<Value<()>>) -> Value<()> {
+		Value { value: ValueDef::Variant(Variant::unnamed_fields(name, fields)), context: () }
+	}
 	/// Create a new bit sequence value without additional context.
 	pub fn bit_sequence(bitseq: BitSequence) -> Value<()> {
 		Value { value: ValueDef::BitSequence(bitseq), context: () }
@@ -159,7 +167,7 @@ impl From<BitSequence> for Value<()> {
 /// A named or unnamed struct-like, array-like or tuple-like set of values.
 /// This is used to represent a range of composite values on their own, or
 /// as values for a specific [`Variant`].
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Composite<T> {
 	/// Eg `{ foo: 2, bar: false }`
 	Named(Vec<(String, Value<T>)>),
@@ -210,27 +218,6 @@ impl<T> Composite<T> {
 			Composite::Unnamed(values) => {
 				let vals = values.into_iter().map(move |v| v.map_context(f.clone())).collect();
 				Composite::Unnamed(vals)
-			}
-		}
-	}
-}
-
-impl<T: Debug> Debug for Composite<T> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Composite::Named(fields) => {
-				let mut struc = f.debug_struct("");
-				for (name, val) in fields {
-					struc.field(name, val);
-				}
-				struc.finish()
-			}
-			Composite::Unnamed(fields) => {
-				let mut struc = f.debug_tuple("");
-				for val in fields {
-					struc.field(val);
-				}
-				struc.finish()
 			}
 		}
 	}
@@ -291,6 +278,14 @@ pub struct Variant<T> {
 }
 
 impl<T> Variant<T> {
+	/// Construct a variant with named fields.
+	pub fn named_fields<S: Into<String>>(name: S, fields: Vec<(String, Value<T>)>) -> Variant<T> {
+		Variant { name: name.into(), values: Composite::Named(fields) }
+	}
+	/// Construct a variant with tuple-like fields.
+	pub fn unnamed_fields<S: Into<String>>(name: S, fields: Vec<Value<T>>) -> Variant<T> {
+		Variant { name: name.into(), values: Composite::Unnamed(fields) }
+	}
 	/// Map the context to some different type.
 	pub fn map_context<F, U>(self, f: F) -> Variant<U>
 	where

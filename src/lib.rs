@@ -22,9 +22,9 @@
 mod scale_impls;
 #[cfg(feature = "serde")]
 mod serde_impls;
-mod value_type;
+mod value;
 
-pub use value_type::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
+pub use value::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
 
 /// Serializing and deserializing a [`crate::Value`] into/from other types via serde.
 #[cfg(feature = "serde")]

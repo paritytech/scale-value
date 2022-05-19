@@ -18,7 +18,7 @@ use super::{
 	type_id::TypeId,
 	ScaleTypeDef as TypeDef,
 };
-use crate::value_type::{Composite, Primitive, Value, ValueDef, Variant};
+use crate::value::{Composite, Primitive, Value, ValueDef, Variant};
 use bitvec::{
 	order::{Lsb0, Msb0},
 	vec::BitVec,
@@ -691,26 +691,26 @@ mod test {
 			Unnamed(u64, Vec<bool>),
 		}
 
-		let named_value = Value::variant(
+		let named_value = Value::named_variant(
 			"Named",
-			Composite::Named(vec![
+			vec![
 				// Deliverately a different order; order shouldn't matter:
 				("foo".into(), Value::bool(true)),
 				("hello".into(), Value::string("world")),
-			]),
+			],
 		);
 		assert_can_encode_to_type(named_value, Foo::Named { hello: "world".into(), foo: true });
 
-		let unnamed_value = Value::variant(
+		let unnamed_value = Value::unnamed_variant(
 			"Unnamed",
-			Composite::Unnamed(vec![
+			vec![
 				Value::u64(123),
 				Value::unnamed_composite(vec![
 					Value::bool(true),
 					Value::bool(false),
 					Value::bool(true),
 				]),
-			]),
+			],
 		);
 		assert_can_encode_to_type(unnamed_value, Foo::Unnamed(123, vec![true, false, true]));
 	}

@@ -540,14 +540,11 @@ mod test {
 			name: "Foo".into(),
 			values: Composite::Unnamed(vec![Value::u64(123), Value::bool(true)]),
 		});
-		assert_value_isomorphic(Variant { name: "Foo".into(), values: Composite::Unnamed(vec![]) });
-		assert_value_isomorphic(Variant {
-			name: "Foo".into(),
-			values: Composite::Named(vec![
-				("a".into(), Value::u64(123)),
-				("b".into(), Value::bool(true)),
-			]),
-		});
+		assert_value_isomorphic(Variant::unnamed_fields("Foo", vec![]));
+		assert_value_isomorphic(Variant::named_fields("Foo", vec![
+			("a".into(), Value::u64(123)),
+			("b".into(), Value::bool(true)),
+		]));
 	}
 
 	#[test]

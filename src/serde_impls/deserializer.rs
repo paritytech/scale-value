@@ -940,20 +940,20 @@ mod test {
 		assert_eq!(<(String, bool)>::deserialize(val), Ok(("hello".into(), true)));
 
 		// Enum variants are allowed! The variant name will be ignored:
-		let val = ValueDef::Variant(Variant {
-			name: "Foo".into(),
-			values: Composite::Unnamed(vec![Value::string("hello"), Value::bool(true)]),
-		});
+		let val = ValueDef::Variant(Variant::unnamed_fields(
+			"Foo",
+			vec![Value::string("hello"), Value::bool(true)]
+		));
 		assert_eq!(<(String, bool)>::deserialize(val), Ok(("hello".into(), true)));
 
 		// Enum variants with names values are allowed! The variant name will be ignored:
-		let val = ValueDef::Variant(Variant {
-			name: "Foo".into(),
-			values: Composite::Named(vec![
+		let val = ValueDef::Variant(Variant::named_fields(
+			"Foo",
+			vec![
 				("a".into(), Value::string("hello")),
 				("b".into(), Value::bool(true)),
-			]),
-		});
+			]
+		));
 		assert_eq!(<(String, bool)>::deserialize(val), Ok(("hello".into(), true)));
 
 		// Wrong number of values should fail:

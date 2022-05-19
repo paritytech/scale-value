@@ -18,7 +18,7 @@ use super::{
 	type_id::TypeId,
 	ScaleType as Type, ScaleTypeDef as TypeDef,
 };
-use crate::value_type::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
+use crate::value::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
 use bitvec::{
 	order::{BitOrder, Lsb0, Msb0},
 	store::BitStore,
@@ -473,16 +473,16 @@ mod test {
 
 		encode_decode_check(
 			MyEnum::Foo(true),
-			Value::variant("Foo".to_string(), Composite::Unnamed(vec![Value::bool(true)])),
+			Value::unnamed_variant("Foo", vec![Value::bool(true)]),
 		);
 		encode_decode_check(
 			MyEnum::Bar { hi: "hello".to_string(), other: 123 },
-			Value::variant(
-				"Bar".to_string(),
-				Composite::Named(vec![
+			Value::named_variant(
+				"Bar",
+				vec![
 					("hi".to_string(), Value::string("hello".to_string())),
 					("other".to_string(), Value::u128(123)),
-				]),
+				],
 			),
 		);
 	}
