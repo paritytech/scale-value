@@ -36,25 +36,25 @@ use std::{borrow::Cow, fmt::Display};
 /// errors as well for simplicity.
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
 #[error("{0}")]
-pub struct Error(Cow<'static, str>);
+pub struct DeserializerError(Cow<'static, str>);
 
-impl Error {
-	fn from_string<S: Into<String>>(s: S) -> Error {
-		Error(Cow::Owned(s.into()))
+impl DeserializerError {
+	fn from_string<S: Into<String>>(s: S) -> DeserializerError {
+		DeserializerError(Cow::Owned(s.into()))
 	}
-	fn from_str(s: &'static str) -> Error {
-		Error(Cow::Borrowed(s))
+	fn from_str(s: &'static str) -> DeserializerError {
+		DeserializerError(Cow::Borrowed(s))
 	}
 }
 
-impl de::Error for Error {
+impl de::Error for DeserializerError {
 	fn custom<T: Display>(msg: T) -> Self {
-		Error::from_string(msg.to_string())
+		DeserializerError::from_string(msg.to_string())
 	}
 }
-impl ser::Error for Error {
+impl ser::Error for DeserializerError {
 	fn custom<T: Display>(msg: T) -> Self {
-		Error::from_string(msg.to_string())
+		DeserializerError::from_string(msg.to_string())
 	}
 }
 
@@ -73,7 +73,7 @@ macro_rules! deserialize_x {
 // Our Value type has some context, which we ignore, and some definition, whose deserializer
 // impl we forward to.
 impl<'de, T> Deserializer<'de> for Value<T> {
-	type Error = Error;
+	type Error = DeserializerError;
 
 	deserialize_x!(deserialize_any);
 	deserialize_x!(deserialize_bool);
@@ -196,7 +196,7 @@ macro_rules! delegate_except_bitseq {
 // the relevant subtype. The exception is our BitSequence type, which doesn't
 // have a sub type to forward to and so is handled here.
 impl<'de, T> Deserializer<'de> for ValueDef<T> {
-	type Error = Error;
+	type Error = DeserializerError;
 
 	fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
 	where
@@ -220,7 +220,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	{
 		delegate_except_bitseq! { deserialize_newtype_struct(self, name, visitor),
 			_ => {
-				Err(Error::from_str("Cannot deserialize BitSequence into a newtype struct"))
+				Err(DeserializerError::from_str("Cannot deserialize BitSequence into a newtype struct"))
 			}
 		}
 	}
@@ -231,7 +231,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	{
 		delegate_except_bitseq! { deserialize_tuple(self, len, visitor),
 			_ => {
-				Err(Error::from_str("Cannot deserialize BitSequence into a tuple"))
+				Err(DeserializerError::from_str("Cannot deserialize BitSequence into a tuple"))
 			}
 		}
 	}
@@ -247,7 +247,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	{
 		delegate_except_bitseq! { deserialize_tuple_struct(self, name, len, visitor),
 			_ => {
-				Err(Error::from_str("Cannot deserialize BitSequence into a tuple struct"))
+				Err(DeserializerError::from_str("Cannot deserialize BitSequence into a tuple struct"))
 			}
 		}
 	}
@@ -258,7 +258,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	{
 		delegate_except_bitseq! { deserialize_unit(self, visitor),
 			_ => {
-				Err(Error::from_str("Cannot deserialize BitSequence into a ()"))
+				Err(DeserializerError::from_str("Cannot deserialize BitSequence into a ()"))
 			}
 		}
 	}
@@ -273,7 +273,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	{
 		delegate_except_bitseq! { deserialize_unit_struct(self, name, visitor),
 			_ => {
-				Err(Error::from_string(format!("Cannot deserialize BitSequence into the unit struct {}", name)))
+				Err(DeserializerError::from_string(format!("Cannot deserialize BitSequence into the unit struct {}", name)))
 			}
 		}
 	}
@@ -289,7 +289,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	{
 		delegate_except_bitseq! { deserialize_enum(self, name, variants, visitor),
 			_ => {
-				Err(Error::from_string(format!("Cannot deserialize BitSequence into the enum {}", name)))
+				Err(DeserializerError::from_string(format!("Cannot deserialize BitSequence into the enum {}", name)))
 			}
 		}
 	}
@@ -300,7 +300,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	{
 		delegate_except_bitseq! { deserialize_bytes(self, visitor),
 			_ => {
-				Err(Error::from_str("Cannot deserialize BitSequence into raw bytes"))
+				Err(DeserializerError::from_str("Cannot deserialize BitSequence into raw bytes"))
 			}
 		}
 	}
@@ -311,7 +311,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	{
 		delegate_except_bitseq! { deserialize_byte_buf(self, visitor),
 			_ => {
-				Err(Error::from_str("Cannot deserialize BitSequence into raw bytes"))
+				Err(DeserializerError::from_str("Cannot deserialize BitSequence into raw bytes"))
 			}
 		}
 	}
@@ -322,7 +322,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	{
 		delegate_except_bitseq! { deserialize_seq(self, visitor),
 			_ => {
-				Err(Error::from_str("Cannot deserialize BitSequence into a sequence"))
+				Err(DeserializerError::from_str("Cannot deserialize BitSequence into a sequence"))
 			}
 		}
 	}
@@ -333,7 +333,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	{
 		delegate_except_bitseq! { deserialize_map(self, visitor),
 			_ => {
-				Err(Error::from_str("Cannot deserialize BitSequence into a map"))
+				Err(DeserializerError::from_str("Cannot deserialize BitSequence into a map"))
 			}
 		}
 	}
@@ -367,7 +367,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	}
 }
 
-impl<'de, T> IntoDeserializer<'de, Error> for Value<T> {
+impl<'de, T> IntoDeserializer<'de, DeserializerError> for Value<T> {
 	type Deserializer = Value<T>;
 	fn into_deserializer(self) -> Self::Deserializer {
 		self
@@ -375,7 +375,7 @@ impl<'de, T> IntoDeserializer<'de, Error> for Value<T> {
 }
 
 impl<'de, T> Deserializer<'de> for Composite<T> {
-	type Error = Error;
+	type Error = DeserializerError;
 
 	fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
 	where
@@ -412,7 +412,7 @@ impl<'de, T> Deserializer<'de> for Composite<T> {
 			// A sequence of named values? just ignores the names:
 			Composite::Named(values) => {
 				if values.len() != len {
-					return Err(Error::from_string(format!(
+					return Err(DeserializerError::from_string(format!(
 						"Cannot deserialize composite of length {} into tuple of length {}",
 						values.len(),
 						len
@@ -424,7 +424,7 @@ impl<'de, T> Deserializer<'de> for Composite<T> {
 			// A sequence of unnamed values is ideal:
 			Composite::Unnamed(values) => {
 				if values.len() != len {
-					return Err(Error::from_string(format!(
+					return Err(DeserializerError::from_string(format!(
 						"Cannot deserialize composite of length {} into tuple of length {}",
 						values.len(),
 						len
@@ -455,7 +455,7 @@ impl<'de, T> Deserializer<'de> for Composite<T> {
 		if self.is_empty() {
 			visitor.visit_unit()
 		} else {
-			Err(Error::from_str("Cannot deserialize non-empty Composite into a unit value"))
+			Err(DeserializerError::from_str("Cannot deserialize non-empty Composite into a unit value"))
 		}
 	}
 
@@ -494,10 +494,10 @@ impl<'de, T> Deserializer<'de> for Composite<T> {
 							if let ValueDef::Primitive(Primitive::U8(byte)) = v.value {
 								Ok(byte)
 							} else {
-								Err(Error::from_str("Cannot deserialize composite that is not entirely U8's into bytes"))
+								Err(DeserializerError::from_str("Cannot deserialize composite that is not entirely U8's into bytes"))
 							}
 						})
-						.collect::<Result<_, Error>>()?;
+						.collect::<Result<_, DeserializerError>>()?;
 				visitor.visit_byte_buf(bytes)
 			}
 			Composite::Unnamed(values) => {
@@ -508,10 +508,10 @@ impl<'de, T> Deserializer<'de> for Composite<T> {
 							if let ValueDef::Primitive(Primitive::U8(byte)) = v.value {
 								Ok(byte)
 							} else {
-								Err(Error::from_str("Cannot deserialize composite that is not entirely U8's into bytes"))
+								Err(DeserializerError::from_str("Cannot deserialize composite that is not entirely U8's into bytes"))
 							}
 						})
-						.collect::<Result<_, Error>>()?;
+						.collect::<Result<_, DeserializerError>>()?;
 				visitor.visit_byte_buf(bytes)
 			}
 		}
@@ -531,7 +531,7 @@ impl<'de, T> Deserializer<'de> for Composite<T> {
 	}
 }
 
-impl<'de, T> IntoDeserializer<'de, Error> for Composite<T> {
+impl<'de, T> IntoDeserializer<'de, DeserializerError> for Composite<T> {
 	type Deserializer = Composite<T>;
 	fn into_deserializer(self) -> Self::Deserializer {
 		self
@@ -541,7 +541,7 @@ impl<'de, T> IntoDeserializer<'de, Error> for Composite<T> {
 // Because composite types are used to represent variant fields, we allow
 // variant accesses to be called on it, which just delegate to methods defined above.
 impl<'de, T> VariantAccess<'de> for Composite<T> {
-	type Error = Error;
+	type Error = DeserializerError;
 
 	fn unit_variant(self) -> Result<(), Self::Error> {
 		Deserialize::deserialize(self)
@@ -574,7 +574,7 @@ impl<'de, T> VariantAccess<'de> for Composite<T> {
 }
 
 impl<'de, T> Deserializer<'de> for Variant<T> {
-	type Error = Error;
+	type Error = DeserializerError;
 
 	fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
 	where
@@ -677,7 +677,7 @@ impl<'de, T> Deserializer<'de> for Variant<T> {
 	}
 }
 
-impl<'de, T> IntoDeserializer<'de, Error> for Variant<T> {
+impl<'de, T> IntoDeserializer<'de, DeserializerError> for Variant<T> {
 	type Deserializer = Variant<T>;
 	fn into_deserializer(self) -> Self::Deserializer {
 		self
@@ -688,7 +688,7 @@ impl<'de, T> IntoDeserializer<'de, Error> for Variant<T> {
 // the pair of name and values, where values is a composite type that impls
 // VariantAccess to actually allow deserializing of those values.
 impl<'de, T> EnumAccess<'de> for Variant<T> {
-	type Error = Error;
+	type Error = DeserializerError;
 
 	type Variant = Composite<T>;
 
@@ -703,7 +703,7 @@ impl<'de, T> EnumAccess<'de> for Variant<T> {
 }
 
 impl<'de> Deserializer<'de> for Primitive {
-	type Error = Error;
+	type Error = DeserializerError;
 
 	fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
 	where
@@ -746,7 +746,7 @@ impl<'de> Deserializer<'de> for Primitive {
 	}
 }
 
-impl<'de> IntoDeserializer<'de, Error> for Primitive {
+impl<'de> IntoDeserializer<'de, DeserializerError> for Primitive {
 	type Deserializer = Primitive;
 	fn into_deserializer(self) -> Self::Deserializer {
 		self

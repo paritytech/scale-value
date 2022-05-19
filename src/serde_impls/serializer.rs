@@ -25,24 +25,32 @@ use serde::{
 	Serializer,
 };
 
+/// This struct implements [`Serializer`] and knows how to map from the serde data model to a [`Value`] type.
 pub struct ValueSerializer;
 
+/// An error that can occur when attempting to serialize a type into a [`Value`].
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
-pub enum Error {
+pub enum SerializerError {
+	/// Some custom error string.
 	#[error("{0}")]
 	Custom(String),
+	/// SCALE does not support floating point values, and so we'll hit this error if we try to
+	/// encode any floats.
 	#[error("Floats do not have a SCALE compatible representation, and so cannot be serialized to Values")]
 	CannotSerializeFloats,
+	/// SCALE encoding is only designed to map from statically known structs to bytes. We use field names
+	/// to figure out this mapping between named composite types and structs, so we don't support encoding
+	/// maps with non-string keys into [`Value`]s.
 	#[error("Map keys must be strings or string-like")]
 	MapKeyMustBeStringlike,
 }
 
-impl serde::ser::Error for Error {
+impl serde::ser::Error for SerializerError {
 	fn custom<T>(msg: T) -> Self
 	where
 		T: std::fmt::Display,
 	{
-		Error::Custom(msg.to_string())
+		SerializerError::Custom(msg.to_string())
 	}
 }
 
@@ -56,7 +64,7 @@ macro_rules! serialize_prim {
 
 impl Serializer for ValueSerializer {
 	type Ok = Value<()>;
-	type Error = Error;
+	type Error = SerializerError;
 
 	type SerializeSeq = UnnamedCompositeSerializer;
 	type SerializeTuple = UnnamedCompositeSerializer;
@@ -80,10 +88,10 @@ impl Serializer for ValueSerializer {
 	serialize_prim!(serialize_char char);
 
 	fn serialize_f32(self, _v: f32) -> Result<Self::Ok, Self::Error> {
-		Err(Error::CannotSerializeFloats)
+		Err(SerializerError::CannotSerializeFloats)
 	}
 	fn serialize_f64(self, _v: f64) -> Result<Self::Ok, Self::Error> {
-		Err(Error::CannotSerializeFloats)
+		Err(SerializerError::CannotSerializeFloats)
 	}
 
 	fn serialize_str(self, v: &str) -> Result<Self::Ok, Self::Error> {
@@ -215,7 +223,7 @@ impl UnnamedCompositeSerializer {
 		UnnamedCompositeSerializer { variant_name: Some(variant_name), values: Vec::new() }
 	}
 
-	fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Error>
+	fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), SerializerError>
 	where
 		T: serde::Serialize,
 	{
@@ -224,7 +232,7 @@ impl UnnamedCompositeSerializer {
 		Ok(())
 	}
 
-	fn end(self) -> Result<Value<()>, Error> {
+	fn end(self) -> Result<Value<()>, SerializerError> {
 		match self.variant_name {
 			Some(name) => Ok(Value::variant(name, Composite::Unnamed(self.values))),
 			None => Ok(Value::unnamed_composite(self.values)),
@@ -234,7 +242,7 @@ impl UnnamedCompositeSerializer {
 
 impl SerializeSeq for UnnamedCompositeSerializer {
 	type Ok = Value<()>;
-	type Error = Error;
+	type Error = SerializerError;
 
 	fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
 	where
@@ -250,7 +258,7 @@ impl SerializeSeq for UnnamedCompositeSerializer {
 
 impl SerializeTuple for UnnamedCompositeSerializer {
 	type Ok = Value<()>;
-	type Error = Error;
+	type Error = SerializerError;
 
 	fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
 	where
@@ -266,7 +274,7 @@ impl SerializeTuple for UnnamedCompositeSerializer {
 
 impl SerializeTupleStruct for UnnamedCompositeSerializer {
 	type Ok = Value<()>;
-	type Error = Error;
+	type Error = SerializerError;
 
 	fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
 	where
@@ -282,7 +290,7 @@ impl SerializeTupleStruct for UnnamedCompositeSerializer {
 
 impl SerializeTupleVariant for UnnamedCompositeSerializer {
 	type Ok = Value<()>;
-	type Error = Error;
+	type Error = SerializerError;
 
 	fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
 	where
@@ -313,7 +321,7 @@ impl NamedCompositeSerializer {
 		NamedCompositeSerializer { variant_name: Some(variant_name), values: Vec::new(), key: None }
 	}
 
-	fn serialize_field<T: ?Sized>(&mut self, key: &str, value: &T) -> Result<(), Error>
+	fn serialize_field<T: ?Sized>(&mut self, key: &str, value: &T) -> Result<(), SerializerError>
 	where
 		T: serde::Serialize,
 	{
@@ -323,7 +331,7 @@ impl NamedCompositeSerializer {
 		Ok(())
 	}
 
-	fn end(self) -> Result<Value<()>, Error> {
+	fn end(self) -> Result<Value<()>, SerializerError> {
 		match self.variant_name {
 			Some(name) => Ok(Value::variant(name, Composite::Named(self.values))),
 			None => Ok(Value::named_composite(self.values)),
@@ -333,7 +341,7 @@ impl NamedCompositeSerializer {
 
 impl SerializeMap for NamedCompositeSerializer {
 	type Ok = Value<()>;
-	type Error = Error;
+	type Error = SerializerError;
 
 	fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<(), Self::Error>
 	where
@@ -346,7 +354,7 @@ impl SerializeMap for NamedCompositeSerializer {
 		let key = match inner.value {
 			ValueDef::Primitive(Primitive::String(s)) => s,
 			ValueDef::Primitive(Primitive::Char(c)) => c.to_string(),
-			_ => return Err(Error::MapKeyMustBeStringlike),
+			_ => return Err(SerializerError::MapKeyMustBeStringlike),
 		};
 		self.key = Some(key);
 		Ok(())
@@ -367,7 +375,7 @@ impl SerializeMap for NamedCompositeSerializer {
 
 impl SerializeStruct for NamedCompositeSerializer {
 	type Ok = Value<()>;
-	type Error = Error;
+	type Error = SerializerError;
 
 	fn serialize_field<T: ?Sized>(
 		&mut self,
@@ -387,7 +395,7 @@ impl SerializeStruct for NamedCompositeSerializer {
 
 impl SerializeStructVariant for NamedCompositeSerializer {
 	type Ok = Value<()>;
-	type Error = Error;
+	type Error = SerializerError;
 
 	fn serialize_field<T: ?Sized>(
 		&mut self,

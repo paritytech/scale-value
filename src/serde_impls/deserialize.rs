@@ -381,7 +381,7 @@ impl<'de> Visitor<'de> for ValueDefVisitor {
 #[cfg(test)]
 mod test {
 
-	use super::{super::DeserializeError, *};
+	use super::{super::DeserializerError, *};
 
 	/// Does a value deserialize to itself?
 	fn assert_value_isomorphic<
@@ -554,7 +554,7 @@ mod test {
 	fn sequence_to_value() {
 		use serde::de::{value::SeqDeserializer, IntoDeserializer};
 
-		let de: SeqDeserializer<_, DeserializeError> = vec![1u8, 2, 3, 4].into_deserializer();
+		let de: SeqDeserializer<_, DeserializerError> = vec![1u8, 2, 3, 4].into_deserializer();
 
 		assert_value_to_value(
 			de.clone(),
@@ -570,7 +570,7 @@ mod test {
 	fn sequence_to_primitive() {
 		use serde::de::{value::SeqDeserializer, IntoDeserializer};
 
-		let de: SeqDeserializer<_, DeserializeError> = vec![1u8; 32].into_deserializer();
+		let de: SeqDeserializer<_, DeserializerError> = vec![1u8; 32].into_deserializer();
 
 		assert_value_to_value(de, Primitive::U256([1; 32]));
 	}
@@ -588,7 +588,7 @@ mod test {
 			map
 		};
 
-		let de: MapDeserializer<_, DeserializeError> = map.into_deserializer();
+		let de: MapDeserializer<_, DeserializerError> = map.into_deserializer();
 
 		let value = ValueDef::deserialize(de).expect("should deserialize OK");
 		if let ValueDef::Composite(Composite::Named(vals)) = value {

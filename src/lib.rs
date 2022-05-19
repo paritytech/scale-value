@@ -17,6 +17,8 @@
 //! representations of SCALE encoded data (much like `serde_json::Value` is a runtime representation
 //! of JSON data).
 
+#![deny(missing_docs)]
+
 mod scale_impls;
 #[cfg(feature = "serde")]
 mod serde_impls;
@@ -27,17 +29,17 @@ pub use value_type::{BitSequence, Composite, Primitive, Value, ValueDef, Variant
 /// Serializing and deserializing a [`crate::Value`] into/from other types via serde.
 #[cfg(feature = "serde")]
 pub mod serde {
-	pub use crate::serde_impls::{DeserializeError, SerializeError, ValueSerializer};
+	pub use crate::serde_impls::{DeserializerError, SerializerError, ValueSerializer};
 
 	/// Attempt to deserialize a [`crate::Value`] into another type.
 	pub fn from_value<'de, Ctx, T: serde::Deserialize<'de>>(
 		value: crate::Value<Ctx>,
-	) -> Result<T, DeserializeError> {
+	) -> Result<T, DeserializerError> {
 		T::deserialize(value)
 	}
 
 	/// Attempt to serialize some type into a [`crate::Value`].
-	pub fn to_value<Ctx, T: serde::Serialize>(ty: T) -> Result<crate::Value<()>, SerializeError> {
+	pub fn to_value<Ctx, T: serde::Serialize>(ty: T) -> Result<crate::Value<()>, SerializerError> {
 		ty.serialize(ValueSerializer)
 	}
 }

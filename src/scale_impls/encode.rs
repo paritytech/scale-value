@@ -29,24 +29,58 @@ use scale_info::{
 	TypeDefComposite, TypeDefPrimitive, TypeDefSequence, TypeDefTuple, TypeDefVariant,
 };
 
+/// An error encoding a [`Value`] into SCALE bytes.
 #[derive(Debug, Clone, thiserror::Error, PartialEq)]
 pub enum EncodeError<T> {
+	/// The composite type we're trying to encode is the wrong length for the type we're trying to encode it into.
 	#[error("Composite type is the wrong length; expected length is {expected_len}, but got {}", actual.len())]
-	CompositeIsWrongLength { actual: Composite<T>, expected: TypeId, expected_len: usize },
+	CompositeIsWrongLength {
+		/// The composite value that is the wrong length.
+		actual: Composite<T>,
+		/// The type we're trying to encode it into.
+		expected: TypeId,
+		/// The length we're expecting our composite type to be to encode properly.
+		expected_len: usize
+	},
+	/// The composite is expected to contain named or unnamed values to encode properly, and the opposite is true.
 	#[error("The composite {actual:?} is not the same shape as the type we're trying to encode to ({expected})")]
-	CompositeIsWrongShape { actual: Composite<T>, expected: TypeId },
-	#[error("Variant type has the wrong number of fields; expected {expected_len} fields, but got {}", actual.values.len())]
-	VariantFieldLengthMismatch { actual: Variant<T>, expected_len: usize },
+	CompositeIsWrongShape {
+		/// The composite value that is the wrong shape.
+		actual: Composite<T>,
+		/// The type we're trying to encode it into.
+		expected: TypeId
+	},
+	/// The variant we're trying to encode was not found in the type we're encoding into.
+	#[error("Variant {} was not found", actual.name)]
+	VariantNotFound {
+		/// The variant type we're trying to encode.
+		actual: Variant<T>,
+		/// The type we're trying to encode it into.
+		expected: TypeId
+	},
+	/// The variant or composite field we're trying to encode is not present in the type we're encoding into.
+	#[error("The field {missing_field_name} is present on the type we're trying to encode to but hasn't been provided")]
+	CompositeFieldIsMissing {
+		/// The name of the composite field we can't find.
+		missing_field_name: String,
+		/// The type we're trying to encode this into.
+		expected: TypeId
+	},
+	/// The type we're trying to encode into cannot be found in the type registry provided.
 	#[error("Cannot find type with ID {0}")]
 	TypeIdNotFound(TypeId),
-	#[error("Value type is wrong; expected type ID {expected}, but got value {actual:?}, which could not be coerced into it")]
-	WrongType { actual: Value<T>, expected: TypeId },
-	#[error("Variant {} was not found", actual.name)]
-	VariantNotFound { actual: Variant<T>, expected: TypeId },
-	#[error("The variant field {missing_field_name} is present on the type we're trying to encode to but hasn't been provided")]
-	VariantFieldIsMissing { missing_field_name: String, expected: TypeId },
+	/// The [`Value`] type we're trying to encode is not the correct shape for the type we're trying to encode it into.
+	#[error("Value shape is wrong; expected type ID {expected}, but got value {actual:?}, which could not be coerced into it")]
+	WrongShape {
+		/// The value we're trying to encode.
+		actual: Value<T>,
+		/// The type we're trying to encode it into.
+		expected: TypeId
+	},
+	/// There was an error trying to encode the bit sequence provided.
 	#[error("Cannot encode bit sequence: {0}")]
 	BitSequenceError(BitSequenceError),
+	/// The type ID given is supposed to be compact encoded, but this is not possible to do automatically.
 	#[error("The type {0} cannot be compact encoded")]
 	CannotCompactEncode(TypeId),
 }
@@ -92,7 +126,7 @@ fn encode_composite_value<T>(
 				// A 1-field composite type? try encoding inner content then.
 				encode_value_as_type(value, ty.fields()[0].ty(), types, bytes)
 			} else {
-				Err(EncodeError::WrongType { actual: value, expected: type_id })
+				Err(EncodeError::WrongShape { actual: value, expected: type_id })
 			}
 		}
 	}
@@ -124,11 +158,11 @@ fn encode_sequence_value<T>(
 			let ty = ty.type_param();
 			for val in a {
 				if encode_value_as_type(Value::u8(val), ty, types, bytes).is_err() {
-					return Err(EncodeError::WrongType { actual: value, expected: type_id });
+					return Err(EncodeError::WrongShape { actual: value, expected: type_id });
 				}
 			}
 		}
-		_ => return Err(EncodeError::WrongType { actual: value, expected: type_id }),
+		_ => return Err(EncodeError::WrongShape { actual: value, expected: type_id }),
 	};
 	Ok(())
 }
@@ -163,17 +197,17 @@ fn encode_array_value<T>(
 		ValueDef::Primitive(Primitive::I256(a) | Primitive::U256(a)) => {
 			let arr_len = ty.len() as usize;
 			if a.len() != arr_len {
-				return Err(EncodeError::WrongType { actual: value, expected: type_id });
+				return Err(EncodeError::WrongShape { actual: value, expected: type_id });
 			}
 
 			let ty = ty.type_param();
 			for val in a {
 				if encode_value_as_type(Value::u8(val), ty, types, bytes).is_err() {
-					return Err(EncodeError::WrongType { actual: value, expected: type_id });
+					return Err(EncodeError::WrongShape { actual: value, expected: type_id });
 				}
 			}
 		}
-		_ => return Err(EncodeError::WrongType { actual: value, expected: type_id }),
+		_ => return Err(EncodeError::WrongShape { actual: value, expected: type_id }),
 	};
 	Ok(())
 }
@@ -207,7 +241,7 @@ fn encode_tuple_value<T>(
 				// A 1-field tuple? try encoding inner content then.
 				encode_value_as_type(value, ty.fields()[0], types, bytes)
 			} else {
-				Err(EncodeError::WrongType { actual: value, expected: type_id })
+				Err(EncodeError::WrongShape { actual: value, expected: type_id })
 			}
 		}
 	}
@@ -222,7 +256,7 @@ fn encode_variant_value<T>(
 ) -> Result<(), EncodeError<T>> {
 	let variant = match value.value {
 		ValueDef::Variant(variant) => variant,
-		_ => return Err(EncodeError::WrongType { actual: value, expected: type_id }),
+		_ => return Err(EncodeError::WrongShape { actual: value, expected: type_id }),
 	};
 
 	let variant_type = ty.variants().iter().find(|v| v.name() == &variant.name);
@@ -244,7 +278,7 @@ fn encode_composite_fields<T>(
 	bytes: &mut Vec<u8>,
 ) -> Result<(), EncodeError<T>> {
 	if fields.len() != composite.len() {
-		return Err(EncodeError::CompositeIsWrongShape { actual: composite, expected: type_id });
+		return Err(EncodeError::CompositeIsWrongLength { actual: composite, expected: type_id, expected_len: fields.len() });
 	}
 
 	// 0 length? Nothing more to do!
@@ -270,7 +304,7 @@ fn encode_composite_fields<T>(
 						encode_value_as_type(value, field.ty(), types, bytes)?;
 					}
 					None => {
-						return Err(EncodeError::VariantFieldIsMissing {
+						return Err(EncodeError::CompositeFieldIsMissing {
 							expected: type_id,
 							missing_field_name: field_name.clone(),
 						})
@@ -300,7 +334,7 @@ macro_rules! primitive_to_integer {
 	($id:ident, $prim:ident, $context:expr => $ty:ident) => {{
 		macro_rules! err {
 			() => {
-				EncodeError::WrongType {
+				EncodeError::WrongShape {
 					actual: Value { context: $context, value: ValueDef::Primitive($prim) },
 					expected: $id,
 				}
@@ -333,7 +367,7 @@ fn encode_primitive_value<T>(
 ) -> Result<(), EncodeError<T>> {
 	let primitive = match value.value {
 		ValueDef::Primitive(primitive) => primitive,
-		_ => return Err(EncodeError::WrongType { actual: value, expected: type_id }),
+		_ => return Err(EncodeError::WrongShape { actual: value, expected: type_id }),
 	};
 
 	// Attempt to encode our value type into the expected shape.
@@ -385,7 +419,7 @@ fn encode_primitive_value<T>(
 			primitive_to_integer!(type_id, primitive, value.context => i128)?.encode_to(bytes);
 		}
 		(_, primitive) => {
-			return Err(EncodeError::WrongType {
+			return Err(EncodeError::WrongShape {
 				// Reconstruct a Value to give back:
 				actual: Value { context: value.context, value: ValueDef::Primitive(primitive) },
 				expected: type_id,
@@ -464,7 +498,7 @@ fn encode_compact_value<T>(
 					if c.len() == 1 {
 						value = c.into_values().next().expect("length of 1; value should exist");
 					} else {
-						return Err(EncodeError::WrongType {
+						return Err(EncodeError::WrongShape {
 							actual: Value { context: value.context, value: ValueDef::Composite(c) },
 							expected: inner_ty_id.into(),
 						});
@@ -472,7 +506,7 @@ fn encode_compact_value<T>(
 				}
 				ValueDef::Primitive(primitive) => break primitive,
 				ValueDef::Variant(_) | ValueDef::BitSequence(_) => {
-					return Err(EncodeError::WrongType {
+					return Err(EncodeError::WrongShape {
 						actual: value,
 						expected: inner_ty_id.into(),
 					})
@@ -523,12 +557,12 @@ fn encode_bitsequence_value<T>(
 			for val in vals {
 				match val.value {
 					ValueDef::Primitive(Primitive::Bool(b)) => bools.push(b),
-					_ => return Err(EncodeError::WrongType { actual: val, expected: type_id }),
+					_ => return Err(EncodeError::WrongShape { actual: val, expected: type_id }),
 				}
 			}
 			bools
 		}
-		_ => return Err(EncodeError::WrongType { actual: value, expected: type_id }),
+		_ => return Err(EncodeError::WrongShape { actual: value, expected: type_id }),
 	};
 
 	// next, turn those bools into a bit sequence of the expected shape.

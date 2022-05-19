@@ -21,11 +21,11 @@ use std::{convert::From, fmt::Debug};
 ///
 /// Not all SCALE encoded types have an similar-named value; for instance, the values corresponding to
 /// sequence, array and composite types can all be represented with [`Composite`]. Only enough information
-/// is preserved here to construct a valid value for any type that we know about, and be able to verify
-/// that a given value is compatible with some type (see the [`scale_info`] crate), if we have both.
+/// is preserved here to to be able to encode and decode SCALE bytes with a known type to and from [`Value`]s
+/// losslessly.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Value<T> {
-	/// The shape and associated values for this Value
+	/// The shape and associated data for this Value
 	pub value: ValueDef<T>,
 	/// Some additional arbitrary context that can be associated with a value.
 	pub context: T,
@@ -309,20 +309,41 @@ impl<T> From<Variant<T>> for ValueDef<T> {
 /// A "primitive" value (this includes strings).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Primitive {
+	/// A boolean value.
 	Bool(bool),
+	/// A single character.
 	Char(char),
+	/// A string.
 	String(String),
+	/// A u8 value.
 	U8(u8),
+	/// A u16 value.
 	U16(u16),
+	/// A u32 value.
 	U32(u32),
+	/// A u64 value.
 	U64(u64),
+	/// A u128 value.
 	U128(u128),
+	/// A u256 value.
+	///
+	/// Rust does not natively support 256bit numbers, and so we store the
+	/// decoded bytes in a 32 byte array.
 	U256([u8; 32]),
+	/// An i8 value.
 	I8(i8),
+	/// An i16 value.
 	I16(i16),
+	/// An i32 value.
 	I32(i32),
+	/// An i64 value.
 	I64(i64),
+	/// An i128 value.
 	I128(i128),
+	/// An i256 value.
+	///
+	/// Rust does not natively support 256bit numbers, and so we store the
+	/// decoded bytes in a 32 byte array.
 	I256([u8; 32]),
 }
 

@@ -30,20 +30,28 @@ use scale_info::{
 	TypeDefComposite, TypeDefPrimitive, TypeDefSequence, TypeDefTuple, TypeDefVariant,
 };
 
+/// An error decoding SCALE bytes into a [`Value`].
 #[derive(Debug, Clone, thiserror::Error, PartialEq)]
 pub enum DecodeError {
+	/// Some error emitted from a [`codec::Decode`] impl.
 	#[error("{0}")]
 	CodecError(#[from] codec::Error),
+	/// We could not convert the [`u32`] that we found into a valid [`char`].
 	#[error("{0} is expected to be a valid char, but is not")]
 	InvalidChar(u32),
+	/// We could not find the type given in the type registry provided.
 	#[error("Cannot find type with ID {0}")]
 	TypeIdNotFound(u32),
+	/// We expected more bytes to finish decoding, but could not find them.
 	#[error("Ran out of data during decoding")]
 	Eof,
+	/// We found a variant that does not match with any in the type we're trying to decode from.
 	#[error("Could not find variant with index {0} in {1:?}")]
 	VariantNotFound(u8, scale_info::TypeDefVariant<PortableForm>),
+	/// The type we're trying to decode is supposed to be compact encoded, but that is not possible.
 	#[error("Could not decode compact encoded type into {0:?}")]
 	CannotDecodeCompactIntoType(Type),
+	/// We ran into an error trying to decode a bit sequence.
 	#[error("Cannot decode bit sequence: {0}")]
 	BitSequenceError(BitSequenceError),
 }

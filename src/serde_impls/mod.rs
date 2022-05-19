@@ -19,6 +19,6 @@ mod deserializer;
 mod serialize;
 mod serializer;
 
-pub use deserializer::Error as DeserializeError;
+pub use deserializer::DeserializerError;
 
-pub use serializer::{Error as SerializeError, ValueSerializer};
+pub use serializer::{SerializerError, ValueSerializer};

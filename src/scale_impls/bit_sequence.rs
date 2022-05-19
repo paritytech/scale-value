@@ -16,16 +16,22 @@
 use super::ScaleTypeDef as TypeDef;
 use scale_info::{form::PortableForm, PortableRegistry, TypeDefBitSequence, TypeDefPrimitive};
 
+/// An error that can occur when we try to encode or decode to a SCALE bit sequence type.
 #[derive(Debug, Clone, thiserror::Error, PartialEq)]
 pub enum BitSequenceError {
+	/// The registry did not contain the bit order type listed.
 	#[error("Bit order type {0} not found in registry")]
 	BitOrderTypeNotFound(u32),
+	/// The registry did not contain the bit store type listed.
 	#[error("Bit store type {0} not found in registry")]
 	BitStoreTypeNotFound(u32),
+	/// The bit order type did not have a valid identifier/name.
 	#[error("Bit order cannot be identified")]
 	NoBitOrderIdent,
+	/// The bit store type that we found was not what we expected (a primitive u8/u16/u32/u64).
 	#[error("Bit store type {0} is not supported")]
 	StoreTypeNotSupported(String),
+	/// The bit order type name that we found was not what we expected ("Lsb0" or "Msb0").
 	#[error("Bit order type {0} is not supported")]
 	OrderTypeNotSupported(String),
 }
