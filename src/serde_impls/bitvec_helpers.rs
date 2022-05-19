@@ -13,11 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! This module implements the [`Deserializer`] (note the 'r') trait on our Value enum.
+//! This module implements the [`serde::Deserializer`] (note the 'r') trait on our Value enum.
 //!
 //! A deserializer is a thing which implements methods like `deserialize_i128`. Each of these
 //! methods serves as a hint about what the thing calling it (probably a thing implementing
-//! [`Deserialize`]) actually wants back. The methods are given a "visitor" which actually accepts
+//! [`serde::Deserialize`]) actually wants back. The methods are given a "visitor" which actually accepts
 //! values back. We might not give the visitor back the value that it hinted that it wanted, but
 //! it's up to the visitor to do its best to accept what it's handed, or reject it if it's simply
 //! not going to work out.

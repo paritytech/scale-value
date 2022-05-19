@@ -58,7 +58,7 @@ pub mod scale {
 		crate::scale_impls::decode_value_as_type(data, ty_id, types)
 	}
 
-	/// Attempt to encode some [`Value<T>`] into SCALE bytes, by providing a pointer to the
+	/// Attempt to encode some [`crate::Value<T>`] into SCALE bytes, by providing a pointer to the
 	/// type ID that we'd like to encode it as, a type registry from which we'll look
 	/// up the relevant type information, and a buffer to encode the bytes to.
 	pub fn encode_as_type<T, Id: Into<TypeId>>(

@@ -19,7 +19,6 @@ mod deserializer;
 mod serialize;
 mod serializer;
 
-/// An opaque error that is returned if we cannot deserialize the [`Value`] type.
 pub use deserializer::Error as DeserializeError;
 
 pub use serializer::{Error as SerializeError, ValueSerializer};
