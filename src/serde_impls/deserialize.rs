@@ -426,11 +426,11 @@ mod test {
 		// composite type as the sequence catch-all:
 		assert_value_to_value(
 			ValueDef::<()>::Primitive(Primitive::I256([1; 32])),
-			Value::unnamed_composite(vec![1; 32].into_iter().map(|b| Value::u8(b)).collect()),
+			Value::unnamed_composite(vec![1; 32].into_iter().map(Value::u8).collect()),
 		);
 		assert_value_to_value(
 			ValueDef::<()>::Primitive(Primitive::U256([1; 32])),
-			Value::unnamed_composite(vec![1; 32].into_iter().map(|b| Value::u8(b)).collect()),
+			Value::unnamed_composite(vec![1; 32].into_iter().map(Value::u8).collect()),
 		);
 
 		// .. that said; if you want a primitive value back, you can use that type directly to get it

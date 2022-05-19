@@ -616,7 +616,7 @@ mod test {
 	#[test]
 	fn chars_encoded_like_numbers() {
 		assert_can_encode_to_type(Value::char('j'), 'j' as u32);
-		assert_can_encode_to_type(Value::char('j'), 'j' as u8);
+		assert_can_encode_to_type(Value::char('j'), b'j');
 	}
 
 	#[test]
@@ -732,7 +732,7 @@ mod test {
 		assert_can_encode_to_type(value.clone(), bitvec![u32, Msb0; 0, 1, 1, 0, 0, 1]);
 
 		assert_can_encode_to_type(value.clone(), bitvec![u64, Lsb0; 0, 1, 1, 0, 0, 1]);
-		assert_can_encode_to_type(value.clone(), bitvec![u64, Msb0; 0, 1, 1, 0, 0, 1]);
+		assert_can_encode_to_type(value, bitvec![u64, Msb0; 0, 1, 1, 0, 0, 1]);
 	}
 
 	#[test]
