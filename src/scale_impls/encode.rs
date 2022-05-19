@@ -40,7 +40,7 @@ pub enum EncodeError<T> {
 		/// The type we're trying to encode it into.
 		expected: TypeId,
 		/// The length we're expecting our composite type to be to encode properly.
-		expected_len: usize
+		expected_len: usize,
 	},
 	/// The composite is expected to contain named or unnamed values to encode properly, and the opposite is true.
 	#[error("The composite {actual:?} is not the same shape as the type we're trying to encode to ({expected})")]
@@ -48,7 +48,7 @@ pub enum EncodeError<T> {
 		/// The composite value that is the wrong shape.
 		actual: Composite<T>,
 		/// The type we're trying to encode it into.
-		expected: TypeId
+		expected: TypeId,
 	},
 	/// The variant we're trying to encode was not found in the type we're encoding into.
 	#[error("Variant {} was not found", actual.name)]
@@ -56,7 +56,7 @@ pub enum EncodeError<T> {
 		/// The variant type we're trying to encode.
 		actual: Variant<T>,
 		/// The type we're trying to encode it into.
-		expected: TypeId
+		expected: TypeId,
 	},
 	/// The variant or composite field we're trying to encode is not present in the type we're encoding into.
 	#[error("The field {missing_field_name} is present on the type we're trying to encode to but hasn't been provided")]
@@ -64,7 +64,7 @@ pub enum EncodeError<T> {
 		/// The name of the composite field we can't find.
 		missing_field_name: String,
 		/// The type we're trying to encode this into.
-		expected: TypeId
+		expected: TypeId,
 	},
 	/// The type we're trying to encode into cannot be found in the type registry provided.
 	#[error("Cannot find type with ID {0}")]
@@ -75,7 +75,7 @@ pub enum EncodeError<T> {
 		/// The value we're trying to encode.
 		actual: Value<T>,
 		/// The type we're trying to encode it into.
-		expected: TypeId
+		expected: TypeId,
 	},
 	/// There was an error trying to encode the bit sequence provided.
 	#[error("Cannot encode bit sequence: {0}")]
@@ -278,7 +278,11 @@ fn encode_composite_fields<T>(
 	bytes: &mut Vec<u8>,
 ) -> Result<(), EncodeError<T>> {
 	if fields.len() != composite.len() {
-		return Err(EncodeError::CompositeIsWrongLength { actual: composite, expected: type_id, expected_len: fields.len() });
+		return Err(EncodeError::CompositeIsWrongLength {
+			actual: composite,
+			expected: type_id,
+			expected_len: fields.len(),
+		});
 	}
 
 	// 0 length? Nothing more to do!

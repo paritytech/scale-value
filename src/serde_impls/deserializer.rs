@@ -455,7 +455,9 @@ impl<'de, T> Deserializer<'de> for Composite<T> {
 		if self.is_empty() {
 			visitor.visit_unit()
 		} else {
-			Err(DeserializerError::from_str("Cannot deserialize non-empty Composite into a unit value"))
+			Err(DeserializerError::from_str(
+				"Cannot deserialize non-empty Composite into a unit value",
+			))
 		}
 	}
 
@@ -487,31 +489,33 @@ impl<'de, T> Deserializer<'de> for Composite<T> {
 	{
 		match self {
 			Composite::Named(values) => {
-				let bytes =
-					values
-						.into_iter()
-						.map(|(_n, v)| {
-							if let ValueDef::Primitive(Primitive::U8(byte)) = v.value {
-								Ok(byte)
-							} else {
-								Err(DeserializerError::from_str("Cannot deserialize composite that is not entirely U8's into bytes"))
-							}
-						})
-						.collect::<Result<_, DeserializerError>>()?;
+				let bytes = values
+					.into_iter()
+					.map(|(_n, v)| {
+						if let ValueDef::Primitive(Primitive::U8(byte)) = v.value {
+							Ok(byte)
+						} else {
+							Err(DeserializerError::from_str(
+								"Cannot deserialize composite that is not entirely U8's into bytes",
+							))
+						}
+					})
+					.collect::<Result<_, DeserializerError>>()?;
 				visitor.visit_byte_buf(bytes)
 			}
 			Composite::Unnamed(values) => {
-				let bytes =
-					values
-						.into_iter()
-						.map(|v| {
-							if let ValueDef::Primitive(Primitive::U8(byte)) = v.value {
-								Ok(byte)
-							} else {
-								Err(DeserializerError::from_str("Cannot deserialize composite that is not entirely U8's into bytes"))
-							}
-						})
-						.collect::<Result<_, DeserializerError>>()?;
+				let bytes = values
+					.into_iter()
+					.map(|v| {
+						if let ValueDef::Primitive(Primitive::U8(byte)) = v.value {
+							Ok(byte)
+						} else {
+							Err(DeserializerError::from_str(
+								"Cannot deserialize composite that is not entirely U8's into bytes",
+							))
+						}
+					})
+					.collect::<Result<_, DeserializerError>>()?;
 				visitor.visit_byte_buf(bytes)
 			}
 		}

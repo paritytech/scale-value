@@ -22,7 +22,7 @@
 //! it's up to the visitor to do its best to accept what it's handed, or reject it if it's simply
 //! not going to work out.
 
-use super::deserializer::DeserializerError as DeserializerError;
+use super::deserializer::DeserializerError;
 use crate::{BitSequence, Composite, ValueDef};
 use serde::{
 	de::{value::MapDeserializer, MapAccess, Visitor},
