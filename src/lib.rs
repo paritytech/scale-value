@@ -16,6 +16,13 @@
 //! This crate exposes the [`Value`] type and related subtypes, which are used as the runtime
 //! representations of SCALE encoded data (much like `serde_json::Value` is a runtime representation
 //! of JSON data).
+//!
+//! Use the [`crate::scale`] module to encode and decode [`Value`]s to SCALE bytes. In most cases, you'll
+//! use this module in conjunction with node metadata so that you have access to a type registry and know
+//! which type you'll want to try and encode or decode your [`Value`] into.
+//!
+//! With the serde feature enabled, you can also use the [`crate::serde`] module to convert rust types to
+//! and from [`Value`]s, or serialize/deserialize them to/from other formats like JSON.
 
 #![deny(missing_docs)]
 
