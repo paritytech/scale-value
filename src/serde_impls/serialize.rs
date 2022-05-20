@@ -73,6 +73,19 @@ impl<T> Serialize for Composite<T> {
 	}
 }
 
+macro_rules! serialize_as_first_ok_type {
+	($serializer:ident $val:ident; $first:ident $($rest:ident)*) => {{
+		let n: Result<$first,_> = $val.try_into();
+		match n {
+			Ok(n) => n.serialize($serializer),
+			Err(_) => serialize_as_first_ok_type!($serializer $val; $($rest)*)
+		}
+	}};
+	($serializer:ident $val:ident;) => {{
+		$val.serialize($serializer)
+	}};
+}
+
 impl Serialize for Primitive {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where
@@ -83,17 +96,19 @@ impl Serialize for Primitive {
 			Primitive::Bool(v) => v.serialize(serializer),
 			Primitive::Char(v) => v.serialize(serializer),
 			Primitive::String(v) => v.serialize(serializer),
-			Primitive::U8(v) => v.serialize(serializer),
-			Primitive::U16(v) => v.serialize(serializer),
-			Primitive::U32(v) => v.serialize(serializer),
-			Primitive::U64(v) => v.serialize(serializer),
-			Primitive::U128(v) => v.serialize(serializer),
+			Primitive::U128(v) => {
+				// Serialize into the smallest type that fits, since formats like
+				// JSON don't like u128's by default.
+				let v = *v;
+				serialize_as_first_ok_type!(serializer v; u8 u16 u32 u64 u128)
+			}
 			Primitive::U256(v) => v.serialize(serializer),
-			Primitive::I8(v) => v.serialize(serializer),
-			Primitive::I16(v) => v.serialize(serializer),
-			Primitive::I32(v) => v.serialize(serializer),
-			Primitive::I64(v) => v.serialize(serializer),
-			Primitive::I128(v) => v.serialize(serializer),
+			Primitive::I128(v) => {
+				// Serialize into the smallest type that fits, since formats like
+				// JSON don't like i128's by default.
+				let v = *v;
+				serialize_as_first_ok_type!(serializer v; i8 i16 i32 i64 i128)
+			}
 			Primitive::I256(v) => v.serialize(serializer),
 		}
 	}
@@ -129,10 +144,7 @@ mod test {
 	#[test]
 	fn serialize_primitives() {
 		// a subset of the primitives to sanity check that they are unwrapped:
-		assert_value(Value::u8(1), json!(1));
-		assert_value(Value::u16(1), json!(1));
-		assert_value(Value::u32(1), json!(1));
-		assert_value(Value::u64(1), json!(1));
+		assert_value(Value::uint(1u8), json!(1));
 		assert_value(Value::bool(true), json!(true));
 		assert_value(Value::bool(false), json!(false));
 	}

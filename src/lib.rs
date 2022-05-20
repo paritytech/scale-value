@@ -48,9 +48,9 @@ pub mod serde {
 	/// use scale_value::Value;
 	///
 	/// let value = Value::unnamed_composite(vec![
-	///     Value::u8(1),
-	///     Value::u8(2),
-	///     Value::u8(3),
+	///     Value::uint(1u8),
+	///     Value::uint(2u8),
+	///     Value::uint(3u8),
 	/// ]);
 	///
 	/// let arr: [u8; 3] = scale_value::serde::from_value(value).unwrap();
@@ -76,7 +76,7 @@ pub mod serde {
 	/// assert_eq!(foo1, Foo::A { is_valid: true, name: "James".into() });
 	///
 	/// let value2 = Value::unnamed_variant("B", vec![
-	///     Value::u8(123),
+	///     Value::uint(123u8),
 	///     Value::bool(true),
 	/// ]);
 	/// let foo2: Foo = scale_value::serde::from_value(value2).unwrap();
@@ -101,9 +101,9 @@ pub mod serde {
 	///
 	/// let val = scale_value::serde::to_value(arr).unwrap();
 	/// assert_eq!(val, Value::unnamed_composite(vec![
-	///     Value::u8(1),
-	///     Value::u8(2),
-	///     Value::u8(3),
+	///     Value::uint(1u8),
+	///     Value::uint(2u8),
+	///     Value::uint(3u8),
 	/// ]));
 	/// ```
 	///

@@ -190,17 +190,17 @@ fn decode_primitive_value(
 			Primitive::Char(char::from_u32(val).ok_or(DecodeError::InvalidChar(val))?)
 		}
 		TypeDefPrimitive::Str => Primitive::String(String::decode(data)?),
-		TypeDefPrimitive::U8 => Primitive::U8(u8::decode(data)?),
-		TypeDefPrimitive::U16 => Primitive::U16(u16::decode(data)?),
-		TypeDefPrimitive::U32 => Primitive::U32(u32::decode(data)?),
-		TypeDefPrimitive::U64 => Primitive::U64(u64::decode(data)?),
-		TypeDefPrimitive::U128 => Primitive::U128(u128::decode(data)?),
+		TypeDefPrimitive::U8 => Primitive::uint(u8::decode(data)?),
+		TypeDefPrimitive::U16 => Primitive::uint(u16::decode(data)?),
+		TypeDefPrimitive::U32 => Primitive::uint(u32::decode(data)?),
+		TypeDefPrimitive::U64 => Primitive::uint(u64::decode(data)?),
+		TypeDefPrimitive::U128 => Primitive::uint(u128::decode(data)?),
 		TypeDefPrimitive::U256 => Primitive::U256(<[u8; 32]>::decode(data)?),
-		TypeDefPrimitive::I8 => Primitive::I8(i8::decode(data)?),
-		TypeDefPrimitive::I16 => Primitive::I16(i16::decode(data)?),
-		TypeDefPrimitive::I32 => Primitive::I32(i32::decode(data)?),
-		TypeDefPrimitive::I64 => Primitive::I64(i64::decode(data)?),
-		TypeDefPrimitive::I128 => Primitive::I128(i128::decode(data)?),
+		TypeDefPrimitive::I8 => Primitive::int(i8::decode(data)?),
+		TypeDefPrimitive::I16 => Primitive::int(i16::decode(data)?),
+		TypeDefPrimitive::I32 => Primitive::int(i32::decode(data)?),
+		TypeDefPrimitive::I64 => Primitive::int(i64::decode(data)?),
+		TypeDefPrimitive::I128 => Primitive::int(i128::decode(data)?),
 		TypeDefPrimitive::I256 => Primitive::I256(<[u8; 32]>::decode(data)?),
 	};
 	Ok(val)
@@ -220,19 +220,19 @@ fn decode_compact_value(
 		let val = match inner.type_def() {
 			// It's obvious how to decode basic primitive unsigned types, since we have impls for them.
 			TypeDef::Primitive(U8) => {
-				ValueDef::Primitive(Primitive::U8(Compact::<u8>::decode(data)?.0))
+				ValueDef::Primitive(Primitive::uint(Compact::<u8>::decode(data)?.0))
 			}
 			TypeDef::Primitive(U16) => {
-				ValueDef::Primitive(Primitive::U16(Compact::<u16>::decode(data)?.0))
+				ValueDef::Primitive(Primitive::uint(Compact::<u16>::decode(data)?.0))
 			}
 			TypeDef::Primitive(U32) => {
-				ValueDef::Primitive(Primitive::U32(Compact::<u32>::decode(data)?.0))
+				ValueDef::Primitive(Primitive::uint(Compact::<u32>::decode(data)?.0))
 			}
 			TypeDef::Primitive(U64) => {
-				ValueDef::Primitive(Primitive::U64(Compact::<u64>::decode(data)?.0))
+				ValueDef::Primitive(Primitive::uint(Compact::<u64>::decode(data)?.0))
 			}
 			TypeDef::Primitive(U128) => {
-				ValueDef::Primitive(Primitive::U128(Compact::<u128>::decode(data)?.0))
+				ValueDef::Primitive(Primitive::uint(Compact::<u128>::decode(data)?.0))
 			}
 			// A struct with exactly 1 field containing one of the above types can be sensibly compact encoded/decoded.
 			TypeDef::Composite(composite) => {
@@ -357,19 +357,21 @@ mod test {
 			"hello".to_string(), // String or &str (above) decode OK
 			Value::string("hello"),
 		);
-		encode_decode_check(123u8, Value::u8(123));
-		encode_decode_check(123u16, Value::u16(123));
-		encode_decode_check(123u32, Value::u32(123));
-		encode_decode_check(123u64, Value::u64(123));
+		encode_decode_check(123u8, Value::uint(123u8));
+		encode_decode_check(123u16, Value::uint(123u8));
+		encode_decode_check(123u32, Value::uint(123u8));
+		encode_decode_check(123u64, Value::uint(123u8));
+		encode_decode_check(123u128, Value::uint(123u8));
 		//// Todo [jsdw]: Can we test this if we need a TypeInfo param?:
 		// encode_decode_check_explicit_info(
 		// 	[123u8; 32], // Anything 32 bytes long will do here
 		// 	Value::u256([123u8; 32]),
 		// );
-		encode_decode_check(123i8, Value::i8(123));
-		encode_decode_check(123i16, Value::i16(123));
-		encode_decode_check(123i32, Value::i32(123));
-		encode_decode_check(123i64, Value::i64(123));
+		encode_decode_check(123i8, Value::int(123i16));
+		encode_decode_check(123i16, Value::int(123i16));
+		encode_decode_check(123i32, Value::int(123i16));
+		encode_decode_check(123i64, Value::int(123i16));
+		encode_decode_check(123i128, Value::int(123i16));
 		//// Todo [jsdw]: Can we test this if we need a TypeInfo param?:
 		// encode_decode_check_explicit_info(
 		// 	[123u8; 32], // Anything 32 bytes long will do here
@@ -379,11 +381,11 @@ mod test {
 
 	#[test]
 	fn decode_compact_primitives() {
-		encode_decode_check(Compact(123u8), Value::u8(123));
-		encode_decode_check(Compact(123u16), Value::u16(123));
-		encode_decode_check(Compact(123u32), Value::u32(123));
-		encode_decode_check(Compact(123u64), Value::u64(123));
-		encode_decode_check(Compact(123u128), Value::u128(123));
+		encode_decode_check(Compact(123u8), Value::uint(123u8));
+		encode_decode_check(Compact(123u16), Value::uint(123u8));
+		encode_decode_check(Compact(123u32), Value::uint(123u8));
+		encode_decode_check(Compact(123u64), Value::uint(123u8));
+		encode_decode_check(Compact(123u128), Value::uint(123u8));
 	}
 
 	#[test]
@@ -411,7 +413,7 @@ mod test {
 
 		encode_decode_check(
 			Compact(MyWrapper { inner: 123 }),
-			Value::named_composite(vec![("inner".to_string(), Value::u32(123))]),
+			Value::named_composite(vec![("inner".to_string(), Value::uint(123u8))]),
 		);
 	}
 
@@ -443,7 +445,7 @@ mod test {
 
 		encode_decode_check(
 			Compact(MyWrapper(123)),
-			Value::unnamed_composite(vec![Value::u32(123)]),
+			Value::unnamed_composite(vec![Value::uint(123u8)]),
 		);
 	}
 
@@ -451,15 +453,19 @@ mod test {
 	fn decode_sequence_array_tuple_types() {
 		encode_decode_check(
 			vec![1i32, 2, 3],
-			Value::unnamed_composite(vec![Value::i32(1), Value::i32(2), Value::i32(3)]),
+			Value::unnamed_composite(vec![Value::int(1), Value::int(2), Value::int(3)]),
 		);
 		encode_decode_check(
 			[1i32, 2, 3], // compile-time length known
-			Value::unnamed_composite(vec![Value::i32(1), Value::i32(2), Value::i32(3)]),
+			Value::unnamed_composite(vec![Value::int(1), Value::int(2), Value::int(3)]),
 		);
 		encode_decode_check(
 			(1i32, true, 123456u128),
-			Value::unnamed_composite(vec![Value::i32(1), Value::bool(true), Value::u128(123456)]),
+			Value::unnamed_composite(vec![
+				Value::int(1),
+				Value::bool(true),
+				Value::uint(123456u32),
+			]),
 		);
 	}
 
@@ -481,7 +487,7 @@ mod test {
 				"Bar",
 				vec![
 					("hi".to_string(), Value::string("hello".to_string())),
-					("other".to_string(), Value::u128(123)),
+					("other".to_string(), Value::uint(123u8)),
 				],
 			),
 		);
@@ -504,7 +510,11 @@ mod test {
 			Value::unnamed_composite(vec![
 				Value::bool(true),
 				Value::string("James".to_string()),
-				Value::unnamed_composite(vec![Value::u8(1), Value::u8(2), Value::u8(3)]),
+				Value::unnamed_composite(vec![
+					Value::uint(1u8),
+					Value::uint(2u8),
+					Value::uint(3u8),
+				]),
 			]),
 		);
 		encode_decode_check(
@@ -514,7 +524,11 @@ mod test {
 				("name".into(), Value::string("James".to_string())),
 				(
 					"bytes".into(),
-					Value::unnamed_composite(vec![Value::u8(1), Value::u8(2), Value::u8(3)]),
+					Value::unnamed_composite(vec![
+						Value::uint(1u8),
+						Value::uint(2u8),
+						Value::uint(3u8),
+					]),
 				),
 			]),
 		);

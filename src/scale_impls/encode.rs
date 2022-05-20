@@ -157,7 +157,7 @@ fn encode_sequence_value<T>(
 			Compact(a.len() as u64).encode_to(bytes);
 			let ty = ty.type_param();
 			for val in a {
-				if encode_value_as_type(Value::u8(val), ty, types, bytes).is_err() {
+				if encode_value_as_type(Value::uint(val), ty, types, bytes).is_err() {
 					return Err(EncodeError::WrongShape { actual: value, expected: type_id });
 				}
 			}
@@ -202,7 +202,7 @@ fn encode_array_value<T>(
 
 			let ty = ty.type_param();
 			for val in a {
-				if encode_value_as_type(Value::u8(val), ty, types, bytes).is_err() {
+				if encode_value_as_type(Value::uint(val), ty, types, bytes).is_err() {
 					return Err(EncodeError::WrongShape { actual: value, expected: type_id });
 				}
 			}
@@ -345,15 +345,7 @@ macro_rules! primitive_to_integer {
 			};
 		}
 		let out: Result<$ty, _> = match $prim {
-			Primitive::U8(v) => v.try_into().map_err(|_| err!()),
-			Primitive::U16(v) => v.try_into().map_err(|_| err!()),
-			Primitive::U32(v) => v.try_into().map_err(|_| err!()),
-			Primitive::U64(v) => v.try_into().map_err(|_| err!()),
 			Primitive::U128(v) => v.try_into().map_err(|_| err!()),
-			Primitive::I8(v) => v.try_into().map_err(|_| err!()),
-			Primitive::I16(v) => v.try_into().map_err(|_| err!()),
-			Primitive::I32(v) => v.try_into().map_err(|_| err!()),
-			Primitive::I64(v) => v.try_into().map_err(|_| err!()),
 			Primitive::I128(v) => v.try_into().map_err(|_| err!()),
 			// Treat chars as u32s to mirror what we do for decoding:
 			Primitive::Char(v) => (v as u32).try_into().map_err(|_| err!()),
@@ -631,17 +623,17 @@ mod test {
 
 	#[test]
 	fn can_encode_basic_primitive_values() {
-		assert_can_encode_to_type(Value::i8(123), 123i8);
-		assert_can_encode_to_type(Value::i16(123), 123i16);
-		assert_can_encode_to_type(Value::i32(123), 123i32);
-		assert_can_encode_to_type(Value::i64(123), 123i64);
-		assert_can_encode_to_type(Value::i128(123), 123i128);
+		assert_can_encode_to_type(Value::int(123), 123i8);
+		assert_can_encode_to_type(Value::int(123), 123i16);
+		assert_can_encode_to_type(Value::int(123), 123i32);
+		assert_can_encode_to_type(Value::int(123), 123i64);
+		assert_can_encode_to_type(Value::int(123), 123i128);
 
-		assert_can_encode_to_type(Value::u8(123), 123u8);
-		assert_can_encode_to_type(Value::u16(123), 123u16);
-		assert_can_encode_to_type(Value::u32(123), 123u32);
-		assert_can_encode_to_type(Value::u64(123), 123u64);
-		assert_can_encode_to_type(Value::u128(123), 123u128);
+		assert_can_encode_to_type(Value::uint(123u8), 123u8);
+		assert_can_encode_to_type(Value::uint(123u8), 123u16);
+		assert_can_encode_to_type(Value::uint(123u8), 123u32);
+		assert_can_encode_to_type(Value::uint(123u8), 123u64);
+		assert_can_encode_to_type(Value::uint(123u8), 123u128);
 
 		assert_can_encode_to_type(Value::bool(true), true);
 		assert_can_encode_to_type(Value::bool(false), false);
@@ -675,10 +667,10 @@ mod test {
 	#[test]
 	fn can_encode_arrays() {
 		let value = Value::unnamed_composite(vec![
-			Value::u16(1),
-			Value::u16(2),
-			Value::u16(3),
-			Value::u16(4),
+			Value::uint(1u8),
+			Value::uint(2u8),
+			Value::uint(3u8),
+			Value::uint(4u8),
 		]);
 		assert_can_encode_to_type(value, [1u16, 2, 3, 4]);
 	}
@@ -704,7 +696,7 @@ mod test {
 		let unnamed_value = Value::unnamed_variant(
 			"Unnamed",
 			vec![
-				Value::u64(123),
+				Value::uint(123u8),
 				Value::unnamed_composite(vec![
 					Value::bool(true),
 					Value::bool(false),
@@ -774,17 +766,20 @@ mod test {
 
 	#[test]
 	fn can_encode_to_compact_types() {
-		assert_can_encode_to_type(Value::u8(123), Compact(123u64));
-		assert_can_encode_to_type(Value::u16(123), Compact(123u64));
-		assert_can_encode_to_type(Value::u32(123), Compact(123u64));
-		assert_can_encode_to_type(Value::u64(123), Compact(123u64));
+		assert_can_encode_to_type(Value::uint(123u8), Compact(123u64));
+		assert_can_encode_to_type(Value::uint(123u8), Compact(123u64));
+		assert_can_encode_to_type(Value::uint(123u8), Compact(123u64));
+		assert_can_encode_to_type(Value::uint(123u8), Compact(123u64));
 
 		// As a special case, as long as ultimately we have a primitive value, we can compact encode it:
-		assert_can_encode_to_type(Value::unnamed_composite(vec![Value::u64(123)]), Compact(123u64));
+		assert_can_encode_to_type(
+			Value::unnamed_composite(vec![Value::uint(123u8)]),
+			Compact(123u64),
+		);
 		assert_can_encode_to_type(
 			Value::unnamed_composite(vec![Value::named_composite(vec![(
 				"foo".to_string(),
-				Value::u64(123),
+				Value::uint(123u8),
 			)])]),
 			Compact(123u64),
 		);

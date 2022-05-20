@@ -192,6 +192,22 @@ macro_rules! delegate_except_bitseq {
     }
 }
 
+macro_rules! delegate_method {
+	($name:ident $ty:ident) => {
+		fn $name<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+		where
+			V: serde::de::Visitor<'de>,
+		{
+			delegate_except_bitseq! { $name(self, visitor),
+				seq => {
+					let map = bitvec_helpers::map_access(seq);
+					visitor.visit_map(map)
+				}
+			}
+		}
+	};
+}
+
 // The goal here is simply to forward deserialization methods of interest to
 // the relevant subtype. The exception is our BitSequence type, which doesn't
 // have a sub type to forward to and so is handled here.
@@ -209,6 +225,23 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 			}
 		}
 	}
+
+	delegate_method!(deserialize_u8 u8);
+	delegate_method!(deserialize_u16 u16);
+	delegate_method!(deserialize_u32 u32);
+	delegate_method!(deserialize_u64 u64);
+	delegate_method!(deserialize_u128 u128);
+	delegate_method!(deserialize_i8 i8);
+	delegate_method!(deserialize_i16 i16);
+	delegate_method!(deserialize_i32 i32);
+	delegate_method!(deserialize_i64 i64);
+	delegate_method!(deserialize_i128 i128);
+	delegate_method!(deserialize_bool bool);
+	delegate_method!(deserialize_f32 f32);
+	delegate_method!(deserialize_f64 f64);
+	delegate_method!(deserialize_char char);
+	delegate_method!(deserialize_str str);
+	delegate_method!(deserialize_string String);
 
 	fn deserialize_newtype_struct<V>(
 		self,
@@ -362,7 +395,6 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	// None of the sub types particularly care about these, so we just allow them to forward to
 	// deserialize_any and go from there.
 	forward_to_deserialize_any! {
-		bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
 		struct identifier ignored_any
 	}
 }
@@ -487,38 +519,20 @@ impl<'de, T> Deserializer<'de> for Composite<T> {
 	where
 		V: de::Visitor<'de>,
 	{
-		match self {
-			Composite::Named(values) => {
-				let bytes = values
-					.into_iter()
-					.map(|(_n, v)| {
-						if let ValueDef::Primitive(Primitive::U8(byte)) = v.value {
-							Ok(byte)
-						} else {
-							Err(DeserializerError::from_str(
-								"Cannot deserialize composite that is not entirely U8's into bytes",
-							))
-						}
-					})
-					.collect::<Result<_, DeserializerError>>()?;
-				visitor.visit_byte_buf(bytes)
-			}
-			Composite::Unnamed(values) => {
-				let bytes = values
-					.into_iter()
-					.map(|v| {
-						if let ValueDef::Primitive(Primitive::U8(byte)) = v.value {
-							Ok(byte)
-						} else {
-							Err(DeserializerError::from_str(
-								"Cannot deserialize composite that is not entirely U8's into bytes",
-							))
-						}
-					})
-					.collect::<Result<_, DeserializerError>>()?;
-				visitor.visit_byte_buf(bytes)
+		let mut bytes: Vec<u8> = Vec::new();
+		for v in self.into_values() {
+			if let ValueDef::Primitive(Primitive::U128(n)) = v.value {
+				let byte = n
+					.try_into()
+					.map_err(|_| DeserializerError::from_str("Cannot deserialize composite that is not entirely U8's into bytes (number out of range)"))?;
+				bytes.push(byte);
+			} else {
+				return Err(DeserializerError::from_str(
+					"Cannot deserialize composite that is not entirely U8's into bytes (non-numeric values encountered)",
+				));
 			}
 		}
+		visitor.visit_byte_buf(bytes)
 	}
 
 	fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -706,6 +720,27 @@ impl<'de, T> EnumAccess<'de> for Variant<T> {
 	}
 }
 
+macro_rules! deserialize_number {
+	($name:ident $visit_fn:ident) => {
+		fn $name<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+		where
+			V: de::Visitor<'de>,
+		{
+			match self {
+				Primitive::U128(n) => match n.try_into() {
+					Ok(val) => visitor.$visit_fn(val),
+					Err(_) => self.deserialize_any(visitor),
+				},
+				Primitive::I128(n) => match n.try_into() {
+					Ok(val) => visitor.$visit_fn(val),
+					Err(_) => self.deserialize_any(visitor),
+				},
+				_ => self.deserialize_any(visitor),
+			}
+		}
+	};
+}
+
 impl<'de> Deserializer<'de> for Primitive {
 	type Error = DeserializerError;
 
@@ -717,20 +752,27 @@ impl<'de> Deserializer<'de> for Primitive {
 			Primitive::Bool(v) => visitor.visit_bool(v),
 			Primitive::Char(v) => visitor.visit_char(v),
 			Primitive::String(v) => visitor.visit_string(v),
-			Primitive::U8(v) => visitor.visit_u8(v),
-			Primitive::U16(v) => visitor.visit_u16(v),
-			Primitive::U32(v) => visitor.visit_u32(v),
-			Primitive::U64(v) => visitor.visit_u64(v),
 			Primitive::U128(v) => visitor.visit_u128(v),
 			Primitive::U256(v) => visitor.visit_bytes(&v),
-			Primitive::I8(v) => visitor.visit_i8(v),
-			Primitive::I16(v) => visitor.visit_i16(v),
-			Primitive::I32(v) => visitor.visit_i32(v),
-			Primitive::I64(v) => visitor.visit_i64(v),
 			Primitive::I128(v) => visitor.visit_i128(v),
 			Primitive::I256(v) => visitor.visit_bytes(&v),
 		}
 	}
+
+	// if we're asked to deserialize into some numeric type,
+	// we do our best to visit that same type with a value, but
+	// if we can't coerce our value to it, we fall back to
+	// deserialize_any.
+	deserialize_number!(deserialize_u8 visit_u8);
+	deserialize_number!(deserialize_u16 visit_u16);
+	deserialize_number!(deserialize_u32 visit_u32);
+	deserialize_number!(deserialize_u64 visit_u64);
+	deserialize_number!(deserialize_u128 visit_u128);
+	deserialize_number!(deserialize_i8 visit_i8);
+	deserialize_number!(deserialize_i16 visit_i16);
+	deserialize_number!(deserialize_i32 visit_i32);
+	deserialize_number!(deserialize_i64 visit_i64);
+	deserialize_number!(deserialize_i128 visit_i128);
 
 	fn deserialize_newtype_struct<V>(
 		self,
@@ -744,7 +786,7 @@ impl<'de> Deserializer<'de> for Primitive {
 	}
 
 	forward_to_deserialize_any! {
-		bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+		bool f32 f64 char str string
 		bytes byte_buf option unit unit_struct seq tuple
 		tuple_struct map struct enum identifier ignored_any
 	}
@@ -773,7 +815,7 @@ mod test {
 		let val = ValueDef::Composite(Composite::Named(vec![
 			// Order shouldn't matter; match on names:
 			("b".into(), Value::bool(true)),
-			("a".into(), Value::u8(123)),
+			("a".into(), Value::uint(123u8)),
 		]));
 
 		assert_eq!(Foo::deserialize(val), Ok(Foo { a: 123, b: true }))
@@ -790,7 +832,7 @@ mod test {
 		let val = Composite::Named(vec![
 			// Order shouldn't matter; match on names:
 			("b".into(), Value::bool(true)),
-			("a".into(), Value::u8(123)),
+			("a".into(), Value::uint(123u8)),
 		]);
 
 		assert_eq!(Foo::deserialize(val), Ok(Foo { a: 123, b: true }))
@@ -802,7 +844,7 @@ mod test {
 		struct Foo(u8, bool, String);
 
 		let val = ValueDef::Composite(Composite::Unnamed(vec![
-			Value::u8(123),
+			Value::uint(123u8),
 			Value::bool(true),
 			Value::string("hello"),
 		]));
@@ -816,7 +858,7 @@ mod test {
 		struct Foo(u8, bool, String);
 
 		let val =
-			Composite::Unnamed(vec![Value::u8(123), Value::bool(true), Value::string("hello")]);
+			Composite::Unnamed(vec![Value::uint(123u8), Value::bool(true), Value::string("hello")]);
 
 		assert_eq!(Foo::deserialize(val), Ok(Foo(123, true, "hello".into())))
 	}
@@ -832,8 +874,11 @@ mod test {
 
 		#[derive(Deserialize, Debug, PartialEq)]
 		struct FooVecU8(Vec<u8>);
-		let val =
-			ValueDef::Composite(Composite::Unnamed(vec![Value::u8(1), Value::u8(2), Value::u8(3)]));
+		let val = ValueDef::Composite(Composite::Unnamed(vec![
+			Value::uint(1u8),
+			Value::uint(2u8),
+			Value::uint(3u8),
+		]));
 		assert_eq!(FooVecU8::deserialize(val), Ok(FooVecU8(vec![1, 2, 3])));
 
 		#[derive(Deserialize, Debug, PartialEq)]
@@ -844,7 +889,7 @@ mod test {
 		struct FooVar(MyEnum);
 		let val = ValueDef::Variant(Variant {
 			name: "Foo".into(),
-			values: Composite::Unnamed(vec![Value::u8(1), Value::u8(2), Value::u8(3)]),
+			values: Composite::Unnamed(vec![Value::uint(1u8), Value::uint(2u8), Value::uint(3u8)]),
 		});
 		assert_eq!(FooVar::deserialize(val), Ok(FooVar(MyEnum::Foo(1, 2, 3))));
 	}
@@ -858,7 +903,7 @@ mod test {
 
 		#[derive(Deserialize, Debug, PartialEq)]
 		struct FooVecU8(Vec<u8>);
-		let val = Composite::Unnamed(vec![Value::u8(1), Value::u8(2), Value::u8(3)]);
+		let val = Composite::Unnamed(vec![Value::uint(1u8), Value::uint(2u8), Value::uint(3u8)]);
 		assert_eq!(FooVecU8::deserialize(val), Ok(FooVecU8(vec![1, 2, 3])));
 
 		#[derive(Deserialize, Debug, PartialEq)]
@@ -869,15 +914,18 @@ mod test {
 		struct FooVar(MyEnum);
 		let val = Variant {
 			name: "Foo".into(),
-			values: Composite::Unnamed(vec![Value::u8(1), Value::u8(2), Value::u8(3)]),
+			values: Composite::Unnamed(vec![Value::uint(1u8), Value::uint(2u8), Value::uint(3u8)]),
 		};
 		assert_eq!(FooVar::deserialize(val), Ok(FooVar(MyEnum::Foo(1, 2, 3))));
 	}
 
 	#[test]
 	fn de_into_vec() {
-		let val =
-			ValueDef::Composite(Composite::Unnamed(vec![Value::u8(1), Value::u8(2), Value::u8(3)]));
+		let val = ValueDef::Composite(Composite::Unnamed(vec![
+			Value::uint(1u8),
+			Value::uint(2u8),
+			Value::uint(3u8),
+		]));
 		assert_eq!(<Vec<u8>>::deserialize(val), Ok(vec![1, 2, 3]));
 
 		let val = ValueDef::Composite(Composite::Unnamed(vec![
@@ -890,13 +938,13 @@ mod test {
 
 	#[test]
 	fn de_unwrapped_into_vec() {
-		let val = Composite::Unnamed(vec![Value::u8(1), Value::u8(2), Value::u8(3)]);
+		let val = Composite::Unnamed(vec![Value::uint(1u8), Value::uint(2u8), Value::uint(3u8)]);
 		assert_eq!(<Vec<u8>>::deserialize(val), Ok(vec![1, 2, 3]));
 
 		let val = Composite::Named(vec![
-			("a".into(), Value::u8(1)),
-			("b".into(), Value::u8(2)),
-			("c".into(), Value::u8(3)),
+			("a".into(), Value::uint(1u8)),
+			("b".into(), Value::uint(2u8)),
+			("c".into(), Value::uint(3u8)),
 		]);
 		assert_eq!(<Vec<u8>>::deserialize(val), Ok(vec![1, 2, 3]));
 
@@ -910,17 +958,20 @@ mod test {
 		use std::collections::HashMap;
 
 		let val = ValueDef::Composite(Composite::Named(vec![
-			("a".into(), Value::u8(1)),
-			("b".into(), Value::u8(2)),
-			("c".into(), Value::u8(3)),
+			("a".into(), Value::uint(1u8)),
+			("b".into(), Value::uint(2u8)),
+			("c".into(), Value::uint(3u8)),
 		]));
 		assert_eq!(
 			<HashMap<String, u8>>::deserialize(val),
 			Ok(vec![("a".into(), 1), ("b".into(), 2), ("c".into(), 3)].into_iter().collect())
 		);
 
-		let val =
-			ValueDef::Composite(Composite::Unnamed(vec![Value::u8(1), Value::u8(2), Value::u8(3)]));
+		let val = ValueDef::Composite(Composite::Unnamed(vec![
+			Value::uint(1u8),
+			Value::uint(2u8),
+			Value::uint(3u8),
+		]));
 		<HashMap<String, u8>>::deserialize(val).expect_err("no names; can't be map");
 	}
 
@@ -957,7 +1008,7 @@ mod test {
 		let val = ValueDef::Composite(Composite::Unnamed(vec![
 			Value::string("hello"),
 			Value::bool(true),
-			Value::u8(123),
+			Value::uint(123u8),
 		]));
 		<(String, bool)>::deserialize(val).expect_err("Wrong length, should err");
 	}
@@ -976,7 +1027,7 @@ mod test {
 
 		// Wrong number of values should fail:
 		let val =
-			Composite::Unnamed(vec![Value::string("hello"), Value::bool(true), Value::u8(123)]);
+			Composite::Unnamed(vec![Value::string("hello"), Value::bool(true), Value::uint(123u8)]);
 		<(String, bool)>::deserialize(val).expect_err("Wrong length, should err");
 	}
 
@@ -1007,7 +1058,7 @@ mod test {
 			values: Composite::Unnamed(vec![
 				Value::string("hello"),
 				Value::bool(true),
-				Value::u8(123),
+				Value::uint(123u8),
 			]),
 		});
 		assert_eq!(MyEnum::deserialize(val), Ok(MyEnum::Foo("hello".into(), true, 123)));
@@ -1018,7 +1069,7 @@ mod test {
 			values: Composite::Named(vec![
 				("a".into(), Value::string("hello")),
 				("b".into(), Value::bool(true)),
-				("c".into(), Value::u8(123)),
+				("c".into(), Value::uint(123u8)),
 			]),
 		});
 		assert_eq!(MyEnum::deserialize(val), Ok(MyEnum::Foo("hello".into(), true, 123)));
@@ -1036,7 +1087,7 @@ mod test {
 			values: Composite::Unnamed(vec![
 				Value::string("hello"),
 				Value::bool(true),
-				Value::u8(123),
+				Value::uint(123u8),
 			]),
 		};
 		assert_eq!(MyEnum::deserialize(val), Ok(MyEnum::Foo("hello".into(), true, 123)));
@@ -1047,7 +1098,7 @@ mod test {
 			values: Composite::Named(vec![
 				("a".into(), Value::string("hello")),
 				("b".into(), Value::bool(true)),
-				("c".into(), Value::u8(123)),
+				("c".into(), Value::uint(123u8)),
 			]),
 		};
 		assert_eq!(MyEnum::deserialize(val), Ok(MyEnum::Foo("hello".into(), true, 123)));
@@ -1065,7 +1116,7 @@ mod test {
 			name: "Foo".into(),
 			values: Composite::Named(vec![
 				// Deliberately out of order: names should ensure alignment:
-				("b".into(), Value::u8(123)),
+				("b".into(), Value::uint(123u8)),
 				("a".into(), Value::bool(true)),
 				("hi".into(), Value::string("hello")),
 			]),
@@ -1081,7 +1132,7 @@ mod test {
 			values: Composite::Unnamed(vec![
 				Value::string("hello"),
 				Value::bool(true),
-				Value::u8(123),
+				Value::uint(123u8),
 			]),
 		});
 		assert_eq!(
@@ -1094,7 +1145,7 @@ mod test {
 			name: "Foo".into(),
 			values: Composite::Unnamed(vec![
 				Value::bool(true),
-				Value::u8(123),
+				Value::uint(123u8),
 				Value::string("hello"),
 			]),
 		});
@@ -1104,7 +1155,7 @@ mod test {
 		let val = ValueDef::Variant(Variant {
 			name: "Foo".into(),
 			values: Composite::Named(vec![
-				("b".into(), Value::u8(123)),
+				("b".into(), Value::uint(123u8)),
 				// Whoops; wrong name:
 				("c".into(), Value::bool(true)),
 				("hi".into(), Value::string("hello")),
@@ -1116,8 +1167,8 @@ mod test {
 		let val = ValueDef::Variant(Variant {
 			name: "Foo".into(),
 			values: Composite::Named(vec![
-				("foo".into(), Value::u8(40)),
-				("b".into(), Value::u8(123)),
+				("foo".into(), Value::uint(40u8)),
+				("b".into(), Value::uint(123u8)),
 				("a".into(), Value::bool(true)),
 				("bar".into(), Value::bool(false)),
 				("hi".into(), Value::string("hello")),

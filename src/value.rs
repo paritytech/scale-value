@@ -31,15 +31,6 @@ pub struct Value<T = ()> {
 	pub context: T,
 }
 
-macro_rules! value_prim_method {
-	($name:ident $variant:ident) => {
-		#[doc = concat!("Create a new `", stringify!($name), "` value without additional context")]
-		pub fn $name(val: $name) -> Value<()> {
-			Value { value: ValueDef::Primitive(Primitive::$variant(val)), context: () }
-		}
-	};
-}
-
 impl Value<()> {
 	/// Create a new named composite value without additional context.
 	pub fn named_composite(values: Vec<(String, Value<()>)>) -> Value<()> {
@@ -73,19 +64,22 @@ impl Value<()> {
 	pub fn string<S: Into<String>>(val: S) -> Value<()> {
 		Value { value: ValueDef::Primitive(Primitive::String(val.into())), context: () }
 	}
-
-	value_prim_method!(bool Bool);
-	value_prim_method!(char Char);
-	value_prim_method!(u8 U8);
-	value_prim_method!(u16 U16);
-	value_prim_method!(u32 U32);
-	value_prim_method!(u64 U64);
-	value_prim_method!(u128 U128);
-	value_prim_method!(i8 I8);
-	value_prim_method!(i16 I16);
-	value_prim_method!(i32 I32);
-	value_prim_method!(i64 I64);
-	value_prim_method!(i128 I128);
+	/// Create a new boolean value without additional context.
+	pub fn bool(val: bool) -> Value<()> {
+		Value { value: ValueDef::Primitive(Primitive::Bool(val)), context: () }
+	}
+	/// Create a new char without additional context.
+	pub fn char(val: char) -> Value<()> {
+		Value { value: ValueDef::Primitive(Primitive::Char(val)), context: () }
+	}
+	/// Create a new unsigned integer without additional context.
+	pub fn uint<N: Into<u128>>(val: N) -> Value<()> {
+		Value { value: ValueDef::Primitive(Primitive::uint(val)), context: () }
+	}
+	/// Create a new signed integer without additional context.
+	pub fn int<N: Into<i128>>(val: N) -> Value<()> {
+		Value { value: ValueDef::Primitive(Primitive::int(val)), context: () }
+	}
 }
 
 impl Value<()> {
@@ -310,36 +304,25 @@ pub enum Primitive {
 	Char(char),
 	/// A string.
 	String(String),
-	/// A u8 value.
-	U8(u8),
-	/// A u16 value.
-	U16(u16),
-	/// A u32 value.
-	U32(u32),
-	/// A u64 value.
-	U64(u64),
 	/// A u128 value.
 	U128(u128),
-	/// A u256 value.
-	///
-	/// Rust does not natively support 256bit numbers, and so we store the
-	/// decoded bytes in a 32 byte array.
-	U256([u8; 32]),
-	/// An i8 value.
-	I8(i8),
-	/// An i16 value.
-	I16(i16),
-	/// An i32 value.
-	I32(i32),
-	/// An i64 value.
-	I64(i64),
 	/// An i128 value.
 	I128(i128),
-	/// An i256 value.
-	///
-	/// Rust does not natively support 256bit numbers, and so we store the
-	/// decoded bytes in a 32 byte array.
+	/// An unsigned 256 bit number (internally represented as a 32 byte array).
+	U256([u8; 32]),
+	/// A signed 256 bit number (internally represented as a 32 byte array).
 	I256([u8; 32]),
+}
+
+impl Primitive {
+	/// Create a new unsigned integer without additional context.
+	pub fn uint<N: Into<u128>>(val: N) -> Primitive {
+		Primitive::U128(val.into())
+	}
+	/// Create a new signed integer without additional context.
+	pub fn int<N: Into<i128>>(val: N) -> Primitive {
+		Primitive::I128(val.into())
+	}
 }
 
 impl<T> From<Primitive> for ValueDef<T> {
@@ -370,21 +353,7 @@ macro_rules! impl_primitive_type {
     )*}
 }
 
-impl_primitive_type!(
-	Bool(bool),
-	Char(char),
-	String(String),
-	U8(u8),
-	U16(u16),
-	U32(u32),
-	U64(u64),
-	U128(u128),
-	I8(i8),
-	I16(i16),
-	I32(i32),
-	I64(i64),
-	I128(i128),
-);
+impl_primitive_type!(Bool(bool), Char(char), String(String), U128(u128), I128(i128),);
 
 /// A sequence of bits.
 pub type BitSequence = BitVec<u8, Lsb0>;
