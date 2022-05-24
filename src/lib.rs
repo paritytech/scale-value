@@ -29,6 +29,7 @@
 mod scale_impls;
 #[cfg(feature = "serde")]
 mod serde_impls;
+mod string_impls;
 mod value;
 
 pub use value::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
@@ -199,5 +200,16 @@ pub mod scale {
 		buf: &mut Vec<u8>,
 	) -> Result<(), EncodeError<T>> {
 		crate::scale_impls::encode_value_as_type(value, ty_id, types, buf)
+	}
+}
+
+/// Converting a [`Value`] to or from strings.
+pub mod stringify {
+	pub use crate::string_impls::ParseError;
+
+	/// Attempt to parse a string into a [`crate::Value<()>`], returning a
+	/// [`ParseError`] contianing location and error information if this fails.
+	pub fn from_str(s: &str) -> Result<crate::Value<()>, ParseError> {
+		crate::string_impls::from_str(s)
 	}
 }
