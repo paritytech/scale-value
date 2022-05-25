@@ -494,6 +494,13 @@ mod test {
     fn parse_chars() {
         assert_eq!(from_str("'a'"), Ok(Value::char('a')));
         assert_eq!(from_str("'😀'"), Ok(Value::char('😀')));
+        assert_eq!(from_str("'\\n'"), Ok(Value::char('\n')));
+        assert_eq!(from_str("'\\t'"), Ok(Value::char('\t')));
+        assert_eq!(from_str("'\\\"'"), Ok(Value::char('"')));
+        assert_eq!(from_str("'\\\''"), Ok(Value::char('\'')));
+        assert_eq!(from_str("'\\r'"), Ok(Value::char('\r')));
+        assert_eq!(from_str("'\\\\'"), Ok(Value::char('\\')));
+        assert_eq!(from_str("'\\0'"), Ok(Value::char('\0')));
         assert_eq!(from_str("'a"), Err(ParseCharError::ExpectedClosingQuoteToMatch(0).at(2)));
     }
 
