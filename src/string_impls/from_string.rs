@@ -364,33 +364,33 @@ fn parse_string(t: &mut impl Tokens<Item = char>) -> Result<String, Option<Parse
         };
 
         match char {
+            // Escape a char:
             '\\' if !next_is_escaped => {
                 next_is_escaped = true;
-                continue; // All other branches reset next_is_escaped to false.
             },
-            'n' if next_is_escaped => {
-                out.push('\n');
+            // Handle escaped chars:
+            c if next_is_escaped => {
+                let escape_char = match c {
+                    'n' => '\n',
+                    't' => '\t',
+                    'r' => '\r',
+                    '"' => '"',
+                    '\\' => '\\',
+                    '0' => '\0',
+                    _ => return Err(Some(ParseStringError::CannotEscapeChar(c).between(pos, pos+1)))
+                };
+                out.push(escape_char);
+                next_is_escaped = false;
             },
-            't' if next_is_escaped => {
-                out.push('\t');
-            },
-            '\\' if next_is_escaped => {
-                out.push('\\');
-            },
-            '"' if next_is_escaped => {
-                out.push('"');
-            },
-            '"' if !next_is_escaped => {
+            // String has closed
+            '"' => {
                 break; // closing quote seen; done!
             }
-            c if next_is_escaped => {
-                return Err(Some(ParseStringError::CannotEscapeChar(c).between(pos, pos+1)))
-            }
+            // All other chars pushed as-is.
             c => {
                 out.push(c);
             }
         }
-        next_is_escaped = false;
     }
 
     Ok(out)
@@ -483,6 +483,7 @@ mod test {
 
     #[test]
     fn parse_strings() {
+        assert_eq!(from_str("\"\\n \\r \\t \\0 \\\"\""), Ok(Value::string("\n \r \t \0 \"")));
         assert_eq!(from_str("\"Hello there 😀\""), Ok(Value::string("Hello there 😀")));
         assert_eq!(from_str("\"Hello\\n\\t there\""), Ok(Value::string("Hello\n\t there")));
         assert_eq!(from_str("\"Hello\\\\ there\""), Ok(Value::string("Hello\\ there")));
