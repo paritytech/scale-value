@@ -26,8 +26,11 @@ use yap::{
 use std::num::ParseIntError;
 use super::string_helpers;
 
-pub fn from_str(s: &str) -> Result<Value<()>, ParseError> {
-    parse_value(&mut s.into_tokens())
+pub fn from_str(s: &str) -> (Result<Value<()>, ParseError>, &str) {
+    let mut toks = s.into_tokens();
+    let res = parse_value(&mut toks);
+    let remaining = toks.remaining();
+    (res, remaining)
 }
 
 /// An error parsing the provided string into a Value
@@ -227,7 +230,7 @@ fn parse_unnamed_composite(t: &mut impl Tokens<Item = char>) -> Result<Composite
 
 // Parse a variant like `Variant { hello: "there" }` or `Foo (123, true)`
 fn parse_variant(t: &mut impl Tokens<Item = char>) -> Result<Variant<()>, Option<ParseError>> {
-    let ident = match t.optional(|t| parse_ident(t).ok()) {
+    let ident = match parse_optional_variant_ident(t) {
         Some(ident) => ident,
         None => return Err(None)
     };
@@ -436,6 +439,24 @@ fn parse_field_name(t: &mut impl Tokens<Item = char>) -> Result<String, ParseErr
     }
 }
 
+// Parse an ident used for the variant name, like `MyVariant` or the special case
+// `i"My variant name"` for idents that are not normally valid variant names, but
+// can be set in Value variants (this is to ensure that we can display and then parse
+// as many user-generated Values as possible).
+fn parse_optional_variant_ident(t: &mut impl Tokens<Item = char>) -> Option<String> {
+    fn parse_i_string(t: &mut impl Tokens<Item = char>) -> Option<String> {
+        if t.next()? != 'v' {
+            return None
+        }
+        parse_string(t).ok()
+    }
+
+    yap::one_of!(t;
+        parse_i_string(t),
+        parse_ident(t).ok()
+    )
+}
+
 // Parse an ident like `foo` or `MyVariant`
 fn parse_ident(t: &mut impl Tokens<Item = char>) -> Result<String, ParseError> {
     let start = t.location();
@@ -475,59 +496,68 @@ fn transpose_err<T, E>(r: Result<T, Option<E>>) -> Option<Result<T, E>> {
 mod test {
     use super::*;
 
+    fn from(s: &str) -> Result<Value<()>, ParseError> {
+        let (res, remaining) = from_str(s);
+        if res.is_ok() {
+            // all successful parse tests fully consume the input string:
+            assert_eq!(remaining.len(), 0, "was not expecting any unparsed output");
+        }
+        res
+    }
+
     #[test]
     fn parse_bools() {
-        assert_eq!(from_str("true"), Ok(Value::bool(true)));
-        assert_eq!(from_str("false"), Ok(Value::bool(false)));
+        assert_eq!(from("true"), Ok(Value::bool(true)));
+        assert_eq!(from("false"), Ok(Value::bool(false)));
     }
 
     #[test]
     fn parse_numbers() {
-        assert_eq!(from_str("123"), Ok(Value::uint(123u128)));
-        assert_eq!(from_str("1_234_56"), Ok(Value::uint(1_234_56u128)));
-        assert_eq!(from_str("+1_234_56"), Ok(Value::uint(1_234_56u128)));
-        assert_eq!(from_str("-123_4"), Ok(Value::int(-1234)));
-        assert_eq!(from_str("-abc"), Err(ParseNumberError::ExpectedDigit.between(1, 2)));
+        assert_eq!(from("123"), Ok(Value::uint(123u128)));
+        assert_eq!(from("1_234_56"), Ok(Value::uint(1_234_56u128)));
+        assert_eq!(from("+1_234_56"), Ok(Value::uint(1_234_56u128)));
+        assert_eq!(from("-123_4"), Ok(Value::int(-1234)));
+        assert_eq!(from("-abc"), Err(ParseNumberError::ExpectedDigit.between(1, 2)));
     }
 
     #[test]
     fn parse_chars() {
-        assert_eq!(from_str("'a'"), Ok(Value::char('a')));
-        assert_eq!(from_str("'😀'"), Ok(Value::char('😀')));
-        assert_eq!(from_str("'\\n'"), Ok(Value::char('\n')));
-        assert_eq!(from_str("'\\t'"), Ok(Value::char('\t')));
-        assert_eq!(from_str("'\\\"'"), Ok(Value::char('"')));
-        assert_eq!(from_str("'\\\''"), Ok(Value::char('\'')));
-        assert_eq!(from_str("'\\r'"), Ok(Value::char('\r')));
-        assert_eq!(from_str("'\\\\'"), Ok(Value::char('\\')));
-        assert_eq!(from_str("'\\0'"), Ok(Value::char('\0')));
-        assert_eq!(from_str("'a"), Err(ParseCharError::ExpectedClosingQuoteToMatch(0).at(2)));
+        assert_eq!(from("'a'"), Ok(Value::char('a')));
+        assert_eq!(from("'😀'"), Ok(Value::char('😀')));
+        assert_eq!(from("'\\n'"), Ok(Value::char('\n')));
+        assert_eq!(from("'\\t'"), Ok(Value::char('\t')));
+        assert_eq!(from("'\\\"'"), Ok(Value::char('"')));
+        assert_eq!(from("'\\\''"), Ok(Value::char('\'')));
+        assert_eq!(from("'\\r'"), Ok(Value::char('\r')));
+        assert_eq!(from("'\\\\'"), Ok(Value::char('\\')));
+        assert_eq!(from("'\\0'"), Ok(Value::char('\0')));
+        assert_eq!(from("'a"), Err(ParseCharError::ExpectedClosingQuoteToMatch(0).at(2)));
     }
 
     #[test]
     fn parse_strings() {
-        assert_eq!(from_str("\"\\n \\r \\t \\0 \\\"\""), Ok(Value::string("\n \r \t \0 \"")));
-        assert_eq!(from_str("\"Hello there 😀\""), Ok(Value::string("Hello there 😀")));
-        assert_eq!(from_str("\"Hello\\n\\t there\""), Ok(Value::string("Hello\n\t there")));
-        assert_eq!(from_str("\"Hello\\\\ there\""), Ok(Value::string("Hello\\ there")));
-        assert_eq!(from_str("\"Hello\\p there\""), Err(ParseStringError::CannotEscapeChar('p').between(7, 8)));
-        assert_eq!(from_str("\"Hi"), Err(ParseStringError::ExpectedClosingQuoteToMatch(0).at(3)));
+        assert_eq!(from("\"\\n \\r \\t \\0 \\\"\""), Ok(Value::string("\n \r \t \0 \"")));
+        assert_eq!(from("\"Hello there 😀\""), Ok(Value::string("Hello there 😀")));
+        assert_eq!(from("\"Hello\\n\\t there\""), Ok(Value::string("Hello\n\t there")));
+        assert_eq!(from("\"Hello\\\\ there\""), Ok(Value::string("Hello\\ there")));
+        assert_eq!(from("\"Hello\\p there\""), Err(ParseStringError::CannotEscapeChar('p').between(7, 8)));
+        assert_eq!(from("\"Hi"), Err(ParseStringError::ExpectedClosingQuoteToMatch(0).at(3)));
     }
 
     #[test]
     fn parse_unnamed_composites() {
-        assert_eq!(from_str("(  true, 1234 ,\t\n\t \"Hello!\" )"), Ok(Value::unnamed_composite(vec![
+        assert_eq!(from("(  true, 1234 ,\t\n\t \"Hello!\" )"), Ok(Value::unnamed_composite(vec![
             Value::bool(true),
             Value::uint(1234u128),
             Value::string("Hello!")
         ])));
-        assert_eq!(from_str("()"), Ok(Value::unnamed_composite(vec![])));
-        assert_eq!(from_str("(\n\n\t\t\n)"), Ok(Value::unnamed_composite(vec![])));
+        assert_eq!(from("()"), Ok(Value::unnamed_composite(vec![])));
+        assert_eq!(from("(\n\n\t\t\n)"), Ok(Value::unnamed_composite(vec![])));
     }
 
     #[test]
     fn parse_named_composites() {
-        assert_eq!(from_str("{
+        assert_eq!(from("{
             hello: true,
             foo: 1234,
             \"Hello there 😀\": \"Hello!\"
@@ -540,7 +570,7 @@ mod test {
 
     #[test]
     fn parse_variants() {
-        assert_eq!(from_str("MyVariant {
+        assert_eq!(from("MyVariant {
             hello: true,
             foo: 1234,
             \"Hello there 😀\": \"Hello!\"
@@ -550,24 +580,27 @@ mod test {
             ("Hello there 😀".into(), Value::string("Hello!"))
         ])));
 
-        assert_eq!(from_str("Foo (  true, 1234 ,\t\n\t \"Hello!\" )"), Ok(Value::unnamed_variant("Foo", vec![
+        assert_eq!(from("Foo (  true, 1234 ,\t\n\t \"Hello!\" )"), Ok(Value::unnamed_variant("Foo", vec![
             Value::bool(true),
             Value::uint(1234u128),
             Value::string("Hello!")
         ])));
 
-        assert_eq!(from_str("Foo()"), Ok(Value::unnamed_variant("Foo", vec![])));
-        assert_eq!(from_str("Foo{}"), Ok(Value::named_variant("Foo", vec![])));
-        assert_eq!(from_str("Foo( \t)"), Ok(Value::unnamed_variant("Foo", vec![])));
-        assert_eq!(from_str("Foo{  }"), Ok(Value::named_variant("Foo", vec![])));
+        assert_eq!(from("Foo()"), Ok(Value::unnamed_variant("Foo", vec![])));
+        assert_eq!(from("Foo{}"), Ok(Value::named_variant("Foo", vec![])));
+        assert_eq!(from("Foo( \t)"), Ok(Value::unnamed_variant("Foo", vec![])));
+        assert_eq!(from("Foo{  }"), Ok(Value::named_variant("Foo", vec![])));
+
+        // Parsing special "v" strings:
+        assert_eq!(from("v\"variant name\" {  }"), Ok(Value::named_variant("variant name", vec![])));
     }
 
     #[test]
     fn parse_bit_sequences() {
         use bitvec::{ bitvec, order::Lsb0 };
-        assert_eq!(from_str("<011010110101101>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0; 0,1,1,0,1,0,1,1,0,1,0,1,1,0,1])));
-        assert_eq!(from_str("<01101>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0; 0,1,1,0,1])));
-        assert_eq!(from_str("<0>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0; 0])));
-        assert_eq!(from_str("<>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0;])));
+        assert_eq!(from("<011010110101101>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0; 0,1,1,0,1,0,1,1,0,1,0,1,1,0,1])));
+        assert_eq!(from("<01101>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0; 0,1,1,0,1])));
+        assert_eq!(from("<0>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0; 0])));
+        assert_eq!(from("<>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0;])));
     }
 }

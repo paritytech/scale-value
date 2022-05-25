@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Return the escaped string representing a given char,
-/// or None if the char does not need escaping.
+/// Return the escape code for a given char, or None
+/// if there is no escape code for it.
 pub fn to_escape_code(c: char) -> Option<char> {
     let escaped = match c {
         '\n' => 'n',
@@ -29,9 +29,9 @@ pub fn to_escape_code(c: char) -> Option<char> {
     Some(escaped)
 }
 
-/// Given some char following a '\', return the
-/// unescaped char that it represents, or None
-/// if it is not a valid escaped char.
+/// Given some escape code (char following a '\'), return the
+/// unescaped char that it represents, or None if it is not a
+/// valid escape code.
 pub fn from_escape_code(c: char) -> Option<char> {
     let unescaped = match c {
         'n' => '\n',

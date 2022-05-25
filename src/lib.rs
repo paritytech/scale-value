@@ -203,13 +203,26 @@ pub mod scale {
 	}
 }
 
-/// Converting a [`Value`] to or from strings.
+/// Converting a [`crate::Value`] to or from strings.
 pub mod stringify {
 	pub use crate::string_impls::ParseError;
 
-	/// Attempt to parse a string into a [`crate::Value<()>`], returning a
-	/// [`ParseError`] contianing location and error information if this fails.
-	pub fn from_str(s: &str) -> Result<crate::Value<()>, ParseError> {
+	/// Attempt to parse a string into a [`crate::Value<()>`], returning a tuple
+	/// consisting of a result (either the value or a [`ParseError`] containing
+	/// location and error information) and the remainder of the string that wasn't
+	/// parsed.
+	pub fn from_str(s: &str) -> (Result<crate::Value<()>, ParseError>, &str) {
 		crate::string_impls::from_str(s)
+	}
+
+	/// Identical to calling `to_string()` on the [`crate::Value`], but here just
+	/// to make it a little more obvious that this is the inverse of [`from_str`].
+	///
+	/// # Panics
+	///
+	/// Panics if a `Primitive::U256`/`Primitive::I256` are a part of the value,
+	/// since we cannot properly format and parse those at the moment.
+	pub fn to_string<T>(v: &crate::Value<T>) -> String {
+		v.to_string()
 	}
 }
