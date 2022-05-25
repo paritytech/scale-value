@@ -17,7 +17,8 @@ use crate::value::{
     Value,
     Primitive,
     Composite,
-    Variant
+    Variant,
+    BitSequence
 };
 use yap::{
     Tokens, IntoTokens, TokenLocation
@@ -72,6 +73,8 @@ pub enum ParseErrorKind {
     String(#[from] ParseStringError),
     #[error("{0}")]
     Number(#[from] ParseNumberError),
+    #[error("{0}")]
+    BitSequence(#[from] ParseBitSequenceError),
 }
 
 // Add handy helper methods to sub-error-kinds
@@ -132,8 +135,20 @@ pub enum ParseNumberError {
 }
 at_between!(ParseNumberError);
 
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+pub enum ParseBitSequenceError {
+    #[error("Expected a closing bracket ('>') to match the opening one at position {0}")]
+    ExpectedClosingBracketToMatch(usize),
+    #[error("Invalid character; expecting a 0 or 1")]
+    InvalidCharacter,
+}
+at_between!(ParseBitSequenceError);
+
 // Parse a value.
 fn parse_value(t: &mut impl Tokens<Item = char>) -> Result<Value<()>, ParseError> {
+    // Our parsers return `Result<Thing, Option<ParseError>>`, but in order to know
+    // whether to try the next item, `one_of` expects `Option<T>`, so we transpose_err
+    // to convert to the right shape.
     let val = yap::one_of!(t;
         transpose_err(parse_bool(t).map(Value::bool).ok_or(None)),
         transpose_err(parse_char(t).map(Value::char)),
@@ -141,6 +156,7 @@ fn parse_value(t: &mut impl Tokens<Item = char>) -> Result<Value<()>, ParseError
         transpose_err(parse_number(t).map(Value::primitive)),
         transpose_err(parse_named_composite(t).map(|v| v.into())),
         transpose_err(parse_unnamed_composite(t).map(|v| v.into())),
+        transpose_err(parse_bit_sequence(t).map(Value::bit_sequence)),
         transpose_err(parse_variant(t).map(|v| v.into())),
     );
 
@@ -154,9 +170,9 @@ fn parse_value(t: &mut impl Tokens<Item = char>) -> Result<Value<()>, ParseError
 // Parse a named composite value like `{ foo: 123 }`.
 //
 // As with most of the parsers here, the error is optional. A `Some` error indicates that
-// we are parsing something of the correct type, but it's invalid. a `None` error indicates
-// that the text we're parsing is not the type we're trying to parse it into (and so we are
-// free to attempt to parse another type instead).
+// we're midway through parsing something and have run into an error. a `None` error indicates
+// that we can see up front that the characters we're parsing aren't going to be the right shape,
+// and can attempt to parse the characters into a different thing if we wish.
 fn parse_named_composite(t: &mut impl Tokens<Item = char>) -> Result<Composite<()>, Option<ParseError>> {
     let start = t.offset();
     if !t.token('{') {
@@ -208,7 +224,11 @@ fn parse_unnamed_composite(t: &mut impl Tokens<Item = char>) -> Result<Composite
 
 // Parse a variant like `Variant { hello: "there" }` or `Foo (123, true)`
 fn parse_variant(t: &mut impl Tokens<Item = char>) -> Result<Variant<()>, Option<ParseError>> {
-    let ident = parse_ident(t)?;
+    let ident = match t.optional(|t| parse_ident(t).ok()) {
+        Some(ident) => ident,
+        None => return Err(None)
+    };
+
     skip_whitespace(t);
 
     let composite = yap::one_of!(t;
@@ -221,6 +241,25 @@ fn parse_variant(t: &mut impl Tokens<Item = char>) -> Result<Variant<()>, Option
         Some(Err(e)) => Err(Some(e)),
         None => Err(None)
     }
+}
+
+// Parse a sequence of bits like `<01101>` or `<>` into a bit sequence.
+fn parse_bit_sequence(t: &mut impl Tokens<Item = char>) -> Result<BitSequence, Option<ParseError>> {
+    let start = t.offset();
+    if !t.token('<') {
+        return Err(None)
+    }
+    let bits = t
+        .tokens_while(|&c| c == '0' || c == '1')
+        .map(|c| if c == '1' { true } else { false });
+    let mut seq = BitSequence::new();
+    for bit in bits {
+        seq.push(bit);
+    }
+    if !t.token('>') {
+        return Err(Some(ParseBitSequenceError::ExpectedClosingBracketToMatch(start).between(t.offset(), t.offset()+1)))
+    }
+    Ok(seq)
 }
 
 // Parse a bool (`true` or `false`)
@@ -497,5 +536,14 @@ mod test {
         assert_eq!(from_str("Foo{}"), Ok(Value::named_variant("Foo", vec![])));
         assert_eq!(from_str("Foo( \t)"), Ok(Value::unnamed_variant("Foo", vec![])));
         assert_eq!(from_str("Foo{  }"), Ok(Value::named_variant("Foo", vec![])));
+    }
+
+    #[test]
+    fn parse_bit_sequences() {
+        use bitvec::{ bitvec, order::Lsb0 };
+        assert_eq!(from_str("<011010110101101>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0; 0,1,1,0,1,0,1,1,0,1,0,1,1,0,1])));
+        assert_eq!(from_str("<01101>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0; 0,1,1,0,1])));
+        assert_eq!(from_str("<0>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0; 0])));
+        assert_eq!(from_str("<>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0;])));
     }
 }
