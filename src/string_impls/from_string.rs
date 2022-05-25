@@ -24,6 +24,7 @@ use yap::{
     Tokens, IntoTokens, TokenLocation
 };
 use std::num::ParseIntError;
+use super::string_helpers;
 
 pub fn from_str(s: &str) -> Result<Value<()>, ParseError> {
     parse_value(&mut s.into_tokens())
@@ -112,6 +113,8 @@ at_between!(ParseComplexError);
 pub enum ParseCharError {
     #[error("Expected a single character")]
     ExpectedValidCharacter,
+    #[error("Expected an escape code to follow the '\\'")]
+    ExpectedEscapeCode,
     #[error("Expected a closing quote to match the opening quote at position {0}")]
     ExpectedClosingQuoteToMatch(usize)
 }
@@ -285,10 +288,25 @@ fn parse_char(t: &mut impl Tokens<Item = char>) -> Result<char, Option<ParseErro
         None => return Err(Some(ParseCharError::ExpectedValidCharacter.at(t.offset()))),
         Some(c) => c
     };
+
+    // If char is a backslash, it's an escape code and we
+    // need to unescape it to find our inner char:
+    let char = if char == '\\' {
+        let escape_code = match t.next() {
+            None => return Err(Some(ParseCharError::ExpectedEscapeCode.at(t.offset()))),
+            Some(c) => c
+        };
+        match string_helpers::from_escape_code(escape_code) {
+            None => return Err(Some(ParseCharError::ExpectedEscapeCode.at(t.offset()))),
+            Some(c) => c
+        }
+    } else {
+        char
+    };
+
     if !t.token('\'') {
         return Err(Some(ParseCharError::ExpectedClosingQuoteToMatch(start).at(t.offset())))
     }
-
     Ok(char)
 }
 
@@ -370,17 +388,15 @@ fn parse_string(t: &mut impl Tokens<Item = char>) -> Result<String, Option<Parse
             },
             // Handle escaped chars:
             c if next_is_escaped => {
-                let escape_char = match c {
-                    'n' => '\n',
-                    't' => '\t',
-                    'r' => '\r',
-                    '"' => '"',
-                    '\\' => '\\',
-                    '0' => '\0',
-                    _ => return Err(Some(ParseStringError::CannotEscapeChar(c).between(pos, pos+1)))
-                };
-                out.push(escape_char);
-                next_is_escaped = false;
+                match string_helpers::from_escape_code(c) {
+                    Some(c) => {
+                        out.push(c);
+                        next_is_escaped = false;
+                    },
+                    None => {
+                        return Err(Some(ParseStringError::CannotEscapeChar(c).between(pos, pos+1)))
+                    }
+                }
             },
             // String has closed
             '"' => {
