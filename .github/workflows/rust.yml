@@ -33,11 +33,17 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v1.3.0
 
-      - name: Build
+      - name: Check all features
         uses: actions-rs/cargo@v1.0.3
         with:
           command: check
           args: --all-targets --all-features --workspace
+
+      - name: Check no features
+        uses: actions-rs/cargo@v1.0.3
+        with:
+          command: check
+          args: --all-targets --no-default-features --workspace
 
   fmt:
     name: Cargo fmt

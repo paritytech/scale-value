@@ -13,8 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(feature = "from_string")]
 mod from_string;
 mod string_helpers;
 mod to_string;
 
+#[cfg(feature = "from_string")]
 pub use from_string::{from_str, ParseError};

@@ -148,6 +148,8 @@ fn is_ident(s: &str) -> bool {
 }
 
 #[cfg(test)]
+// These tests only work with from_string enabled, because we go back and forth from both.
+#[cfg(feature = "from_string")]
 mod test {
 	use super::*;
 

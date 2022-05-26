@@ -14,7 +14,10 @@ keywords = ["parity", "scale", "encoding", "decoding"]
 include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE"]
 
 [features]
-default = ["serde"]
+default = ["serde", "from_string"]
+from_string = [
+    "dep:yap"
+]
 serde = [
     "dep:serde",
     "bitvec/serde"
@@ -28,7 +31,7 @@ frame-metadata = "15.0.0"
 thiserror = "1.0.24"
 scale-info = { version = "2.0.0", features = ["bit-vec"] }
 either = "1.6.1"
-yap = "0.7.2"
+yap = { version = "0.7.2", optional = true }
 
 [dev-dependencies]
 serde_json = "1.0.64"
