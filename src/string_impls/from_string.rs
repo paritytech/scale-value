@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::enum_variant_names)]
+
 use super::string_helpers;
 use crate::value::{BitSequence, Composite, Primitive, Value, Variant};
 use std::num::ParseIntError;
