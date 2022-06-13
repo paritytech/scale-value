@@ -4,6 +4,13 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.2.0
+
+### Added
+
+- Added a string syntax for values, and the ability to parse `Value`'s from strings or encode them into strings (see the new `stringify` module exposed at the crate root). Parsing from strings requires the `from_string` feature to be enabled. ([#7](https://github.com/paritytech/scale-value/pull/7))
+
+
 ## 0.1.0
 
 The initial release.
