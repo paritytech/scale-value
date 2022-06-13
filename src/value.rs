@@ -261,6 +261,12 @@ impl<T> From<Composite<T>> for ValueDef<T> {
 	}
 }
 
+impl From<Composite<()>> for Value<()> {
+	fn from(val: Composite<()>) -> Self {
+		Value::without_context(ValueDef::Composite(val))
+	}
+}
+
 /// This represents the value of a specific variant from an enum, and contains
 /// the name of the variant, and the named/unnamed values associated with it.
 #[derive(Clone, Debug, PartialEq)]
@@ -292,6 +298,12 @@ impl<T> Variant<T> {
 impl<T> From<Variant<T>> for ValueDef<T> {
 	fn from(val: Variant<T>) -> Self {
 		ValueDef::Variant(val)
+	}
+}
+
+impl From<Variant<()>> for Value<()> {
+	fn from(val: Variant<()>) -> Self {
+		Value::without_context(ValueDef::Variant(val))
 	}
 }
 

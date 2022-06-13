@@ -8,7 +8,14 @@ The [scale-info] crate allows us to define types and add them to a type registry
 
 The [frame-metadata] crate contains all of the type information we need in order to be able to SCALE encode and decode `Value`s into the various parameters needed in extrinsics and such.
 
-In addition to SCALE encoding/decoding, with the `serde` feature enabled, `Value`s can be converted from and to static Rust types (where possible), or serialized and deserialized to other formats like JSON.
+Crate features (enabled by default):
+- `serde`: Allow `Value`s to be converted from and to static Rust types (where possible), or serialized and deserialized to other formats like JSON, via serde.
+- `from_string`: Allow strings to be parsed into `Values` using the same format from which values can be converted to strings via `.to_string()`. Examples:
+  - Boolean types parse from `true` and `false`.
+  - Strings and chars are supported with `"Hello\n there"` and `'a'`.
+  - Numbers like `1_234_567` and `-123` are supported.
+  - Composite types (structs/tuples) look like `{ hello: 123, "there": true }` and `('a', 'b', true)`.
+  - Finally, enum variants look like `Hello { foo: 1, bar: 2 }` and `Foo(1,2,3)`.
 
 # Examples
 

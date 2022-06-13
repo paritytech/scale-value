@@ -29,6 +29,7 @@
 mod scale_impls;
 #[cfg(feature = "serde")]
 mod serde_impls;
+mod string_impls;
 mod value;
 
 pub use value::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
@@ -199,5 +200,31 @@ pub mod scale {
 		buf: &mut Vec<u8>,
 	) -> Result<(), EncodeError<T>> {
 		crate::scale_impls::encode_value_as_type(value, ty_id, types, buf)
+	}
+}
+
+/// Converting a [`crate::Value`] to or from strings.
+pub mod stringify {
+	#[cfg(feature = "from_string")]
+	pub use crate::string_impls::ParseError;
+
+	/// Attempt to parse a string into a [`crate::Value<()>`], returning a tuple
+	/// consisting of a result (either the value or a [`ParseError`] containing
+	/// location and error information) and the remainder of the string that wasn't
+	/// parsed.
+	#[cfg(feature = "from_string")]
+	pub fn from_str(s: &str) -> (Result<crate::Value<()>, ParseError>, &str) {
+		crate::string_impls::from_str(s)
+	}
+
+	/// Identical to calling `to_string()` on the [`crate::Value`], but here just
+	/// to make it a little more obvious that this is the inverse of [`from_str`].
+	///
+	/// # Panics
+	///
+	/// Panics if a `Primitive::U256`/`Primitive::I256` are a part of the value,
+	/// since we cannot properly format and parse those at the moment.
+	pub fn to_string<T>(v: &crate::Value<T>) -> String {
+		v.to_string()
 	}
 }

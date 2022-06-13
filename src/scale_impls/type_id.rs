@@ -19,9 +19,8 @@ use super::ScaleTypeId;
 
 /// This represents the ID of a type found in the metadata. A scale info type representation can
 /// be converted into this, and we get this back directly when decoding types into Values.
-#[derive(
-	Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TypeId(u32);
 
 impl TypeId {
