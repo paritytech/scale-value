@@ -1,6 +1,6 @@
 # Release Checklist
 
-These steps assume that you've checked out the `scale-info` repository and are in the root directory of it.
+These steps assume that you've checked out the `scale-value` repository and are in the root directory of it.
 
 1.  Ensure that everything you'd like to see released is on the `main` branch.
 
@@ -31,7 +31,7 @@ These steps assume that you've checked out the `scale-info` repository and are i
 
     You should look through the commit history on `main` to find the code changes since the last release (eg `git log --pretty LAST_VERSION_TAG..HEAD`).
 
-    Looking at the [closed PRs](https://github.com/paritytech/scale-info/pulls?q=is%3Apr+is%3Aclosed) can also help to provide details for the changes.
+    Looking at the [closed PRs](https://github.com/paritytech/scale-value/pulls?q=is%3Apr+is%3Aclosed) can also help to provide details for the changes.
 
 6.  Commit any of the above changes to the release branch and open a PR in GitHub with a base of `main`.
 
@@ -59,7 +59,7 @@ These steps assume that you've checked out the `scale-info` repository and are i
     git push --tags
     ```
 
-    Once this is pushed, go along to [the releases page on GitHub](https://github.com/paritytech/scale-info/releases)
+    Once this is pushed, go along to [the releases page on GitHub](https://github.com/paritytech/scale-value/releases)
     and draft a new release which points to the tag you just pushed to `main` above. Copy the changelog comments
     for the current release into the release description.
 
