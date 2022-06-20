@@ -563,28 +563,28 @@ fn encode_bitsequence_value<T>(
 
 	// next, turn those bools into a bit sequence of the expected shape.
 	match get_bitsequence_details(ty, types).map_err(EncodeError::BitSequenceError)? {
-		(BitOrderTy::U8, BitStoreTy::Lsb0) => {
+		(BitStoreTy::U8, BitOrderTy::Lsb0) => {
 			bools.into_iter().collect::<BitVec<u8, Lsb0>>().encode_to(bytes);
 		}
-		(BitOrderTy::U16, BitStoreTy::Lsb0) => {
+		(BitStoreTy::U16, BitOrderTy::Lsb0) => {
 			bools.into_iter().collect::<BitVec<u16, Lsb0>>().encode_to(bytes);
 		}
-		(BitOrderTy::U32, BitStoreTy::Lsb0) => {
+		(BitStoreTy::U32, BitOrderTy::Lsb0) => {
 			bools.into_iter().collect::<BitVec<u32, Lsb0>>().encode_to(bytes);
 		}
-		(BitOrderTy::U64, BitStoreTy::Lsb0) => {
+		(BitStoreTy::U64, BitOrderTy::Lsb0) => {
 			bools.into_iter().collect::<BitVec<u64, Lsb0>>().encode_to(bytes);
 		}
-		(BitOrderTy::U8, BitStoreTy::Msb0) => {
+		(BitStoreTy::U8, BitOrderTy::Msb0) => {
 			bools.into_iter().collect::<BitVec<u8, Msb0>>().encode_to(bytes);
 		}
-		(BitOrderTy::U16, BitStoreTy::Msb0) => {
+		(BitStoreTy::U16, BitOrderTy::Msb0) => {
 			bools.into_iter().collect::<BitVec<u16, Msb0>>().encode_to(bytes);
 		}
-		(BitOrderTy::U32, BitStoreTy::Msb0) => {
+		(BitStoreTy::U32, BitOrderTy::Msb0) => {
 			bools.into_iter().collect::<BitVec<u32, Msb0>>().encode_to(bytes);
 		}
-		(BitOrderTy::U64, BitStoreTy::Msb0) => {
+		(BitStoreTy::U64, BitOrderTy::Msb0) => {
 			bools.into_iter().collect::<BitVec<u64, Msb0>>().encode_to(bytes);
 		}
 	}
