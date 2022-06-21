@@ -25,6 +25,13 @@
 //! and from [`Value`]s, or serialize/deserialize them to/from other formats like JSON.
 
 #![deny(missing_docs)]
+// BitVec only supports u64 BitStore if `target_pointer_width = "64"`.
+// Turn this into a feature so it can be tested, and use to avoid using
+// this store type on 32bit architectures.
+#![cfg_attr(
+    not(target_pointer_width = "64"),
+    feature(32bit_target)
+)]
 
 mod scale_impls;
 #[cfg(feature = "serde")]

@@ -40,7 +40,7 @@ pub enum BitSequenceError {
 pub fn get_bitsequence_details(
 	ty: &TypeDefBitSequence<PortableForm>,
 	types: &PortableRegistry,
-) -> Result<(BitOrderTy, BitStoreTy), BitSequenceError> {
+) -> Result<(BitStoreTy, BitOrderTy), BitSequenceError> {
 	let bit_store_ty = ty.bit_store_type().id();
 	let bit_order_ty = ty.bit_order_type().id();
 
@@ -58,33 +58,33 @@ pub fn get_bitsequence_details(
 		.ident()
 		.ok_or(BitSequenceError::NoBitOrderIdent)?;
 
-	let bit_order_out = match bit_store_def {
-		TypeDef::Primitive(TypeDefPrimitive::U8) => Some(BitOrderTy::U8),
-		TypeDef::Primitive(TypeDefPrimitive::U16) => Some(BitOrderTy::U16),
-		TypeDef::Primitive(TypeDefPrimitive::U32) => Some(BitOrderTy::U32),
-		TypeDef::Primitive(TypeDefPrimitive::U64) => Some(BitOrderTy::U64),
+	let bit_store_out = match bit_store_def {
+		TypeDef::Primitive(TypeDefPrimitive::U8) => Some(BitStoreTy::U8),
+		TypeDef::Primitive(TypeDefPrimitive::U16) => Some(BitStoreTy::U16),
+		TypeDef::Primitive(TypeDefPrimitive::U32) => Some(BitStoreTy::U32),
+		TypeDef::Primitive(TypeDefPrimitive::U64) => Some(BitStoreTy::U64),
 		_ => None,
 	}
-	.ok_or_else(|| BitSequenceError::OrderTypeNotSupported(format!("{bit_store_def:?}")))?;
+	.ok_or_else(|| BitSequenceError::StoreTypeNotSupported(format!("{bit_store_def:?}")))?;
 
-	let bit_store_out = match &*bit_order_def {
-		"Lsb0" => Some(BitStoreTy::Lsb0),
-		"Msb0" => Some(BitStoreTy::Msb0),
+	let bit_order_out = match &*bit_order_def {
+		"Lsb0" => Some(BitOrderTy::Lsb0),
+		"Msb0" => Some(BitOrderTy::Msb0),
 		_ => None,
 	}
-	.ok_or(BitSequenceError::StoreTypeNotSupported(bit_order_def))?;
+	.ok_or(BitSequenceError::OrderTypeNotSupported(bit_order_def))?;
 
-	Ok((bit_order_out, bit_store_out))
+	Ok((bit_store_out, bit_order_out))
 }
 
 #[derive(Copy, Clone, PartialEq)]
-pub enum BitStoreTy {
+pub enum BitOrderTy {
 	Lsb0,
 	Msb0,
 }
 
 #[derive(Copy, Clone, PartialEq)]
-pub enum BitOrderTy {
+pub enum BitStoreTy {
 	U8,
 	U16,
 	U32,

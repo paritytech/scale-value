@@ -291,14 +291,24 @@ fn decode_bit_sequence_value(
 
 	// Decode the native BitSequence type easily, or else convert to it from the type given.
 	let bits = match details {
-		(BitOrderTy::U8, BitStoreTy::Lsb0) => BitVec::<u8, Lsb0>::decode(data)?,
-		(BitOrderTy::U8, BitStoreTy::Msb0) => to_bit_sequence(BitVec::<u8, Msb0>::decode(data)?),
-		(BitOrderTy::U16, BitStoreTy::Lsb0) => to_bit_sequence(BitVec::<u16, Lsb0>::decode(data)?),
-		(BitOrderTy::U16, BitStoreTy::Msb0) => to_bit_sequence(BitVec::<u16, Msb0>::decode(data)?),
-		(BitOrderTy::U32, BitStoreTy::Lsb0) => to_bit_sequence(BitVec::<u32, Lsb0>::decode(data)?),
-		(BitOrderTy::U32, BitStoreTy::Msb0) => to_bit_sequence(BitVec::<u32, Msb0>::decode(data)?),
-		(BitOrderTy::U64, BitStoreTy::Lsb0) => to_bit_sequence(BitVec::<u64, Lsb0>::decode(data)?),
-		(BitOrderTy::U64, BitStoreTy::Msb0) => to_bit_sequence(BitVec::<u64, Msb0>::decode(data)?),
+		(BitStoreTy::U8, BitOrderTy::Lsb0) => BitVec::<u8, Lsb0>::decode(data)?,
+		(BitStoreTy::U8, BitOrderTy::Msb0) => to_bit_sequence(BitVec::<u8, Msb0>::decode(data)?),
+		(BitStoreTy::U16, BitOrderTy::Lsb0) => to_bit_sequence(BitVec::<u16, Lsb0>::decode(data)?),
+		(BitStoreTy::U16, BitOrderTy::Msb0) => to_bit_sequence(BitVec::<u16, Msb0>::decode(data)?),
+		(BitStoreTy::U32, BitOrderTy::Lsb0) => to_bit_sequence(BitVec::<u32, Lsb0>::decode(data)?),
+		(BitStoreTy::U32, BitOrderTy::Msb0) => to_bit_sequence(BitVec::<u32, Msb0>::decode(data)?),
+		// BitVec doesn't impl BitStore on u64 if pointer width isn't 64 bit, avoid using this store type here
+		// in that case to avoid compile errors (see https://docs.rs/bitvec/1.0.0/src/bitvec/store.rs.html#184)
+		#[cfg(not(feature = "32bit_target"))]
+		(BitStoreTy::U64, BitOrderTy::Lsb0) => to_bit_sequence(BitVec::<u64, Lsb0>::decode(data)?),
+		#[cfg(not(feature = "32bit_target"))]
+		(BitStoreTy::U64, BitOrderTy::Msb0) => to_bit_sequence(BitVec::<u64, Msb0>::decode(data)?),
+		#[cfg(feature = "32bit_target")]
+		(BitStoreTy::U64, _) => {
+			return Err(DecodeError::BitSequenceError(BitSequenceError::StoreTypeNotSupported(
+				"u64 (pointer-width on this compile target is not 64)".into(),
+			)))
+		}
 	};
 
 	Ok(bits)
