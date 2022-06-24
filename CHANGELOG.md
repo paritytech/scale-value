@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog].
 
 ### Fixed
 
-- Fix compile error on 32bit architectures owing to BitVec not supporting a store type of u64 on them. Also fix an internal naming mixup w.r.t bitvec types. ((#12)[https://github.com/paritytech/scale-value/pull/12])
+- Fix compile error on 32-bit architectures owing to BitVec not supporting a store type of u64 on them. Also fix an internal naming mixup w.r.t bitvec types. ((#12)[https://github.com/paritytech/scale-value/pull/12])
 
 ## 0.2.0
 
