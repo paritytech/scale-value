@@ -15,7 +15,7 @@
 
 use bitvec::{order::Lsb0, vec::BitVec};
 use either::Either;
-use std::{convert::From, fmt::Debug};
+use std::convert::From;
 
 /// [`Value`] holds a representation of some value that has been decoded, as well as some arbitrary context.
 ///
@@ -108,7 +108,7 @@ impl<T> Value<T> {
 }
 
 /// The underlying shape of a given value.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ValueDef<T> {
 	/// A named or unnamed struct-like, array-like or tuple-like set of values.
 	Composite(Composite<T>),
@@ -131,17 +131,6 @@ impl<T> ValueDef<T> {
 			ValueDef::Variant(val) => ValueDef::Variant(val.map_context(f)),
 			ValueDef::BitSequence(val) => ValueDef::BitSequence(val),
 			ValueDef::Primitive(val) => ValueDef::Primitive(val),
-		}
-	}
-}
-
-impl<T: Debug> Debug for ValueDef<T> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::Composite(val) => Debug::fmt(val, f),
-			Self::Variant(val) => Debug::fmt(val, f),
-			Self::Primitive(val) => Debug::fmt(val, f),
-			Self::BitSequence(val) => Debug::fmt(val, f),
 		}
 	}
 }
