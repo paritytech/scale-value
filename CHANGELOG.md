@@ -4,6 +4,12 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.2.1
+
+### Fixed
+
+- Fix compile error on 32-bit architectures owing to BitVec not supporting a store type of u64 on them. Also fix an internal naming mixup w.r.t bitvec types. ((#12)[https://github.com/paritytech/scale-value/pull/12])
+
 ## 0.2.0
 
 ### Added
