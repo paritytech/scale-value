@@ -80,6 +80,11 @@ impl Value<()> {
 	pub fn int<N: Into<i128>>(val: N) -> Value<()> {
 		Value { value: ValueDef::Primitive(Primitive::int(val)), context: () }
 	}
+	/// Create a new Value from a set of bytes; useful for converting things like AccountIds.
+	pub fn from_bytes(bytes: impl AsRef<[u8]>) -> Value<()> {
+		let vals: Vec<_> = bytes.as_ref().iter().map(|&b| Value::uint(b)).collect();
+		Value::unnamed_composite(vals)
+	}
 }
 
 impl Value<()> {
@@ -172,6 +177,14 @@ impl<T> Composite<T> {
 		match self {
 			Composite::Named(values) => values.is_empty(),
 			Composite::Unnamed(values) => values.is_empty(),
+		}
+	}
+
+	/// Iterate over the values stored in this composite type.
+	pub fn values(&self) -> impl Iterator<Item = &Value<T>> {
+		match self {
+			Composite::Named(values) => Either::Left(values.into_iter().map(|(_k, v)| v)),
+			Composite::Unnamed(values) => Either::Right(values.into_iter()),
 		}
 	}
 

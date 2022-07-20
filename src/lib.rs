@@ -200,8 +200,8 @@ pub mod scale {
 	/// Attempt to encode some [`crate::Value<T>`] into SCALE bytes, by providing a pointer to the
 	/// type ID that we'd like to encode it as, a type registry from which we'll look
 	/// up the relevant type information, and a buffer to encode the bytes to.
-	pub fn encode_as_type<T, Id: Into<TypeId>>(
-		value: crate::Value<T>,
+	pub fn encode_as_type<T: Clone, Id: Into<TypeId>>(
+		value: &crate::Value<T>,
 		ty_id: Id,
 		types: &PortableRegistry,
 		buf: &mut Vec<u8>,
