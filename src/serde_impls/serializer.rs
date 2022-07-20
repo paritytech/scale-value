@@ -573,9 +573,10 @@ mod test {
 
 		let m = {
 			let mut m = HashMap::new();
-			m.insert("a", 1u8);
-			m.insert("b", 2u8);
-			m.insert("c", 3u8);
+			m.insert("a".to_string(), 1u8);
+			m.insert("b".to_string(), 2u8);
+			m.insert("c".to_string(), 3u8);
+			m
 		};
 		assert_ser_de(m);
 
@@ -585,6 +586,7 @@ mod test {
 			m.insert('a', 1u8);
 			m.insert('b', 2u8);
 			m.insert('c', 3u8);
+			m
 		};
 		assert_ser_de(m);
 	}

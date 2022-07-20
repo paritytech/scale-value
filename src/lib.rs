@@ -173,7 +173,7 @@ pub mod serde {
 ///
 /// // Encode the Value to bytes:
 /// let mut bytes = Vec::new();
-/// scale_value::scale::encode_as_type(value.clone(), type_id, &registry, &mut bytes).unwrap();
+/// scale_value::scale::encode_as_type(&value, type_id, &registry, &mut bytes).unwrap();
 ///
 /// // Decode the bytes back into a matching Value.
 /// // This value contains contextual information about which type was used
@@ -200,8 +200,8 @@ pub mod scale {
 	/// Attempt to encode some [`crate::Value<T>`] into SCALE bytes, by providing a pointer to the
 	/// type ID that we'd like to encode it as, a type registry from which we'll look
 	/// up the relevant type information, and a buffer to encode the bytes to.
-	pub fn encode_as_type<T, Id: Into<TypeId>>(
-		value: crate::Value<T>,
+	pub fn encode_as_type<T: Clone, Id: Into<TypeId>>(
+		value: &crate::Value<T>,
 		ty_id: Id,
 		types: &PortableRegistry,
 		buf: &mut Vec<u8>,
