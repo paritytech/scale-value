@@ -819,7 +819,7 @@ mod test {
 		// One layer of "newtype" can be ignored:
 		#[derive(Encode, scale_info::TypeInfo)]
 		struct Foo {
-			inner: u32
+			inner: u32,
 		}
 		assert_can_encode_to_type(Value::uint(32u128), Foo { inner: 32 });
 
@@ -831,6 +831,9 @@ mod test {
 		// Encoding a Composite to a Composite(Composite) shape is fine too:
 		#[derive(Encode, scale_info::TypeInfo)]
 		struct SomeBytes(Vec<u8>);
-		assert_can_encode_to_type(Value::from_bytes(&[1,2,3,4,5]), SomeBytes(vec![1,2,3,4,5]));
+		assert_can_encode_to_type(
+			Value::from_bytes(&[1, 2, 3, 4, 5]),
+			SomeBytes(vec![1, 2, 3, 4, 5]),
+		);
 	}
 }
