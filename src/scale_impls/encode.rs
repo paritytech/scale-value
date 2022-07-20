@@ -753,6 +753,22 @@ mod test {
 	}
 
 	#[test]
+	fn can_encode_unnamed_composite_to_named_struct() {
+		#[derive(Encode, scale_info::TypeInfo)]
+		struct Foo {
+			hello: String,
+			foo: bool,
+		}
+
+		// This is useful because things like transaction calls are often named composites, but
+		// we just want to be able to provide the correct values as simply as possible without
+		// necessarily knowing the names.
+		let unnamed_value =
+			Value::unnamed_composite(vec![Value::string("world"), Value::bool(true)]);
+		assert_can_encode_to_type(unnamed_value, Foo { hello: "world".to_string(), foo: true });
+	}
+
+	#[test]
 	fn can_encode_bitvecs() {
 		use bitvec::{
 			bitvec,
@@ -796,5 +812,25 @@ mod test {
 			)])]),
 			Compact(123u64),
 		);
+	}
+
+	#[test]
+	fn can_encode_skipping_newtype_wrappers() {
+		// One layer of "newtype" can be ignored:
+		#[derive(Encode, scale_info::TypeInfo)]
+		struct Foo {
+			inner: u32
+		}
+		assert_can_encode_to_type(Value::uint(32u128), Foo { inner: 32 });
+
+		// Two layers can be ignored:
+		#[derive(Encode, scale_info::TypeInfo)]
+		struct Bar(Foo);
+		assert_can_encode_to_type(Value::uint(32u128), Bar(Foo { inner: 32 }));
+
+		// Encoding a Composite to a Composite(Composite) shape is fine too:
+		#[derive(Encode, scale_info::TypeInfo)]
+		struct SomeBytes(Vec<u8>);
+		assert_can_encode_to_type(Value::from_bytes(&[1,2,3,4,5]), SomeBytes(vec![1,2,3,4,5]));
 	}
 }
