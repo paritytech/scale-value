@@ -330,14 +330,14 @@ fn parse_number(t: &mut impl Tokens<Item = char>) -> Result<Primitive, Option<Pa
 	let mut seen_n = false;
 	let digits = t
 		.tokens_while(|c| {
-			if c.is_digit(10) {
+			if c.is_ascii_digit() {
 				seen_n = true;
 				true
 			} else {
 				seen_n && *c == '_'
 			}
 		})
-		.filter(|c| c.is_digit(10));
+		.filter(|c| c.is_ascii_digit());
 
 	// Chain sign to digits and attempt to parse into a number.
 	let n_str: String = sign.chain(digits).collect();

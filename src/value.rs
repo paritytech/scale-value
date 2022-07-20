@@ -183,8 +183,8 @@ impl<T> Composite<T> {
 	/// Iterate over the values stored in this composite type.
 	pub fn values(&self) -> impl Iterator<Item = &Value<T>> {
 		match self {
-			Composite::Named(values) => Either::Left(values.into_iter().map(|(_k, v)| v)),
-			Composite::Unnamed(values) => Either::Right(values.into_iter()),
+			Composite::Named(values) => Either::Left(values.iter().map(|(_k, v)| v)),
+			Composite::Unnamed(values) => Either::Right(values.iter()),
 		}
 	}
 
