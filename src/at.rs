@@ -165,17 +165,14 @@ mod test {
 	// This is basically the doc example with a little extra.
 	#[test]
 	fn nested_accessing() {
-		let val = Value::named_composite(vec![(
-			"hello".to_string(),
-			Value::unnamed_composite(vec![
+		let val = Value::named_composite([(
+			"hello",
+			Value::unnamed_composite([
 				Value::u128(1),
 				Value::bool(true),
-				Value::named_composite(vec![
-					("wibble".to_string(), Value::bool(false)),
-					(
-						"foo".to_string(),
-						Value::named_composite(vec![("bar".to_string(), Value::u128(123))]),
-					),
+				Value::named_composite([
+					("wibble", Value::bool(false)),
+					("foo", Value::named_composite([("bar", Value::u128(123))])),
 				]),
 			]),
 		)]);
@@ -189,22 +186,22 @@ mod test {
 		assert_eq!(val.at("wibble").at("wobble").at("nope"), None);
 
 		// Strings can be used:
-		assert_eq!(val.at("hello".to_string()).at(0), Some(&Value::u128(1)));
+		assert_eq!(val.at("hello").at(0), Some(&Value::u128(1)));
 		// References to valid locations are fine too:
-		assert_eq!(val.at(&&"hello".to_string()).at(&&&0), Some(&Value::u128(1)));
+		assert_eq!(val.at(&&"hello").at(&&&0), Some(&Value::u128(1)));
 	}
 
 	#[test]
 	fn accessing_variants() {
 		let val = Value::named_variant(
 			"TheVariant",
-			vec![("foo".to_string(), Value::u128(12345)), ("bar".to_string(), Value::char('c'))],
+			[("foo", Value::u128(12345)), ("bar", Value::char('c'))],
 		);
 
 		assert_eq!(val.at("foo").unwrap().as_u128().unwrap(), 12345);
 		assert_eq!(val.at("bar").unwrap().as_char().unwrap(), 'c');
 
-		let val = Value::unnamed_variant("TheVariant", vec![Value::u128(12345), Value::char('c')]);
+		let val = Value::unnamed_variant("TheVariant", [Value::u128(12345), Value::char('c')]);
 
 		assert_eq!(val.at(0).unwrap().as_u128().unwrap(), 12345);
 		assert_eq!(val.at(1).unwrap().as_char().unwrap(), 'c');
@@ -213,13 +210,13 @@ mod test {
 
 		let val = Variant::named_fields(
 			"TheVariant",
-			vec![("foo".to_string(), Value::u128(12345)), ("bar".to_string(), Value::char('c'))],
+			[("foo", Value::u128(12345)), ("bar", Value::char('c'))],
 		);
 
 		assert_eq!(val.at("foo").unwrap().as_u128().unwrap(), 12345);
 		assert_eq!(val.at("bar").unwrap().as_char().unwrap(), 'c');
 
-		let val = Variant::unnamed_fields("TheVariant", vec![Value::u128(12345), Value::char('c')]);
+		let val = Variant::unnamed_fields("TheVariant", [Value::u128(12345), Value::char('c')]);
 
 		assert_eq!(val.at(0).unwrap().as_u128().unwrap(), 12345);
 		assert_eq!(val.at(1).unwrap().as_char().unwrap(), 'c');
@@ -230,15 +227,12 @@ mod test {
 		// We already test accessing composite Values. This also checks that `at` works on
 		// the Composite type, too..
 
-		let val = Composite::Named(vec![
-			("foo".to_string(), Value::u128(12345)),
-			("bar".to_string(), Value::char('c')),
-		]);
+		let val = Composite::named([("foo", Value::u128(12345)), ("bar", Value::char('c'))]);
 
 		assert_eq!(val.at("foo").unwrap().as_u128().unwrap(), 12345);
 		assert_eq!(val.at("bar").unwrap().as_char().unwrap(), 'c');
 
-		let val = Composite::Unnamed(vec![Value::u128(12345), Value::char('c')]);
+		let val = Composite::unnamed([Value::u128(12345), Value::char('c')]);
 
 		assert_eq!(val.at(0).unwrap().as_u128().unwrap(), 12345);
 		assert_eq!(val.at(1).unwrap().as_char().unwrap(), 'c');
