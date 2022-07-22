@@ -815,7 +815,7 @@ mod test {
 		let val = ValueDef::Composite(Composite::Named(vec![
 			// Order shouldn't matter; match on names:
 			("b".into(), Value::bool(true)),
-			("a".into(), Value::uint(123u8)),
+			("a".into(), Value::u128(123)),
 		]));
 
 		assert_eq!(Foo::deserialize(val), Ok(Foo { a: 123, b: true }))
@@ -832,7 +832,7 @@ mod test {
 		let val = Composite::Named(vec![
 			// Order shouldn't matter; match on names:
 			("b".into(), Value::bool(true)),
-			("a".into(), Value::uint(123u8)),
+			("a".into(), Value::u128(123)),
 		]);
 
 		assert_eq!(Foo::deserialize(val), Ok(Foo { a: 123, b: true }))
@@ -844,7 +844,7 @@ mod test {
 		struct Foo(u8, bool, String);
 
 		let val = ValueDef::Composite(Composite::Unnamed(vec![
-			Value::uint(123u8),
+			Value::u128(123),
 			Value::bool(true),
 			Value::string("hello"),
 		]));
@@ -858,7 +858,7 @@ mod test {
 		struct Foo(u8, bool, String);
 
 		let val =
-			Composite::Unnamed(vec![Value::uint(123u8), Value::bool(true), Value::string("hello")]);
+			Composite::Unnamed(vec![Value::u128(123), Value::bool(true), Value::string("hello")]);
 
 		assert_eq!(Foo::deserialize(val), Ok(Foo(123, true, "hello".into())))
 	}
@@ -875,9 +875,9 @@ mod test {
 		#[derive(Deserialize, Debug, PartialEq)]
 		struct FooVecU8(Vec<u8>);
 		let val = ValueDef::Composite(Composite::Unnamed(vec![
-			Value::uint(1u8),
-			Value::uint(2u8),
-			Value::uint(3u8),
+			Value::u128(1),
+			Value::u128(2),
+			Value::u128(3),
 		]));
 		assert_eq!(FooVecU8::deserialize(val), Ok(FooVecU8(vec![1, 2, 3])));
 
@@ -889,7 +889,7 @@ mod test {
 		struct FooVar(MyEnum);
 		let val = ValueDef::Variant(Variant {
 			name: "Foo".into(),
-			values: Composite::Unnamed(vec![Value::uint(1u8), Value::uint(2u8), Value::uint(3u8)]),
+			values: Composite::Unnamed(vec![Value::u128(1), Value::u128(2), Value::u128(3)]),
 		});
 		assert_eq!(FooVar::deserialize(val), Ok(FooVar(MyEnum::Foo(1, 2, 3))));
 	}
@@ -903,7 +903,7 @@ mod test {
 
 		#[derive(Deserialize, Debug, PartialEq)]
 		struct FooVecU8(Vec<u8>);
-		let val = Composite::Unnamed(vec![Value::uint(1u8), Value::uint(2u8), Value::uint(3u8)]);
+		let val = Composite::Unnamed(vec![Value::u128(1), Value::u128(2), Value::u128(3)]);
 		assert_eq!(FooVecU8::deserialize(val), Ok(FooVecU8(vec![1, 2, 3])));
 
 		#[derive(Deserialize, Debug, PartialEq)]
@@ -914,7 +914,7 @@ mod test {
 		struct FooVar(MyEnum);
 		let val = Variant {
 			name: "Foo".into(),
-			values: Composite::Unnamed(vec![Value::uint(1u8), Value::uint(2u8), Value::uint(3u8)]),
+			values: Composite::Unnamed(vec![Value::u128(1), Value::u128(2), Value::u128(3)]),
 		};
 		assert_eq!(FooVar::deserialize(val), Ok(FooVar(MyEnum::Foo(1, 2, 3))));
 	}
@@ -922,9 +922,9 @@ mod test {
 	#[test]
 	fn de_into_vec() {
 		let val = ValueDef::Composite(Composite::Unnamed(vec![
-			Value::uint(1u8),
-			Value::uint(2u8),
-			Value::uint(3u8),
+			Value::u128(1),
+			Value::u128(2),
+			Value::u128(3),
 		]));
 		assert_eq!(<Vec<u8>>::deserialize(val), Ok(vec![1, 2, 3]));
 
@@ -938,13 +938,13 @@ mod test {
 
 	#[test]
 	fn de_unwrapped_into_vec() {
-		let val = Composite::Unnamed(vec![Value::uint(1u8), Value::uint(2u8), Value::uint(3u8)]);
+		let val = Composite::Unnamed(vec![Value::u128(1), Value::u128(2), Value::u128(3)]);
 		assert_eq!(<Vec<u8>>::deserialize(val), Ok(vec![1, 2, 3]));
 
 		let val = Composite::Named(vec![
-			("a".into(), Value::uint(1u8)),
-			("b".into(), Value::uint(2u8)),
-			("c".into(), Value::uint(3u8)),
+			("a".into(), Value::u128(1)),
+			("b".into(), Value::u128(2)),
+			("c".into(), Value::u128(3)),
 		]);
 		assert_eq!(<Vec<u8>>::deserialize(val), Ok(vec![1, 2, 3]));
 
@@ -958,9 +958,9 @@ mod test {
 		use std::collections::HashMap;
 
 		let val = ValueDef::Composite(Composite::Named(vec![
-			("a".into(), Value::uint(1u8)),
-			("b".into(), Value::uint(2u8)),
-			("c".into(), Value::uint(3u8)),
+			("a".into(), Value::u128(1)),
+			("b".into(), Value::u128(2)),
+			("c".into(), Value::u128(3)),
 		]));
 		assert_eq!(
 			<HashMap<String, u8>>::deserialize(val),
@@ -968,9 +968,9 @@ mod test {
 		);
 
 		let val = ValueDef::Composite(Composite::Unnamed(vec![
-			Value::uint(1u8),
-			Value::uint(2u8),
-			Value::uint(3u8),
+			Value::u128(1),
+			Value::u128(2),
+			Value::u128(3),
 		]));
 		<HashMap<String, u8>>::deserialize(val).expect_err("no names; can't be map");
 	}
@@ -1000,7 +1000,7 @@ mod test {
 		// Enum variants with names values are allowed! The variant name will be ignored:
 		let val = ValueDef::Variant(Variant::named_fields(
 			"Foo",
-			vec![("a".into(), Value::string("hello")), ("b".into(), Value::bool(true))],
+			[("a", Value::string("hello")), ("b", Value::bool(true))],
 		));
 		assert_eq!(<(String, bool)>::deserialize(val), Ok(("hello".into(), true)));
 
@@ -1008,7 +1008,7 @@ mod test {
 		let val = ValueDef::Composite(Composite::Unnamed(vec![
 			Value::string("hello"),
 			Value::bool(true),
-			Value::uint(123u8),
+			Value::u128(123),
 		]));
 		<(String, bool)>::deserialize(val).expect_err("Wrong length, should err");
 	}
@@ -1027,7 +1027,7 @@ mod test {
 
 		// Wrong number of values should fail:
 		let val =
-			Composite::Unnamed(vec![Value::string("hello"), Value::bool(true), Value::uint(123u8)]);
+			Composite::Unnamed(vec![Value::string("hello"), Value::bool(true), Value::u128(123)]);
 		<(String, bool)>::deserialize(val).expect_err("Wrong length, should err");
 	}
 
@@ -1058,7 +1058,7 @@ mod test {
 			values: Composite::Unnamed(vec![
 				Value::string("hello"),
 				Value::bool(true),
-				Value::uint(123u8),
+				Value::u128(123),
 			]),
 		});
 		assert_eq!(MyEnum::deserialize(val), Ok(MyEnum::Foo("hello".into(), true, 123)));
@@ -1069,7 +1069,7 @@ mod test {
 			values: Composite::Named(vec![
 				("a".into(), Value::string("hello")),
 				("b".into(), Value::bool(true)),
-				("c".into(), Value::uint(123u8)),
+				("c".into(), Value::u128(123)),
 			]),
 		});
 		assert_eq!(MyEnum::deserialize(val), Ok(MyEnum::Foo("hello".into(), true, 123)));
@@ -1087,7 +1087,7 @@ mod test {
 			values: Composite::Unnamed(vec![
 				Value::string("hello"),
 				Value::bool(true),
-				Value::uint(123u8),
+				Value::u128(123),
 			]),
 		};
 		assert_eq!(MyEnum::deserialize(val), Ok(MyEnum::Foo("hello".into(), true, 123)));
@@ -1098,7 +1098,7 @@ mod test {
 			values: Composite::Named(vec![
 				("a".into(), Value::string("hello")),
 				("b".into(), Value::bool(true)),
-				("c".into(), Value::uint(123u8)),
+				("c".into(), Value::u128(123)),
 			]),
 		};
 		assert_eq!(MyEnum::deserialize(val), Ok(MyEnum::Foo("hello".into(), true, 123)));
@@ -1116,7 +1116,7 @@ mod test {
 			name: "Foo".into(),
 			values: Composite::Named(vec![
 				// Deliberately out of order: names should ensure alignment:
-				("b".into(), Value::uint(123u8)),
+				("b".into(), Value::u128(123)),
 				("a".into(), Value::bool(true)),
 				("hi".into(), Value::string("hello")),
 			]),
@@ -1132,7 +1132,7 @@ mod test {
 			values: Composite::Unnamed(vec![
 				Value::string("hello"),
 				Value::bool(true),
-				Value::uint(123u8),
+				Value::u128(123),
 			]),
 		});
 		assert_eq!(
@@ -1145,7 +1145,7 @@ mod test {
 			name: "Foo".into(),
 			values: Composite::Unnamed(vec![
 				Value::bool(true),
-				Value::uint(123u8),
+				Value::u128(123),
 				Value::string("hello"),
 			]),
 		});
@@ -1155,7 +1155,7 @@ mod test {
 		let val = ValueDef::Variant(Variant {
 			name: "Foo".into(),
 			values: Composite::Named(vec![
-				("b".into(), Value::uint(123u8)),
+				("b".into(), Value::u128(123)),
 				// Whoops; wrong name:
 				("c".into(), Value::bool(true)),
 				("hi".into(), Value::string("hello")),
@@ -1167,8 +1167,8 @@ mod test {
 		let val = ValueDef::Variant(Variant {
 			name: "Foo".into(),
 			values: Composite::Named(vec![
-				("foo".into(), Value::uint(40u8)),
-				("b".into(), Value::uint(123u8)),
+				("foo".into(), Value::u128(40)),
+				("b".into(), Value::u128(123)),
 				("a".into(), Value::bool(true)),
 				("bar".into(), Value::bool(false)),
 				("hi".into(), Value::string("hello")),

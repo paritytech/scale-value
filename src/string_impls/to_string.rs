@@ -181,9 +181,9 @@ mod test {
 		assert_from_to(Value::char('\0'));
 		assert_from_to(Value::char('\t'));
 
-		assert_from_to(Value::int(-123_456));
-		assert_from_to(Value::uint(0u128));
-		assert_from_to(Value::uint(123456u128));
+		assert_from_to(Value::i128(-123_456));
+		assert_from_to(Value::u128(0));
+		assert_from_to(Value::u128(123456));
 
 		assert_from_to(Value::string("hello \"you\",\n\n\t How are you??"));
 		assert_from_to(Value::string(""));
@@ -191,13 +191,13 @@ mod test {
 
 	#[test]
 	fn composites() {
-		assert_from_to(Value::named_composite(vec![
-			("foo".into(), Value::uint(12345u128)),
-			("bar".into(), Value::bool(true)),
-			("a \"weird\" name".into(), Value::string("Woop!")),
+		assert_from_to(Value::named_composite([
+			("foo", Value::u128(12345)),
+			("bar", Value::bool(true)),
+			("a \"weird\" name", Value::string("Woop!")),
 		]));
-		assert_from_to(Value::unnamed_composite(vec![
-			Value::uint(12345u128),
+		assert_from_to(Value::unnamed_composite([
+			Value::u128(12345),
 			Value::bool(true),
 			Value::string("Woop!"),
 		]));
@@ -207,15 +207,15 @@ mod test {
 	fn variants() {
 		assert_from_to(Value::named_variant(
 			"A weird variant name",
-			vec![
-				("foo".into(), Value::uint(12345u128)),
-				("bar".into(), Value::bool(true)),
-				("a \"weird\" name".into(), Value::string("Woop!")),
+			[
+				("foo", Value::u128(12345)),
+				("bar", Value::bool(true)),
+				("a \"weird\" name", Value::string("Woop!")),
 			],
 		));
 		assert_from_to(Value::unnamed_variant(
 			"MyVariant",
-			vec![Value::uint(12345u128), Value::bool(true), Value::string("Woop!")],
+			[Value::u128(12345), Value::bool(true), Value::string("Woop!")],
 		));
 	}
 

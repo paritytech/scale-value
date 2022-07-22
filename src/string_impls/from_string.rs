@@ -357,12 +357,12 @@ fn parse_number(t: &mut impl Tokens<Item = char>) -> Result<Primitive, Option<Pa
 	if is_positive {
 		n_str
 			.parse::<u128>()
-			.map(Primitive::uint)
+			.map(Primitive::u128)
 			.map_err(|e| Some(ParseNumberError::ParsingFailed(e).between(start_loc, end_loc)))
 	} else {
 		n_str
 			.parse::<i128>()
-			.map(Primitive::int)
+			.map(Primitive::i128)
 			.map_err(|e| Some(ParseNumberError::ParsingFailed(e).between(start_loc, end_loc)))
 	}
 }
@@ -518,10 +518,10 @@ mod test {
 
 	#[test]
 	fn parse_numbers() {
-		assert_eq!(from("123"), Ok(Value::uint(123u128)));
-		assert_eq!(from("1_234_56"), Ok(Value::uint(123_456_u128)));
-		assert_eq!(from("+1_234_56"), Ok(Value::uint(123_456_u128)));
-		assert_eq!(from("-123_4"), Ok(Value::int(-1234)));
+		assert_eq!(from("123"), Ok(Value::u128(123)));
+		assert_eq!(from("1_234_56"), Ok(Value::u128(123_456)));
+		assert_eq!(from("+1_234_56"), Ok(Value::u128(123_456)));
+		assert_eq!(from("-123_4"), Ok(Value::i128(-1234)));
 		assert_eq!(from("-abc"), Err(ParseNumberError::ExpectedDigit.between(1, 2)));
 	}
 
@@ -558,12 +558,12 @@ mod test {
 			from("(  true, 1234 ,\t\n\t \"Hello!\" )"),
 			Ok(Value::unnamed_composite(vec![
 				Value::bool(true),
-				Value::uint(1234u128),
+				Value::u128(1234),
 				Value::string("Hello!")
 			]))
 		);
-		assert_eq!(from("()"), Ok(Value::unnamed_composite(vec![])));
-		assert_eq!(from("(\n\n\t\t\n)"), Ok(Value::unnamed_composite(vec![])));
+		assert_eq!(from("()"), Ok(Value::unnamed_composite([])));
+		assert_eq!(from("(\n\n\t\t\n)"), Ok(Value::unnamed_composite([])));
 	}
 
 	#[test]
@@ -576,10 +576,10 @@ mod test {
             \"Hello there 😀\": \"Hello!\"
         }"
 			),
-			Ok(Value::named_composite(vec![
-				("hello".into(), Value::bool(true)),
-				("foo".into(), Value::uint(1234u128)),
-				("Hello there 😀".into(), Value::string("Hello!"))
+			Ok(Value::named_composite([
+				("hello", Value::bool(true)),
+				("foo", Value::u128(1234)),
+				("Hello there 😀", Value::string("Hello!"))
 			]))
 		);
 	}
@@ -596,10 +596,10 @@ mod test {
 			),
 			Ok(Value::named_variant(
 				"MyVariant",
-				vec![
-					("hello".into(), Value::bool(true)),
-					("foo".into(), Value::uint(1234u128)),
-					("Hello there 😀".into(), Value::string("Hello!"))
+				[
+					("hello", Value::bool(true)),
+					("foo", Value::u128(1234)),
+					("Hello there 😀", Value::string("Hello!"))
 				]
 			))
 		);
@@ -608,19 +608,19 @@ mod test {
 			from("Foo (  true, 1234 ,\t\n\t \"Hello!\" )"),
 			Ok(Value::unnamed_variant(
 				"Foo",
-				vec![Value::bool(true), Value::uint(1234u128), Value::string("Hello!")]
+				vec![Value::bool(true), Value::u128(1234), Value::string("Hello!")]
 			))
 		);
 
-		assert_eq!(from("Foo()"), Ok(Value::unnamed_variant("Foo", vec![])));
-		assert_eq!(from("Foo{}"), Ok(Value::named_variant("Foo", vec![])));
-		assert_eq!(from("Foo( \t)"), Ok(Value::unnamed_variant("Foo", vec![])));
-		assert_eq!(from("Foo{  }"), Ok(Value::named_variant("Foo", vec![])));
+		assert_eq!(from("Foo()"), Ok(Value::unnamed_variant("Foo", [])));
+		assert_eq!(from("Foo{}"), Ok(Value::named_variant::<_, String, _>("Foo", [])));
+		assert_eq!(from("Foo( \t)"), Ok(Value::unnamed_variant("Foo", [])));
+		assert_eq!(from("Foo{  }"), Ok(Value::named_variant::<_, String, _>("Foo", [])));
 
 		// Parsing special "v" strings:
 		assert_eq!(
 			from("v\"variant name\" {  }"),
-			Ok(Value::named_variant("variant name", vec![]))
+			Ok(Value::named_variant::<_, String, _>("variant name", []))
 		);
 	}
 

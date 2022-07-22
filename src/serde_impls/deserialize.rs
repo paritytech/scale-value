@@ -168,7 +168,7 @@ impl<'de> Visitor<'de> for CompositeVisitor {
 	where
 		E: serde::de::Error,
 	{
-		let byte_values = v.iter().map(|&b| Value::uint(b)).collect();
+		let byte_values = v.iter().map(|&b| Value::u128(b as u128)).collect();
 		Ok(Composite::Unnamed(byte_values))
 	}
 
@@ -405,8 +405,8 @@ mod test {
 
 	#[test]
 	fn deserialize_primitives_isomorphic() {
-		assert_value_isomorphic(Value::uint(123u8));
-		assert_value_isomorphic(Value::int(123));
+		assert_value_isomorphic(Value::u128(123));
+		assert_value_isomorphic(Value::i128(123));
 		assert_value_isomorphic(Value::bool(true));
 		assert_value_isomorphic(Value::char('a'));
 		assert_value_isomorphic(Value::string("Hello!"));
@@ -417,11 +417,11 @@ mod test {
 		// composite type as the sequence catch-all:
 		assert_value_to_value(
 			ValueDef::<()>::Primitive(Primitive::I256([1; 32])),
-			Value::unnamed_composite(vec![1u8; 32].into_iter().map(Value::uint).collect()),
+			Value::unnamed_composite(vec![1u8; 32].into_iter().map(|b| Value::u128(b.into()))),
 		);
 		assert_value_to_value(
 			ValueDef::<()>::Primitive(Primitive::U256([1; 32])),
-			Value::unnamed_composite(vec![1u8; 32].into_iter().map(Value::uint).collect()),
+			Value::unnamed_composite(vec![1u8; 32].into_iter().map(|b| Value::u128(b.into()))),
 		);
 
 		// .. that said; if you want a primitive value back, you can use that type directly to get it
@@ -448,52 +448,52 @@ mod test {
 
 		// We can also go from wrapped to unwrapped:
 
-		assert_value_to_value(Value::uint(123u8), Primitive::uint(123u8));
-		assert_value_to_value(Value::int(123), Primitive::int(123));
+		assert_value_to_value(Value::u128(123), Primitive::u128(123));
+		assert_value_to_value(Value::i128(123), Primitive::i128(123));
 
 		// Or vice versa:
 
-		assert_value_to_value(Primitive::uint(123u8), Value::uint(123u8));
-		assert_value_to_value(Primitive::int(123), Value::int(123));
+		assert_value_to_value(Primitive::u128(123), Value::u128(123));
+		assert_value_to_value(Primitive::i128(123), Value::i128(123));
 	}
 
 	#[test]
 	fn deserialize_composites_isomorphic() {
 		assert_value_isomorphic(Value::unnamed_composite(vec![
-			Value::uint(123u8),
+			Value::u128(123),
 			Value::bool(true),
 		]));
-		assert_value_isomorphic(Value::named_composite(vec![]));
+		assert_value_isomorphic(Value::named_composite::<String, _>(vec![]));
 		assert_value_isomorphic(Value::named_composite(vec![
-			("a".into(), Value::uint(123u8)),
-			("b".into(), Value::bool(true)),
+			("a", Value::u128(123)),
+			("b", Value::bool(true)),
 		]));
 		assert_value_isomorphic(Value::named_composite(vec![
-			("a".into(), Value::uint(123u8)),
+			("a", Value::u128(123)),
 			(
-				"b".into(),
+				"b",
 				Value::named_composite(vec![
-					("c".into(), Value::uint(123u8)),
-					("d".into(), Value::string("hello")),
+					("c", Value::u128(123)),
+					("d", Value::string("hello")),
 				]),
 			),
 		]));
 
 		// unwrapped:
 
-		assert_value_isomorphic(Composite::Unnamed(vec![Value::uint(123u8), Value::bool(true)]));
-		assert_value_isomorphic(Composite::Unnamed(vec![]));
-		assert_value_isomorphic(Composite::Named(vec![
-			("a".into(), Value::uint(123u8)),
-			("b".into(), Value::bool(true)),
+		assert_value_isomorphic(Composite::unnamed(vec![Value::u128(123), Value::bool(true)]));
+		assert_value_isomorphic(Composite::unnamed(vec![]));
+		assert_value_isomorphic(Composite::named(vec![
+			("a", Value::u128(123)),
+			("b", Value::bool(true)),
 		]));
-		assert_value_isomorphic(Composite::Named(vec![
-			("a".into(), Value::uint(123u8)),
+		assert_value_isomorphic(Composite::named(vec![
+			("a", Value::u128(123)),
 			(
-				"b".into(),
+				"b",
 				Value::named_composite(vec![
-					("c".into(), Value::uint(123u8)),
-					("d".into(), Value::string("hello")),
+					("c", Value::u128(123)),
+					("d", Value::string("hello")),
 				]),
 			),
 		]));
@@ -501,32 +501,26 @@ mod test {
 
 	#[test]
 	fn deserialize_variants_isomorphic() {
-		assert_value_isomorphic(ValueDef::Variant(Variant {
-			name: "Foo".into(),
-			values: Composite::Unnamed(vec![Value::uint(123u8), Value::bool(true)]),
-		}));
-		assert_value_isomorphic(ValueDef::Variant(Variant {
-			name: "Foo".into(),
-			values: Composite::Unnamed(vec![]),
-		}));
-		assert_value_isomorphic(ValueDef::Variant(Variant {
-			name: "Foo".into(),
-			values: Composite::Named(vec![
-				("a".into(), Value::uint(123u8)),
-				("b".into(), Value::bool(true)),
-			]),
-		}));
+		assert_value_isomorphic(ValueDef::Variant(Variant::unnamed_fields(
+			"Foo",
+			[Value::u128(123), Value::bool(true)],
+		)));
+		assert_value_isomorphic(ValueDef::Variant(Variant::unnamed_fields("Foo", [])));
+		assert_value_isomorphic(ValueDef::Variant(Variant::named_fields(
+			"Foo",
+			[("a", Value::u128(123)), ("b", Value::bool(true))],
+		)));
 
 		// unwrapped work as well:
 
-		assert_value_isomorphic(Variant {
-			name: "Foo".into(),
-			values: Composite::Unnamed(vec![Value::uint(123u8), Value::bool(true)]),
-		});
+		assert_value_isomorphic(Variant::unnamed_fields(
+			"Foo",
+			[Value::u128(123), Value::bool(true)],
+		));
 		assert_value_isomorphic(Variant::unnamed_fields("Foo", vec![]));
 		assert_value_isomorphic(Variant::named_fields(
 			"Foo",
-			vec![("a".into(), Value::uint(123u8)), ("b".into(), Value::bool(true))],
+			[("a", Value::u128(123)), ("b", Value::bool(true))],
 		));
 	}
 
@@ -539,19 +533,19 @@ mod test {
 		assert_value_to_value(
 			de.clone(),
 			Value::unnamed_composite(vec![
-				Value::uint(1u8),
-				Value::uint(2u8),
-				Value::uint(3u8),
-				Value::uint(4u8),
+				Value::u128(1),
+				Value::u128(2),
+				Value::u128(3),
+				Value::u128(4),
 			]),
 		);
 		assert_value_to_value(
 			de,
 			Composite::Unnamed(vec![
-				Value::uint(1u8),
-				Value::uint(2u8),
-				Value::uint(3u8),
-				Value::uint(4u8),
+				Value::u128(1),
+				Value::u128(2),
+				Value::u128(3),
+				Value::u128(4),
 			]),
 		);
 	}
@@ -583,9 +577,9 @@ mod test {
 		let value = ValueDef::deserialize(de).expect("should deserialize OK");
 		if let ValueDef::Composite(Composite::Named(vals)) = value {
 			// These could come back in any order so we need to search for them:
-			assert!(vals.contains(&("a".into(), Value::int(1))));
-			assert!(vals.contains(&("b".into(), Value::int(2))));
-			assert!(vals.contains(&("c".into(), Value::int(3))));
+			assert!(vals.contains(&("a".into(), Value::i128(1))));
+			assert!(vals.contains(&("b".into(), Value::i128(2))));
+			assert!(vals.contains(&("c".into(), Value::i128(3))));
 		} else {
 			panic!("Map should deserialize into Composite::Named value but we have {:?}", value);
 		}
@@ -594,13 +588,13 @@ mod test {
 	#[test]
 	fn partially_deserialize_value() {
 		let value = Value::named_composite(vec![
-			("a".into(), Value::uint(123u8)),
+			("a", Value::u128(123)),
 			(
-				"b".into(),
+				"b",
 				Value::named_composite(vec![
-					("c".into(), Value::uint(123u8)),
-					("d".into(), Value::string("hello")),
-					("e".into(), Value::named_composite(vec![])),
+					("c", Value::u128(123)),
+					("d", Value::string("hello")),
+					("e", Value::named_composite::<String, _>([])),
 				]),
 			),
 		]);
@@ -623,8 +617,12 @@ mod test {
 		assert_eq!(
 			partial,
 			Partial {
-				a: Value::uint(123u8),
-				b: PartialB { c: 123, d: "hello".into(), e: Value::named_composite(vec![]) }
+				a: Value::u128(123),
+				b: PartialB {
+					c: 123,
+					d: "hello".into(),
+					e: Value::named_composite::<String, _>([])
+				}
 			}
 		)
 	}
@@ -642,8 +640,8 @@ mod test {
 			v.values,
 			Composite::Unnamed(vec![
 				// All JSON numbers deserialize to U64 or I64 or F64 as necessary:
-				Value::uint(1u8),
-				Value::uint(2u8),
+				Value::u128(1),
+				Value::u128(2),
 				Value::bool(true),
 			])
 		)
@@ -662,8 +660,8 @@ mod test {
 			v.values,
 			Composite::Named(vec![
 				// All JSON numbers deserialize to U64 or I64 or F64 as necessary:
-				("a".into(), Value::uint(1u8)),
-				("b".into(), Value::uint(2u8)),
+				("a".into(), Value::u128(1)),
+				("b".into(), Value::u128(2)),
 				("c".into(), Value::bool(true)),
 			])
 		)

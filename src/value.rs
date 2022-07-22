@@ -32,24 +32,42 @@ pub struct Value<T = ()> {
 }
 
 impl Value<()> {
-	/// Create a new named composite value without additional context.
-	pub fn named_composite(values: Vec<(String, Value<()>)>) -> Value<()> {
-		Value { value: ValueDef::Composite(Composite::Named(values)), context: () }
+	/// Construct a named composite type from any type which produces a tuple of keys and values
+	/// when iterated over.
+	pub fn named_composite<S, Vals>(vals: Vals) -> Self
+	where
+		S: Into<String>,
+		Vals: IntoIterator<Item = (S, Value<()>)>,
+	{
+		Value { value: ValueDef::Composite(Composite::named(vals)), context: () }
 	}
-	/// Create a new unnamed composite value without additional context.
-	pub fn unnamed_composite(values: Vec<Value<()>>) -> Value<()> {
-		Value { value: ValueDef::Composite(Composite::Unnamed(values)), context: () }
+	/// Construct an unnamed composite type from any type which produces values
+	/// when iterated over.
+	pub fn unnamed_composite<Vals>(vals: Vals) -> Self
+	where
+		Vals: IntoIterator<Item = Value<()>>,
+	{
+		Value { value: ValueDef::Composite(Composite::unnamed(vals)), context: () }
 	}
 	/// Create a new variant value without additional context.
 	pub fn variant<S: Into<String>>(name: S, values: Composite<()>) -> Value<()> {
 		Value { value: ValueDef::Variant(Variant { name: name.into(), values }), context: () }
 	}
 	/// Create a new variant value with named fields and without additional context.
-	pub fn named_variant<S: Into<String>>(name: S, fields: Vec<(String, Value<()>)>) -> Value<()> {
+	pub fn named_variant<S, F, Vals>(name: S, fields: Vals) -> Value<()>
+	where
+		S: Into<String>,
+		F: Into<String>,
+		Vals: IntoIterator<Item = (F, Value<()>)>,
+	{
 		Value { value: ValueDef::Variant(Variant::named_fields(name, fields)), context: () }
 	}
 	/// Create a new variant value with tuple-like fields and without additional context.
-	pub fn unnamed_variant<S: Into<String>>(name: S, fields: Vec<Value<()>>) -> Value<()> {
+	pub fn unnamed_variant<S, Vals>(name: S, fields: Vals) -> Value<()>
+	where
+		S: Into<String>,
+		Vals: IntoIterator<Item = Value<()>>,
+	{
 		Value { value: ValueDef::Variant(Variant::unnamed_fields(name, fields)), context: () }
 	}
 	/// Create a new bit sequence value without additional context.
@@ -73,16 +91,16 @@ impl Value<()> {
 		Value { value: ValueDef::Primitive(Primitive::Char(val)), context: () }
 	}
 	/// Create a new unsigned integer without additional context.
-	pub fn uint<N: Into<u128>>(val: N) -> Value<()> {
-		Value { value: ValueDef::Primitive(Primitive::uint(val)), context: () }
+	pub fn u128(val: u128) -> Value<()> {
+		Value { value: ValueDef::Primitive(Primitive::u128(val)), context: () }
 	}
 	/// Create a new signed integer without additional context.
-	pub fn int<N: Into<i128>>(val: N) -> Value<()> {
-		Value { value: ValueDef::Primitive(Primitive::int(val)), context: () }
+	pub fn i128(val: i128) -> Value<()> {
+		Value { value: ValueDef::Primitive(Primitive::i128(val)), context: () }
 	}
 	/// Create a new Value from a set of bytes; useful for converting things like AccountIds.
 	pub fn from_bytes(bytes: impl AsRef<[u8]>) -> Value<()> {
-		let vals: Vec<_> = bytes.as_ref().iter().map(|&b| Value::uint(b)).collect();
+		let vals: Vec<_> = bytes.as_ref().iter().map(|&b| Value::u128(b as u128)).collect();
 		Value::unnamed_composite(vals)
 	}
 }
@@ -109,6 +127,41 @@ impl<T> Value<T> {
 		F: Clone + FnMut(T) -> U,
 	{
 		Value { context: f(self.context), value: self.value.map_context(f) }
+	}
+	/// If the value is a boolean value, return it.
+	pub fn as_bool(&self) -> Option<bool> {
+		match &self.value {
+			ValueDef::Primitive(p) => p.as_bool(),
+			_ => None,
+		}
+	}
+	/// If the value is a char, return it.
+	pub fn as_char(&self) -> Option<char> {
+		match &self.value {
+			ValueDef::Primitive(p) => p.as_char(),
+			_ => None,
+		}
+	}
+	/// If the value is a u128, return it.
+	pub fn as_u128(&self) -> Option<u128> {
+		match &self.value {
+			ValueDef::Primitive(p) => p.as_u128(),
+			_ => None,
+		}
+	}
+	/// If the value is an i128, return it.
+	pub fn as_i128(&self) -> Option<i128> {
+		match &self.value {
+			ValueDef::Primitive(p) => p.as_i128(),
+			_ => None,
+		}
+	}
+	/// If the value is a string, return it.
+	pub fn as_str(&self) -> Option<&str> {
+		match &self.value {
+			ValueDef::Primitive(p) => p.as_str(),
+			_ => None,
+		}
 	}
 }
 
@@ -164,6 +217,16 @@ pub enum Composite<T> {
 }
 
 impl<T> Composite<T> {
+	/// Construct a named composite type from any type which produces a tuple of keys and values
+	/// when iterated over.
+	pub fn named<S: Into<String>, Vals: IntoIterator<Item = (S, Value<T>)>>(vals: Vals) -> Self {
+		Composite::Named(vals.into_iter().map(|(n, v)| (n.into(), v)).collect())
+	}
+	/// Construct an unnamed composite type from any type which produces values
+	/// when iterated over.
+	pub fn unnamed<Vals: IntoIterator<Item = Value<T>>>(vals: Vals) -> Self {
+		Composite::Unnamed(vals.into_iter().collect())
+	}
 	/// Return the number of values stored in this composite type.
 	pub fn len(&self) -> usize {
 		match self {
@@ -281,12 +344,21 @@ pub struct Variant<T> {
 
 impl<T> Variant<T> {
 	/// Construct a variant with named fields.
-	pub fn named_fields<S: Into<String>>(name: S, fields: Vec<(String, Value<T>)>) -> Variant<T> {
-		Variant { name: name.into(), values: Composite::Named(fields) }
+	pub fn named_fields<S, K, Vals>(name: S, fields: Vals) -> Variant<T>
+	where
+		S: Into<String>,
+		K: Into<String>,
+		Vals: IntoIterator<Item = (K, Value<T>)>,
+	{
+		Variant { name: name.into(), values: Composite::named(fields) }
 	}
 	/// Construct a variant with tuple-like fields.
-	pub fn unnamed_fields<S: Into<String>>(name: S, fields: Vec<Value<T>>) -> Variant<T> {
-		Variant { name: name.into(), values: Composite::Unnamed(fields) }
+	pub fn unnamed_fields<S, Vals>(name: S, fields: Vals) -> Variant<T>
+	where
+		S: Into<String>,
+		Vals: IntoIterator<Item = Value<T>>,
+	{
+		Variant { name: name.into(), values: Composite::unnamed(fields) }
 	}
 	/// Map the context to some different type.
 	pub fn map_context<F, U>(self, f: F) -> Variant<U>
@@ -330,12 +402,47 @@ pub enum Primitive {
 
 impl Primitive {
 	/// Create a new unsigned integer without additional context.
-	pub fn uint<N: Into<u128>>(val: N) -> Primitive {
-		Primitive::U128(val.into())
+	pub fn u128(val: u128) -> Primitive {
+		Primitive::U128(val)
 	}
 	/// Create a new signed integer without additional context.
-	pub fn int<N: Into<i128>>(val: N) -> Primitive {
-		Primitive::I128(val.into())
+	pub fn i128(val: i128) -> Primitive {
+		Primitive::I128(val)
+	}
+	/// If the primitive type is a boolean value, return it.
+	pub fn as_bool(&self) -> Option<bool> {
+		match self {
+			Primitive::Bool(b) => Some(*b),
+			_ => None,
+		}
+	}
+	/// If the primitive type is a char, return it.
+	pub fn as_char(&self) -> Option<char> {
+		match self {
+			Primitive::Char(c) => Some(*c),
+			_ => None,
+		}
+	}
+	/// If the primitive type is a u128, return it.
+	pub fn as_u128(&self) -> Option<u128> {
+		match self {
+			Primitive::U128(n) => Some(*n),
+			_ => None,
+		}
+	}
+	/// If the primitive type is an i128, return it.
+	pub fn as_i128(&self) -> Option<i128> {
+		match self {
+			Primitive::I128(n) => Some(*n),
+			_ => None,
+		}
+	}
+	/// If the primitive type is a string, return it.
+	pub fn as_str(&self) -> Option<&str> {
+		match self {
+			Primitive::String(s) => Some(&**s),
+			_ => None,
+		}
 	}
 }
 

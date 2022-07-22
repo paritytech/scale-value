@@ -144,7 +144,7 @@ mod test {
 	#[test]
 	fn serialize_primitives() {
 		// a subset of the primitives to sanity check that they are unwrapped:
-		assert_value(Value::uint(1u8), json!(1));
+		assert_value(Value::u128(1), json!(1));
 		assert_value(Value::bool(true), json!(true));
 		assert_value(Value::bool(false), json!(false));
 	}
@@ -152,10 +152,10 @@ mod test {
 	#[test]
 	fn serialize_composites() {
 		assert_value(
-			Value::named_composite(vec![
-				("a".into(), Value::bool(true)),
-				("b".into(), Value::string("hello")),
-				("c".into(), Value::char('c')),
+			Value::named_composite([
+				("a", Value::bool(true)),
+				("b", Value::string("hello")),
+				("c", Value::char('c')),
 			]),
 			json!({
 				"a": true,
@@ -164,11 +164,7 @@ mod test {
 			}),
 		);
 		assert_value(
-			Value::unnamed_composite(vec![
-				Value::bool(true),
-				Value::string("hello"),
-				Value::char('c'),
-			]),
+			Value::unnamed_composite([Value::bool(true), Value::string("hello"), Value::char('c')]),
 			json!([true, "hello", 'c']),
 		)
 	}

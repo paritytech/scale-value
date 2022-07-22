@@ -57,7 +57,7 @@ impl serde::ser::Error for SerializerError {
 macro_rules! serialize_prim {
 	($name:ident => $method:ident($ty:ident)) => {
 		fn $name(self, v: $ty) -> Result<Self::Ok, Self::Error> {
-			Ok(Value::$method(v))
+			Ok(Value::$method(v.into()))
 		}
 	};
 }
@@ -75,16 +75,16 @@ impl Serializer for ValueSerializer {
 	type SerializeStructVariant = NamedCompositeSerializer;
 
 	serialize_prim!(serialize_bool => bool(bool));
-	serialize_prim!(serialize_i8 => int(i8));
-	serialize_prim!(serialize_i16 => int(i16));
-	serialize_prim!(serialize_i32 => int(i32));
-	serialize_prim!(serialize_i64 => int(i64));
-	serialize_prim!(serialize_i128 => int(i128));
-	serialize_prim!(serialize_u8 => uint(u8));
-	serialize_prim!(serialize_u16 => uint(u16));
-	serialize_prim!(serialize_u32 => uint(u32));
-	serialize_prim!(serialize_u64 => uint(u64));
-	serialize_prim!(serialize_u128 => uint(u128));
+	serialize_prim!(serialize_i8 => i128(i8));
+	serialize_prim!(serialize_i16 => i128(i16));
+	serialize_prim!(serialize_i32 => i128(i32));
+	serialize_prim!(serialize_i64 => i128(i64));
+	serialize_prim!(serialize_i128 => i128(i128));
+	serialize_prim!(serialize_u8 => u128(u8));
+	serialize_prim!(serialize_u16 => u128(u16));
+	serialize_prim!(serialize_u32 => u128(u32));
+	serialize_prim!(serialize_u64 => u128(u64));
+	serialize_prim!(serialize_u128 => u128(u128));
 	serialize_prim!(serialize_char => char(char));
 
 	fn serialize_f32(self, _v: f32) -> Result<Self::Ok, Self::Error> {
@@ -99,7 +99,7 @@ impl Serializer for ValueSerializer {
 	}
 
 	fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok, Self::Error> {
-		let bytes = v.iter().map(|b| Value::uint(*b)).collect();
+		let bytes = v.iter().map(|&b| Value::u128(b as u128));
 		Ok(Value::unnamed_composite(bytes))
 	}
 
@@ -442,17 +442,17 @@ mod test {
 
 	#[test]
 	fn ser_de_primitives() {
-		assert_ser_de_eq(123u8, Value::uint(123u8));
-		assert_ser_de_eq(123u16, Value::uint(123u8));
-		assert_ser_de_eq(123u32, Value::uint(123u8));
-		assert_ser_de_eq(123u64, Value::uint(123u8));
-		assert_ser_de_eq(123u128, Value::uint(123u8));
+		assert_ser_de_eq(123u8, Value::u128(123));
+		assert_ser_de_eq(123u16, Value::u128(123));
+		assert_ser_de_eq(123u32, Value::u128(123));
+		assert_ser_de_eq(123u64, Value::u128(123));
+		assert_ser_de_eq(123u128, Value::u128(123));
 
-		assert_ser_de_eq(123i8, Value::int(123));
-		assert_ser_de_eq(123i16, Value::int(123));
-		assert_ser_de_eq(123i32, Value::int(123));
-		assert_ser_de_eq(123i64, Value::int(123));
-		assert_ser_de_eq(123i128, Value::int(123));
+		assert_ser_de_eq(123i8, Value::i128(123));
+		assert_ser_de_eq(123i16, Value::i128(123));
+		assert_ser_de_eq(123i32, Value::i128(123));
+		assert_ser_de_eq(123i64, Value::i128(123));
+		assert_ser_de_eq(123i128, Value::i128(123));
 
 		assert_ser_de_eq(true, Value::bool(true));
 		assert_ser_de_eq(false, Value::bool(false));
@@ -463,7 +463,7 @@ mod test {
 
 	#[test]
 	fn ser_de_optionals() {
-		let val = Value::variant("Some".to_string(), Composite::Unnamed(vec![Value::uint(123u8)]));
+		let val = Value::variant("Some".to_string(), Composite::Unnamed(vec![Value::u128(123)]));
 		assert_ser_de_eq(Some(123u8), val);
 
 		let val = Value::variant("None".to_string(), Composite::Unnamed(Vec::new()));
@@ -475,7 +475,7 @@ mod test {
 		#[derive(Deserialize, Serialize, Debug, PartialEq)]
 		struct Foo;
 
-		let val = Value::unnamed_composite(vec![]);
+		let val = Value::unnamed_composite([]);
 
 		assert_ser_de_eq(Foo, val);
 	}
@@ -488,10 +488,7 @@ mod test {
 			b: bool,
 		}
 
-		let val = Value::named_composite(vec![
-			("a".into(), Value::uint(123u8)),
-			("b".into(), Value::bool(true)),
-		]);
+		let val = Value::named_composite([("a", Value::u128(123)), ("b", Value::bool(true))]);
 
 		assert_ser_de_eq(Foo { a: 123, b: true }, val);
 	}
@@ -501,7 +498,7 @@ mod test {
 		#[derive(Deserialize, Serialize, Debug, PartialEq)]
 		struct Foo(u8, bool);
 
-		let val = Value::unnamed_composite(vec![Value::uint(123u8), Value::bool(true)]);
+		let val = Value::unnamed_composite(vec![Value::u128(123), Value::bool(true)]);
 
 		assert_ser_de_eq(Foo(123, true), val);
 	}
@@ -511,29 +508,29 @@ mod test {
 		assert_ser_de_eq(
 			vec![1, 2, 3, 4, 5u8],
 			Value::unnamed_composite(vec![
-				Value::uint(1u8),
-				Value::uint(2u8),
-				Value::uint(3u8),
-				Value::uint(4u8),
-				Value::uint(5u8),
+				Value::u128(1),
+				Value::u128(2),
+				Value::u128(3),
+				Value::u128(4),
+				Value::u128(5),
 			]),
 		);
 
 		assert_ser_de_eq(
 			[1, 2, 3, 4, 5u8],
 			Value::unnamed_composite(vec![
-				Value::uint(1u8),
-				Value::uint(2u8),
-				Value::uint(3u8),
-				Value::uint(4u8),
-				Value::uint(5u8),
+				Value::u128(1),
+				Value::u128(2),
+				Value::u128(3),
+				Value::u128(4),
+				Value::u128(5),
 			]),
 		);
 
 		assert_ser_de_eq(
 			(1u8, true, 'a', "hello".to_string()),
 			Value::unnamed_composite(vec![
-				Value::uint(1u8),
+				Value::u128(1),
 				Value::bool(true),
 				Value::char('a'),
 				Value::string("hello"),
@@ -552,7 +549,7 @@ mod test {
 
 		assert_ser_de_eq(
 			Foo::A(true, 123),
-			Value::variant("A", Composite::Unnamed(vec![Value::bool(true), Value::uint(123u8)])),
+			Value::variant("A", Composite::Unnamed(vec![Value::bool(true), Value::u128(123)])),
 		);
 		assert_ser_de_eq(Foo::B, Value::variant("B", Composite::Unnamed(vec![])));
 		assert_ser_de_eq(
@@ -561,7 +558,7 @@ mod test {
 				"C",
 				Composite::Named(vec![
 					("hello".to_string(), Value::string("World")),
-					("value".to_string(), Value::int(123)),
+					("value".to_string(), Value::i128(123)),
 				]),
 			),
 		);
