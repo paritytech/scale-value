@@ -32,14 +32,14 @@ use super::{Composite, Value, ValueDef, Variant};
 /// ```
 /// use scale_value::{ Value, At };
 ///
-/// let val = Value::named_composite(vec![
-///     ("hello".to_string(), Value::unnamed_composite(vec![
+/// let val = Value::named_composite([
+///     ("hello", Value::unnamed_composite([
 ///         Value::u128(1),
 ///         Value::bool(true),
-///         Value::named_composite(vec![
-///             ("wibble".to_string(), Value::bool(false)),
-///             ("foo".to_string(), Value::named_composite(vec![
-///                 ("bar".to_string(), Value::u128(123))
+///         Value::named_composite([
+///             ("wibble", Value::bool(false)),
+///             ("foo", Value::named_composite([
+///                 ("bar", Value::u128(123))
 ///             ]))
 ///         ])
 ///     ]))
