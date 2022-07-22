@@ -33,12 +33,17 @@
     feature(32bit_target)
 )]
 
+mod at;
 mod scale_impls;
 #[cfg(feature = "serde")]
 mod serde_impls;
 mod string_impls;
 mod value;
 
+// Traits to allow indexing into values.
+pub use at::{At, Location};
+
+// The value definition.
 pub use value::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
 
 /// Serializing and deserializing a [`crate::Value`] into/from other types via serde.
@@ -56,9 +61,9 @@ pub mod serde {
 	/// use scale_value::Value;
 	///
 	/// let value = Value::unnamed_composite(vec![
-	///     Value::uint(1u8),
-	///     Value::uint(2u8),
-	///     Value::uint(3u8),
+	///     Value::u128(1),
+	///     Value::u128(2),
+	///     Value::u128(3),
 	/// ]);
 	///
 	/// let arr: [u8; 3] = scale_value::serde::from_value(value).unwrap();
@@ -76,15 +81,15 @@ pub mod serde {
 	///     B(u8, bool)
 	/// }
 	///
-	/// let value1 = Value::named_variant("A", vec![
-	///     ("name".into(), Value::string("James")),
-	///     ("is_valid".into(), Value::bool(true)),
+	/// let value1 = Value::named_variant("A", [
+	///     ("name", Value::string("James")),
+	///     ("is_valid", Value::bool(true)),
 	/// ]);
 	/// let foo1: Foo = scale_value::serde::from_value(value1).unwrap();
 	/// assert_eq!(foo1, Foo::A { is_valid: true, name: "James".into() });
 	///
-	/// let value2 = Value::unnamed_variant("B", vec![
-	///     Value::uint(123u8),
+	/// let value2 = Value::unnamed_variant("B", [
+	///     Value::u128(123),
 	///     Value::bool(true),
 	/// ]);
 	/// let foo2: Foo = scale_value::serde::from_value(value2).unwrap();
@@ -108,10 +113,10 @@ pub mod serde {
 	/// let arr = [1u8, 2u8, 3u8];
 	///
 	/// let val = scale_value::serde::to_value(arr).unwrap();
-	/// assert_eq!(val, Value::unnamed_composite(vec![
-	///     Value::uint(1u8),
-	///     Value::uint(2u8),
-	///     Value::uint(3u8),
+	/// assert_eq!(val, Value::unnamed_composite([
+	///     Value::u128(1),
+	///     Value::u128(2),
+	///     Value::u128(3),
 	/// ]));
 	/// ```
 	///
@@ -130,9 +135,9 @@ pub mod serde {
 	/// let foo = Foo::A { is_valid: true, name: "James".into() };
 	///
 	/// let value = scale_value::serde::to_value(foo).unwrap();
-	/// assert_eq!(value, Value::named_variant("A", vec![
-	///     ("is_valid".into(), Value::bool(true)),
-	///     ("name".into(), Value::string("James")),
+	/// assert_eq!(value, Value::named_variant("A", [
+	///     ("is_valid", Value::bool(true)),
+	///     ("name", Value::string("James")),
 	/// ]));
 	/// ```
 	pub fn to_value<T: serde::Serialize>(ty: T) -> Result<crate::Value<()>, SerializerError> {
@@ -166,9 +171,9 @@ pub mod serde {
 /// }
 ///
 /// // Given that, we can encode/decode something with that shape to/from SCALE bytes:
-/// let value = Value::named_variant("A", vec![
-///     ("is_valid".into(), Value::bool(true)),
-///     ("name".into(), Value::string("James")),
+/// let value = Value::named_variant("A", [
+///     ("is_valid", Value::bool(true)),
+///     ("name", Value::string("James")),
 /// ]);
 ///
 /// // Encode the Value to bytes:

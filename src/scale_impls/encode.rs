@@ -160,7 +160,7 @@ fn encode_sequence_value<T: Clone>(
 			Compact(a.len() as u64).encode_to(bytes);
 			let ty = ty.type_param();
 			for val in a {
-				if encode_value_as_type(&Value::uint(*val), ty, types, bytes).is_err() {
+				if encode_value_as_type(&Value::u128(*val as u128), ty, types, bytes).is_err() {
 					return Err(EncodeError::WrongShape {
 						actual: value.clone(),
 						expected: type_id,
@@ -208,7 +208,7 @@ fn encode_array_value<T: Clone>(
 
 			let ty = ty.type_param();
 			for val in a {
-				if encode_value_as_type(&Value::uint(*val), ty, types, bytes).is_err() {
+				if encode_value_as_type(&Value::u128(*val as u128), ty, types, bytes).is_err() {
 					return Err(EncodeError::WrongShape {
 						actual: value.clone(),
 						expected: type_id,
@@ -636,17 +636,17 @@ mod test {
 
 	#[test]
 	fn can_encode_basic_primitive_values() {
-		assert_can_encode_to_type(Value::int(123), 123i8);
-		assert_can_encode_to_type(Value::int(123), 123i16);
-		assert_can_encode_to_type(Value::int(123), 123i32);
-		assert_can_encode_to_type(Value::int(123), 123i64);
-		assert_can_encode_to_type(Value::int(123), 123i128);
+		assert_can_encode_to_type(Value::i128(123), 123i8);
+		assert_can_encode_to_type(Value::i128(123), 123i16);
+		assert_can_encode_to_type(Value::i128(123), 123i32);
+		assert_can_encode_to_type(Value::i128(123), 123i64);
+		assert_can_encode_to_type(Value::i128(123), 123i128);
 
-		assert_can_encode_to_type(Value::uint(123u8), 123u8);
-		assert_can_encode_to_type(Value::uint(123u8), 123u16);
-		assert_can_encode_to_type(Value::uint(123u8), 123u32);
-		assert_can_encode_to_type(Value::uint(123u8), 123u64);
-		assert_can_encode_to_type(Value::uint(123u8), 123u128);
+		assert_can_encode_to_type(Value::u128(123), 123u8);
+		assert_can_encode_to_type(Value::u128(123), 123u16);
+		assert_can_encode_to_type(Value::u128(123), 123u32);
+		assert_can_encode_to_type(Value::u128(123), 123u64);
+		assert_can_encode_to_type(Value::u128(123), 123u128);
 
 		assert_can_encode_to_type(Value::bool(true), true);
 		assert_can_encode_to_type(Value::bool(false), false);
@@ -680,10 +680,10 @@ mod test {
 	#[test]
 	fn can_encode_arrays() {
 		let value = Value::unnamed_composite(vec![
-			Value::uint(1u8),
-			Value::uint(2u8),
-			Value::uint(3u8),
-			Value::uint(4u8),
+			Value::u128(1),
+			Value::u128(2),
+			Value::u128(3),
+			Value::u128(4),
 		]);
 		assert_can_encode_to_type(value, [1u16, 2, 3, 4]);
 	}
@@ -698,18 +698,18 @@ mod test {
 
 		let named_value = Value::named_variant(
 			"Named",
-			vec![
+			[
 				// Deliverately a different order; order shouldn't matter:
-				("foo".into(), Value::bool(true)),
-				("hello".into(), Value::string("world")),
+				("foo", Value::bool(true)),
+				("hello", Value::string("world")),
 			],
 		);
 		assert_can_encode_to_type(named_value, Foo::Named { hello: "world".into(), foo: true });
 
 		let unnamed_value = Value::unnamed_variant(
 			"Unnamed",
-			vec![
-				Value::uint(123u8),
+			[
+				Value::u128(123),
 				Value::unnamed_composite(vec![
 					Value::bool(true),
 					Value::bool(false),
@@ -728,27 +728,24 @@ mod test {
 			foo: bool,
 		}
 
-		let named_value = Value::named_composite(vec![
+		let named_value = Value::named_composite([
 			// Deliverately a different order; order shouldn't matter:
-			("foo".into(), Value::bool(true)),
-			("hello".into(), Value::string("world")),
+			("foo", Value::bool(true)),
+			("hello", Value::string("world")),
 		]);
 		assert_can_encode_to_type(named_value, Foo { hello: "world".into(), foo: true });
 	}
 
 	#[test]
 	fn can_encode_tuples_from_named_composite() {
-		let named_value = Value::named_composite(vec![
-			("hello".into(), Value::string("world")),
-			("foo".into(), Value::bool(true)),
-		]);
+		let named_value =
+			Value::named_composite([("hello", Value::string("world")), ("foo", Value::bool(true))]);
 		assert_can_encode_to_type(named_value, ("world", true));
 	}
 
 	#[test]
 	fn can_encode_tuples_from_unnamed_composite() {
-		let unnamed_value =
-			Value::unnamed_composite(vec![Value::string("world"), Value::bool(true)]);
+		let unnamed_value = Value::unnamed_composite([Value::string("world"), Value::bool(true)]);
 		assert_can_encode_to_type(unnamed_value, ("world", true));
 	}
 
@@ -763,8 +760,7 @@ mod test {
 		// This is useful because things like transaction calls are often named composites, but
 		// we just want to be able to provide the correct values as simply as possible without
 		// necessarily knowing the names.
-		let unnamed_value =
-			Value::unnamed_composite(vec![Value::string("world"), Value::bool(true)]);
+		let unnamed_value = Value::unnamed_composite([Value::string("world"), Value::bool(true)]);
 		assert_can_encode_to_type(unnamed_value, Foo { hello: "world".to_string(), foo: true });
 	}
 
@@ -795,20 +791,17 @@ mod test {
 
 	#[test]
 	fn can_encode_to_compact_types() {
-		assert_can_encode_to_type(Value::uint(123u8), Compact(123u64));
-		assert_can_encode_to_type(Value::uint(123u8), Compact(123u64));
-		assert_can_encode_to_type(Value::uint(123u8), Compact(123u64));
-		assert_can_encode_to_type(Value::uint(123u8), Compact(123u64));
+		assert_can_encode_to_type(Value::u128(123), Compact(123u64));
+		assert_can_encode_to_type(Value::u128(123), Compact(123u64));
+		assert_can_encode_to_type(Value::u128(123), Compact(123u64));
+		assert_can_encode_to_type(Value::u128(123), Compact(123u64));
 
 		// As a special case, as long as ultimately we have a primitive value, we can compact encode it:
+		assert_can_encode_to_type(Value::unnamed_composite([Value::u128(123)]), Compact(123u64));
 		assert_can_encode_to_type(
-			Value::unnamed_composite(vec![Value::uint(123u8)]),
-			Compact(123u64),
-		);
-		assert_can_encode_to_type(
-			Value::unnamed_composite(vec![Value::named_composite(vec![(
+			Value::unnamed_composite([Value::named_composite([(
 				"foo".to_string(),
-				Value::uint(123u8),
+				Value::u128(123),
 			)])]),
 			Compact(123u64),
 		);
@@ -821,12 +814,12 @@ mod test {
 		struct Foo {
 			inner: u32,
 		}
-		assert_can_encode_to_type(Value::uint(32u128), Foo { inner: 32 });
+		assert_can_encode_to_type(Value::u128(32), Foo { inner: 32 });
 
 		// Two layers can be ignored:
 		#[derive(Encode, scale_info::TypeInfo)]
 		struct Bar(Foo);
-		assert_can_encode_to_type(Value::uint(32u128), Bar(Foo { inner: 32 }));
+		assert_can_encode_to_type(Value::u128(32), Bar(Foo { inner: 32 }));
 
 		// Encoding a Composite to a Composite(Composite) shape is fine too:
 		#[derive(Encode, scale_info::TypeInfo)]
