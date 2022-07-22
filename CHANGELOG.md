@@ -4,6 +4,14 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.4.0
+
+The main addition in this release is the `At` trait (and corresponding `.at()` method) for indexing into `Value`s. There are also various small breaking changes as a result of tidying up various constructors, which will hopefully in general allow you to construct `Value`s with a little less verbosity. The `uint`/`int` constructors have been made more consistent with their siblings and have been renamed to `u128` and `i128`.
+
+### Added
+
+- Index into values with at, and more generic/extra accessors/constructors ([#19](https://github.com/paritytech/scale-value/pull/19))
+
 ## 0.3.0
 
 This release introduces a small breaking change: `scale_value::scale::encode_value_as_type` now takes a reference to a value rather than ownership of it, since on the happy path this shouldnt affect performance, and it would often mean cloning the entire value before passing it in, anyway.
