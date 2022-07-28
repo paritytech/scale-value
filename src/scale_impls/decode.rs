@@ -13,48 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-	bit_sequence::{get_bitsequence_details, BitOrderTy, BitSequenceError, BitStoreTy},
-	type_id::TypeId,
-	ScaleType as Type, ScaleTypeDef as TypeDef,
-};
-use crate::value::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
-use bitvec::{
-	order::{BitOrder, Lsb0, Msb0},
-	store::BitStore,
-	vec::BitVec,
-};
-use codec::{Compact, Decode};
-use scale_info::{
-	form::PortableForm, Field, PortableRegistry, TypeDefArray, TypeDefBitSequence, TypeDefCompact,
-	TypeDefComposite, TypeDefPrimitive, TypeDefSequence, TypeDefTuple, TypeDefVariant,
-};
+use super::type_id::TypeId;
+use crate::value::{Composite, Primitive, Value, ValueDef, Variant};
+use scale_info::PortableRegistry;
 
-/// An error decoding SCALE bytes into a [`Value`].
-#[derive(Debug, Clone, thiserror::Error, PartialEq)]
-pub enum DecodeError {
-	/// Some error emitted from a [`codec::Decode`] impl.
-	#[error("{0}")]
-	CodecError(#[from] codec::Error),
-	/// We could not convert the [`u32`] that we found into a valid [`char`].
-	#[error("{0} is expected to be a valid char, but is not")]
-	InvalidChar(u32),
-	/// We could not find the type given in the type registry provided.
-	#[error("Cannot find type with ID {0}")]
-	TypeIdNotFound(u32),
-	/// We expected more bytes to finish decoding, but could not find them.
-	#[error("Ran out of data during decoding")]
-	Eof,
-	/// We found a variant that does not match with any in the type we're trying to decode from.
-	#[error("Could not find variant with index {0} in {1:?}")]
-	VariantNotFound(u8, scale_info::TypeDefVariant<PortableForm>),
-	/// The type we're trying to decode is supposed to be compact encoded, but that is not possible.
-	#[error("Could not decode compact encoded type into {0:?}")]
-	CannotDecodeCompactIntoType(Type),
-	/// We ran into an error trying to decode a bit sequence.
-	#[error("Cannot decode bit sequence: {0}")]
-	BitSequenceError(BitSequenceError),
-}
+// This is emitted if something goes wrong decoding into a Value.
+pub use scale_decode::visitor::DecodeError;
 
 /// Decode data according to the [`TypeId`] provided.
 /// The provided pointer to the data slice will be moved forwards as needed
@@ -64,261 +28,209 @@ pub fn decode_value_as_type<Id: Into<TypeId>>(
 	ty_id: Id,
 	types: &PortableRegistry,
 ) -> Result<Value<TypeId>, DecodeError> {
-	let ty_id = ty_id.into();
-	let ty = types.resolve(ty_id.id()).ok_or_else(|| DecodeError::TypeIdNotFound(ty_id.id()))?;
-
-	let value = match ty.type_def() {
-		TypeDef::Composite(inner) => {
-			decode_composite_value(data, inner, types).map(ValueDef::Composite)
-		}
-		TypeDef::Sequence(inner) => {
-			decode_sequence_value(data, inner, types).map(ValueDef::Composite)
-		}
-		TypeDef::Array(inner) => decode_array_value(data, inner, types).map(ValueDef::Composite),
-		TypeDef::Tuple(inner) => decode_tuple_value(data, inner, types).map(ValueDef::Composite),
-		TypeDef::Variant(inner) => decode_variant_value(data, inner, types).map(ValueDef::Variant),
-		TypeDef::Primitive(inner) => decode_primitive_value(data, inner).map(ValueDef::Primitive),
-		TypeDef::Compact(inner) => decode_compact_value(data, inner, types),
-		TypeDef::BitSequence(inner) => {
-			decode_bit_sequence_value(data, inner, types).map(ValueDef::BitSequence)
-		}
-	}?;
-
-	Ok(Value { value, context: ty_id })
+	scale_decode::decode(data, ty_id.into().id(), types, ValueVisitor)
 }
 
-fn decode_composite_value(
-	data: &mut &[u8],
-	ty: &TypeDefComposite<PortableForm>,
-	types: &PortableRegistry,
+// Sequences, Tuples and Arrays all have the same methods, so decode them in the same way:
+macro_rules! to_unnamed_composite {
+	($value:ident, $type_id:ident) => {{
+		let mut vals = Vec::with_capacity($value.len());
+		while let Some(val) = $value.decode_item(ValueVisitor)? {
+			vals.push(val);
+		}
+		Ok(Value { value: ValueDef::Composite(Composite::Unnamed(vals)), context: $type_id.into() })
+	}};
+}
+
+struct ValueVisitor;
+
+impl scale_decode::visitor::Visitor for ValueVisitor {
+	type Value = Value<TypeId>;
+	type Error = DecodeError;
+
+	fn visit_bool(
+		self,
+		value: bool,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		Ok(Value::bool(value).map_context(|_| type_id.into()))
+	}
+	fn visit_char(
+		self,
+		value: char,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		Ok(Value::char(value).map_context(|_| type_id.into()))
+	}
+	fn visit_u8(
+		self,
+		value: u8,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		self.visit_u128(value as u128, type_id)
+	}
+	fn visit_u16(
+		self,
+		value: u16,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		self.visit_u128(value as u128, type_id)
+	}
+	fn visit_u32(
+		self,
+		value: u32,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		self.visit_u128(value as u128, type_id)
+	}
+	fn visit_u64(
+		self,
+		value: u64,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		self.visit_u128(value as u128, type_id)
+	}
+	fn visit_u128(
+		self,
+		value: u128,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		Ok(Value::u128(value as u128).map_context(|_| type_id.into()))
+	}
+	fn visit_u256(
+		self,
+		value: &[u8; 32],
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: type_id.into() })
+	}
+	fn visit_i8(
+		self,
+		value: i8,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		self.visit_i128(value as i128, type_id)
+	}
+	fn visit_i16(
+		self,
+		value: i16,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		self.visit_i128(value as i128, type_id)
+	}
+	fn visit_i32(
+		self,
+		value: i32,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		self.visit_i128(value as i128, type_id)
+	}
+	fn visit_i64(
+		self,
+		value: i64,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		self.visit_i128(value as i128, type_id)
+	}
+	fn visit_i128(
+		self,
+		value: i128,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		Ok(Value::i128(value as i128).map_context(|_| type_id.into()))
+	}
+	fn visit_i256(
+		self,
+		value: &[u8; 32],
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: type_id.into() })
+	}
+	fn visit_sequence(
+		self,
+		value: &mut scale_decode::visitor::Sequence,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		to_unnamed_composite!(value, type_id)
+	}
+	fn visit_tuple(
+		self,
+		value: &mut scale_decode::visitor::Tuple,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		to_unnamed_composite!(value, type_id)
+	}
+	fn visit_array(
+		self,
+		value: &mut scale_decode::visitor::Array,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		to_unnamed_composite!(value, type_id)
+	}
+	fn visit_bitsequence(
+		self,
+		value: &mut scale_decode::visitor::BitSequence,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		Ok(Value {
+			value: ValueDef::BitSequence(value.decode_bitsequence()?.to_u8_lsb0()),
+			context: type_id.into(),
+		})
+	}
+	fn visit_str(
+		self,
+		value: scale_decode::visitor::Str,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		Ok(Value::string(value.as_str()?).map_context(|_| type_id.into()))
+	}
+	fn visit_variant(
+		self,
+		value: &mut scale_decode::visitor::Variant,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		let values = visit_composite(value.fields())?;
+		Ok(Value {
+			value: ValueDef::Variant(Variant { name: value.name().to_owned(), values }),
+			context: type_id.into(),
+		})
+	}
+	fn visit_composite(
+		self,
+		value: &mut scale_decode::visitor::Composite,
+		type_id: scale_decode::visitor::TypeId,
+	) -> Result<Self::Value, Self::Error> {
+		Ok(Value { value: ValueDef::Composite(visit_composite(value)?), context: type_id.into() })
+	}
+}
+
+/// Extract a named/unnamed Composite type out of scale_decode's Composite.
+fn visit_composite(
+	value: &mut scale_decode::visitor::Composite,
 ) -> Result<Composite<TypeId>, DecodeError> {
-	decode_fields(data, ty.fields(), types)
-}
+	let len = value.fields().len();
+	let named = value.fields().get(0).map(|f| f.name().is_some()).unwrap_or(false);
 
-fn decode_variant_value(
-	data: &mut &[u8],
-	ty: &TypeDefVariant<PortableForm>,
-	types: &PortableRegistry,
-) -> Result<Variant<TypeId>, DecodeError> {
-	let index = *data.get(0).ok_or(DecodeError::Eof)?;
-	*data = &data[1..];
-
-	// Does a variant exist with the index we're looking for?
-	let variant = ty
-		.variants()
-		.iter()
-		.find(|v| v.index() == index)
-		.ok_or_else(|| DecodeError::VariantNotFound(index, ty.clone()))?;
-
-	let fields = decode_fields(data, variant.fields(), types)?;
-	Ok(Variant { name: variant.name().clone(), values: fields })
-}
-
-/// Variant and Composite types both have fields; this will decode them into values.
-fn decode_fields(
-	data: &mut &[u8],
-	fields: &[Field<PortableForm>],
-	types: &PortableRegistry,
-) -> Result<Composite<TypeId>, DecodeError> {
-	let are_named = fields.iter().any(|f| f.name().is_some());
-	let named_field_vals = fields.iter().map(|f| {
-		let name = f.name().cloned().unwrap_or_default();
-		decode_value_as_type(data, f.ty(), types).map(|val| (name, val))
-	});
-
-	if are_named {
-		let vals = named_field_vals.collect::<Result<_, _>>()?;
+	if named {
+		let mut vals = Vec::with_capacity(len);
+		while let Some((name, v)) = value.decode_item_with_name(ValueVisitor)? {
+			vals.push((name.to_owned(), v));
+		}
 		Ok(Composite::Named(vals))
 	} else {
-		let vals = named_field_vals.map(|r| r.map(|(_, v)| v)).collect::<Result<_, _>>()?;
+		let mut vals = Vec::with_capacity(len);
+		while let Some(v) = value.decode_item(ValueVisitor)? {
+			vals.push(v);
+		}
 		Ok(Composite::Unnamed(vals))
 	}
-}
-
-fn decode_sequence_value(
-	data: &mut &[u8],
-	ty: &TypeDefSequence<PortableForm>,
-	types: &PortableRegistry,
-) -> Result<Composite<TypeId>, DecodeError> {
-	// We assume that the sequence is preceeded by a compact encoded length, so that
-	// we know how many values to try pulling out of the data.
-	let len = Compact::<u64>::decode(data)?;
-	let values: Vec<_> = (0..len.0)
-		.map(|_| decode_value_as_type(data, ty.type_param(), types))
-		.collect::<Result<_, _>>()?;
-
-	Ok(Composite::Unnamed(values))
-}
-
-fn decode_array_value(
-	data: &mut &[u8],
-	ty: &TypeDefArray<PortableForm>,
-	types: &PortableRegistry,
-) -> Result<Composite<TypeId>, DecodeError> {
-	// The length is known based on the type we want to decode into, so we pull out the number of items according
-	// to that, and don't need a length to exist in the SCALE encoded bytes
-	let values: Vec<_> = (0..ty.len())
-		.map(|_| decode_value_as_type(data, ty.type_param(), types))
-		.collect::<Result<_, _>>()?;
-
-	Ok(Composite::Unnamed(values))
-}
-
-fn decode_tuple_value(
-	data: &mut &[u8],
-	ty: &TypeDefTuple<PortableForm>,
-	types: &PortableRegistry,
-) -> Result<Composite<TypeId>, DecodeError> {
-	let values: Vec<_> = ty
-		.fields()
-		.iter()
-		.map(|f| decode_value_as_type(data, f, types))
-		.collect::<Result<_, _>>()?;
-
-	Ok(Composite::Unnamed(values))
-}
-
-fn decode_primitive_value(
-	data: &mut &[u8],
-	ty: &TypeDefPrimitive,
-) -> Result<Primitive, DecodeError> {
-	let val = match ty {
-		TypeDefPrimitive::Bool => Primitive::Bool(bool::decode(data)?),
-		TypeDefPrimitive::Char => {
-			// Treat chars as u32's
-			let val = u32::decode(data)?;
-			Primitive::Char(char::from_u32(val).ok_or(DecodeError::InvalidChar(val))?)
-		}
-		TypeDefPrimitive::Str => Primitive::String(String::decode(data)?),
-		TypeDefPrimitive::U8 => Primitive::u128(u8::decode(data)? as u128),
-		TypeDefPrimitive::U16 => Primitive::u128(u16::decode(data)? as u128),
-		TypeDefPrimitive::U32 => Primitive::u128(u32::decode(data)? as u128),
-		TypeDefPrimitive::U64 => Primitive::u128(u64::decode(data)? as u128),
-		TypeDefPrimitive::U128 => Primitive::u128(u128::decode(data)?),
-		TypeDefPrimitive::U256 => Primitive::U256(<[u8; 32]>::decode(data)?),
-		TypeDefPrimitive::I8 => Primitive::i128(i8::decode(data)? as i128),
-		TypeDefPrimitive::I16 => Primitive::i128(i16::decode(data)? as i128),
-		TypeDefPrimitive::I32 => Primitive::i128(i32::decode(data)? as i128),
-		TypeDefPrimitive::I64 => Primitive::i128(i64::decode(data)? as i128),
-		TypeDefPrimitive::I128 => Primitive::i128(i128::decode(data)? as i128),
-		TypeDefPrimitive::I256 => Primitive::I256(<[u8; 32]>::decode(data)?),
-	};
-	Ok(val)
-}
-
-fn decode_compact_value(
-	data: &mut &[u8],
-	ty: &TypeDefCompact<PortableForm>,
-	types: &PortableRegistry,
-) -> Result<ValueDef<TypeId>, DecodeError> {
-	fn decode_compact(
-		data: &mut &[u8],
-		inner: &Type,
-		types: &PortableRegistry,
-	) -> Result<ValueDef<TypeId>, DecodeError> {
-		use TypeDefPrimitive::*;
-		let val = match inner.type_def() {
-			// It's obvious how to decode basic primitive unsigned types, since we have impls for them.
-			TypeDef::Primitive(U8) => {
-				ValueDef::Primitive(Primitive::u128(Compact::<u8>::decode(data)?.0 as u128))
-			}
-			TypeDef::Primitive(U16) => {
-				ValueDef::Primitive(Primitive::u128(Compact::<u16>::decode(data)?.0 as u128))
-			}
-			TypeDef::Primitive(U32) => {
-				ValueDef::Primitive(Primitive::u128(Compact::<u32>::decode(data)?.0 as u128))
-			}
-			TypeDef::Primitive(U64) => {
-				ValueDef::Primitive(Primitive::u128(Compact::<u64>::decode(data)?.0 as u128))
-			}
-			TypeDef::Primitive(U128) => {
-				ValueDef::Primitive(Primitive::u128(Compact::<u128>::decode(data)?.0 as u128))
-			}
-			// A struct with exactly 1 field containing one of the above types can be sensibly compact encoded/decoded.
-			TypeDef::Composite(composite) => {
-				if composite.fields().len() != 1 {
-					return Err(DecodeError::CannotDecodeCompactIntoType(inner.clone()));
-				}
-
-				// What type is the 1 field that we are able to decode?
-				let field = &composite.fields()[0];
-				let field_type_id = field.ty().id();
-				let inner_ty = types
-					.resolve(field_type_id)
-					.ok_or(DecodeError::TypeIdNotFound(field_type_id))?;
-
-				// Decode this inner type via compact decoding. This can recurse, in case
-				// the inner type is also a 1-field composite type.
-				let inner_value = Value {
-					value: decode_compact(data, inner_ty, types)?,
-					context: field.ty().into(),
-				};
-
-				// Wrap the inner type in a representation of this outer composite type.
-				let composite = match field.name() {
-					Some(name) => Composite::Named(vec![(name.clone(), inner_value)]),
-					None => Composite::Unnamed(vec![inner_value]),
-				};
-
-				ValueDef::Composite(composite)
-			}
-			// For now, we give up if we have been asked for any other type:
-			_cannot_decode_from => {
-				return Err(DecodeError::CannotDecodeCompactIntoType(inner.clone()))
-			}
-		};
-
-		Ok(val)
-	}
-
-	// Pluck the inner type out and run it through our compact decoding logic.
-	let inner = types
-		.resolve(ty.type_param().id())
-		.ok_or_else(|| DecodeError::TypeIdNotFound(ty.type_param().id()))?;
-	decode_compact(data, inner, types)
-}
-
-fn decode_bit_sequence_value(
-	data: &mut &[u8],
-	ty: &TypeDefBitSequence<PortableForm>,
-	types: &PortableRegistry,
-) -> Result<BitSequence, DecodeError> {
-	let details = get_bitsequence_details(ty, types).map_err(DecodeError::BitSequenceError)?;
-
-	fn to_bit_sequence<S: BitStore, O: BitOrder>(bits: BitVec<S, O>) -> BitSequence {
-		bits.iter().by_vals().collect()
-	}
-
-	// Decode the native BitSequence type easily, or else convert to it from the type given.
-	let bits = match details {
-		(BitStoreTy::U8, BitOrderTy::Lsb0) => BitVec::<u8, Lsb0>::decode(data)?,
-		(BitStoreTy::U8, BitOrderTy::Msb0) => to_bit_sequence(BitVec::<u8, Msb0>::decode(data)?),
-		(BitStoreTy::U16, BitOrderTy::Lsb0) => to_bit_sequence(BitVec::<u16, Lsb0>::decode(data)?),
-		(BitStoreTy::U16, BitOrderTy::Msb0) => to_bit_sequence(BitVec::<u16, Msb0>::decode(data)?),
-		(BitStoreTy::U32, BitOrderTy::Lsb0) => to_bit_sequence(BitVec::<u32, Lsb0>::decode(data)?),
-		(BitStoreTy::U32, BitOrderTy::Msb0) => to_bit_sequence(BitVec::<u32, Msb0>::decode(data)?),
-		// BitVec doesn't impl BitStore on u64 if pointer width isn't 64 bit, avoid using this store type here
-		// in that case to avoid compile errors (see https://docs.rs/bitvec/1.0.0/src/bitvec/store.rs.html#184)
-		#[cfg(not(feature = "32bit_target"))]
-		(BitStoreTy::U64, BitOrderTy::Lsb0) => to_bit_sequence(BitVec::<u64, Lsb0>::decode(data)?),
-		#[cfg(not(feature = "32bit_target"))]
-		(BitStoreTy::U64, BitOrderTy::Msb0) => to_bit_sequence(BitVec::<u64, Msb0>::decode(data)?),
-		#[cfg(feature = "32bit_target")]
-		(BitStoreTy::U64, _) => {
-			return Err(DecodeError::BitSequenceError(BitSequenceError::StoreTypeNotSupported(
-				"u64 (pointer-width on this compile target is not 64)".into(),
-			)))
-		}
-	};
-
-	Ok(bits)
 }
 
 #[cfg(test)]
 mod test {
 
 	use super::*;
-	use codec::Encode;
+	use codec::{Compact, Encode};
 
 	/// Given a type definition, return the PortableType and PortableRegistry
 	/// that our decode functions expect.
@@ -421,10 +333,7 @@ mod test {
 			}
 		}
 
-		encode_decode_check(
-			Compact(MyWrapper { inner: 123 }),
-			Value::named_composite(vec![("inner".to_string(), Value::u128(123))]),
-		);
+		encode_decode_check(Compact(MyWrapper { inner: 123 }), Value::u128(123));
 	}
 
 	#[test]
@@ -453,10 +362,7 @@ mod test {
 			}
 		}
 
-		encode_decode_check(
-			Compact(MyWrapper(123)),
-			Value::unnamed_composite(vec![Value::u128(123)]),
-		);
+		encode_decode_check(Compact(MyWrapper(123)), Value::u128(123));
 	}
 
 	#[test]
