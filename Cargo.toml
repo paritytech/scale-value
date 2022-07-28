@@ -23,9 +23,6 @@ from_string = [
 serde = [
     "dep:serde",
 ]
-# Signal that the target architecture is 32bit. Enabled internally
-# if pointer_width != "64", but can be enabled here for testing.
-32bit_target = []
 
 [dependencies]
 bitvec = { version = "1.0.0", default-features = false, features = ["alloc"] }
