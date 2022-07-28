@@ -15,7 +15,6 @@
 
 use super::type_id::TypeId;
 use crate::value::{Composite, Primitive, Value, ValueDef, Variant};
-use scale_decode::visitor::CompactLocation;
 use scale_info::PortableRegistry;
 
 // This is emitted if something goes wrong decoding into a Value.
@@ -203,80 +202,6 @@ impl scale_decode::visitor::Visitor for ValueVisitor {
 	) -> Result<Self::Value, Self::Error> {
 		Ok(Value { value: ValueDef::Composite(visit_composite(value)?), context: type_id.into() })
 	}
-	fn visit_compact_u8(
-		self,
-		value: scale_decode::visitor::Compact<u8>,
-		_type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
-		visit_compact(value.value() as u128, value.locations())
-	}
-	fn visit_compact_u16(
-		self,
-		value: scale_decode::visitor::Compact<u16>,
-		_type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
-		visit_compact(value.value() as u128, value.locations())
-	}
-	fn visit_compact_u32(
-		self,
-		value: scale_decode::visitor::Compact<u32>,
-		_type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
-		visit_compact(value.value() as u128, value.locations())
-	}
-	fn visit_compact_u64(
-		self,
-		value: scale_decode::visitor::Compact<u64>,
-		_type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
-		visit_compact(value.value() as u128, value.locations())
-	}
-	fn visit_compact_u128(
-		self,
-		value: scale_decode::visitor::Compact<u128>,
-		_type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
-		visit_compact(value.value(), value.locations())
-	}
-}
-
-/// Visit a compact encoded value.
-fn visit_compact(value: u128, locations: &[CompactLocation]) -> Result<Value<TypeId>, DecodeError> {
-	let v = Primitive::U128(value as u128);
-	Ok(value_from_compact_location(locations, v))
-}
-
-/// Given a compact location slice, build a value to represent said compact.
-fn value_from_compact_location(loc: &[CompactLocation], value: Primitive) -> Value<TypeId> {
-	let last_loc = loc
-		.last()
-		.expect("there should always be at least one location")
-		.as_primitive()
-		.expect("the last location is always primitive");
-
-	fn nest_value(loc: &[CompactLocation], value: Value<TypeId>) -> Value<TypeId> {
-		if let Some(last) = loc.last() {
-			match last {
-				CompactLocation::UnnamedComposite(type_id) => Value {
-					value: ValueDef::Composite(Composite::Unnamed(vec![value])),
-					context: (*type_id).into(),
-				},
-				CompactLocation::NamedComposite(type_id, name) => Value {
-					value: ValueDef::Composite(Composite::Named(vec![((*name).to_owned(), value)])),
-					context: (*type_id).into(),
-				},
-				// This is already handled:
-				CompactLocation::Primitive(_) => value,
-			}
-		} else {
-			value
-		}
-	}
-
-	nest_value(
-		&loc[..loc.len() - 1],
-		Value { value: ValueDef::Primitive(value), context: last_loc.into() },
-	)
 }
 
 /// Extract a named/unnamed Composite type out of scale_decode's Composite.
@@ -410,7 +335,7 @@ mod test {
 
 		encode_decode_check(
 			Compact(MyWrapper { inner: 123 }),
-			Value::named_composite(vec![("inner".to_string(), Value::u128(123))]),
+			Value::u128(123),
 		);
 	}
 
@@ -442,7 +367,7 @@ mod test {
 
 		encode_decode_check(
 			Compact(MyWrapper(123)),
-			Value::unnamed_composite(vec![Value::u128(123)]),
+			Value::u128(123),
 		);
 	}
 
