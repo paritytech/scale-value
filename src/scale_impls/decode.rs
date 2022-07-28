@@ -333,10 +333,7 @@ mod test {
 			}
 		}
 
-		encode_decode_check(
-			Compact(MyWrapper { inner: 123 }),
-			Value::u128(123),
-		);
+		encode_decode_check(Compact(MyWrapper { inner: 123 }), Value::u128(123));
 	}
 
 	#[test]
@@ -365,10 +362,7 @@ mod test {
 			}
 		}
 
-		encode_decode_check(
-			Compact(MyWrapper(123)),
-			Value::u128(123),
-		);
+		encode_decode_check(Compact(MyWrapper(123)), Value::u128(123));
 	}
 
 	#[test]
