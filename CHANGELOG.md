@@ -4,17 +4,33 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.5.0
+
+The main user-facing change in this release is that the SCALE bytes for compact-encoded _structs_ previously decoded into `Composite` values with the same degree of nesting (ie if the compact encoded value was nested within 2 structs, it would be decoded into a value nested inside 2 `Composite`s). This nesting has now been removed, and the compact value is returned directly. This should have no impact on re-encoding the Value, since encoding into single-field composites will just delegrate to the inner field type as needed.
+
+Internally, the SCALE decoding logic has mostly moved to `scale-decode`, simplifying the logic in this crate (and exposing a more general/lower level decoding interface via that crate).
+
+Full list of changes:
+
+### Changed
+
+- Use `scale-decode` for `Value` decoding. ([#22](https://github.com/paritytech/scale-value/pull/22)
+
 ## 0.4.0
 
 The main addition in this release is the `At` trait (and corresponding `.at()` method) for indexing into `Value`s. There are also various small breaking changes as a result of tidying up various constructors, which will hopefully in general allow you to construct `Value`s with a little less verbosity. The `uint`/`int` constructors have been made more consistent with their siblings and have been renamed to `u128` and `i128`.
 
+Full list of changes:
+
 ### Added
 
-- Index into values with at, and more generic/extra accessors/constructors ([#19](https://github.com/paritytech/scale-value/pull/19))
+- Index into values with at, and more generic/extra accessors/constructors. ([#19](https://github.com/paritytech/scale-value/pull/19))
 
 ## 0.3.0
 
 This release introduces a small breaking change: `scale_value::scale::encode_value_as_type` now takes a reference to a value rather than ownership of it, since on the happy path this shouldnt affect performance, and it would often mean cloning the entire value before passing it in, anyway.
+
+Full list of changes:
 
 ### Changed
 
