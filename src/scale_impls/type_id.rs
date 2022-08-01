@@ -59,3 +59,9 @@ impl From<u32> for TypeId {
 		TypeId(id)
 	}
 }
+
+impl From<scale_decode::visitor::TypeId> for TypeId {
+	fn from(id: scale_decode::visitor::TypeId) -> Self {
+		TypeId(id.0)
+	}
+}
