@@ -28,7 +28,7 @@ pub fn from_str(s: &str) -> (Result<Value<()>, ParseError>, &str) {
 }
 
 /// An error parsing the provided string into a Value
-#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub struct ParseError {
 	/// Byte offset into the provided string that the error begins.
 	pub start_loc: usize,
@@ -59,7 +59,7 @@ impl std::fmt::Display for ParseError {
 }
 
 /// Details about the error that occurred.
-#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ParseErrorKind {
 	#[error("Expected a value")]
 	ExpectedValue,
@@ -101,7 +101,7 @@ macro_rules! at_between {
 	};
 }
 
-#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ParseComplexError {
 	#[error("The first character in a field name should be alphabetic")]
 	InvalidStartingCharacterInIdent,
@@ -114,7 +114,7 @@ pub enum ParseComplexError {
 }
 at_between!(ParseComplexError);
 
-#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ParseCharError {
 	#[error("Expected a single character")]
 	ExpectedValidCharacter,
@@ -125,7 +125,7 @@ pub enum ParseCharError {
 }
 at_between!(ParseCharError);
 
-#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ParseStringError {
 	#[error("Expected a closing quote to match the opening quote at position {0}")]
 	ExpectedClosingQuoteToMatch(usize),
@@ -134,7 +134,7 @@ pub enum ParseStringError {
 }
 at_between!(ParseStringError);
 
-#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ParseNumberError {
 	#[error("Expected one or more digits")]
 	ExpectedDigit,
@@ -143,7 +143,7 @@ pub enum ParseNumberError {
 }
 at_between!(ParseNumberError);
 
-#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ParseBitSequenceError {
 	#[error("Expected a closing bracket ('>') to match the opening one at position {0}")]
 	ExpectedClosingBracketToMatch(usize),
@@ -275,15 +275,13 @@ fn parse_bit_sequence(t: &mut impl Tokens<Item = char>) -> Result<BitSequence, O
 
 // Parse a bool (`true` or `false`)
 fn parse_bool(t: &mut impl Tokens<Item = char>) -> Option<bool> {
-	let bool = if t.tokens("true".chars()) {
+	if t.tokens("true".chars()) {
 		Some(true)
 	} else if t.tokens("false".chars()) {
 		Some(false)
 	} else {
 		None
-	};
-
-	bool
+	}
 }
 
 // Parse a char like `'a'`
@@ -626,13 +624,13 @@ mod test {
 
 	#[test]
 	fn parse_bit_sequences() {
-		use bitvec::{bitvec, order::Lsb0};
+		use scale_bits::bits;
 		assert_eq!(
 			from("<011010110101101>"),
-			Ok(Value::bit_sequence(bitvec![u8, Lsb0; 0,1,1,0,1,0,1,1,0,1,0,1,1,0,1]))
+			Ok(Value::bit_sequence(bits![0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1]))
 		);
-		assert_eq!(from("<01101>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0; 0,1,1,0,1])));
-		assert_eq!(from("<0>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0; 0])));
-		assert_eq!(from("<>"), Ok(Value::bit_sequence(bitvec![u8, Lsb0;])));
+		assert_eq!(from("<01101>"), Ok(Value::bit_sequence(bits![0, 1, 1, 0, 1])));
+		assert_eq!(from("<0>"), Ok(Value::bit_sequence(bits![0])));
+		assert_eq!(from("<>"), Ok(Value::bit_sequence(bits![])));
 	}
 }

@@ -129,7 +129,7 @@ fn fmt_char(c: char, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 fn fmt_bitsequence(b: &BitSequence, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 	f.write_char('<')?;
 	for bit in b.iter() {
-		match bit.as_ref() {
+		match bit {
 			true => f.write_char('1')?,
 			false => f.write_char('0')?,
 		}
@@ -221,8 +221,8 @@ mod test {
 
 	#[test]
 	fn bit_sequences() {
-		use bitvec::{bitvec, order::Lsb0};
-		assert_from_to(Value::bit_sequence(bitvec![u8, Lsb0; 0,1,1,0,1,1,0]));
-		assert_from_to(Value::bit_sequence(bitvec![u8, Lsb0;]));
+		use scale_bits::bits;
+		assert_from_to(Value::bit_sequence(bits![0, 1, 1, 0, 1, 1, 0]));
+		assert_from_to(Value::bit_sequence(bits![]));
 	}
 }

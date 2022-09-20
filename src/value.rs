@@ -13,9 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bitvec::{order::Lsb0, vec::BitVec};
 use either::Either;
 use std::convert::From;
+
+// We use this to represent BitSequence values, so expose it here.
+pub use scale_bits::Bits as BitSequence;
 
 /// [`Value`] holds a representation of some value that has been decoded, as well as some arbitrary context.
 ///
@@ -23,7 +25,7 @@ use std::convert::From;
 /// sequence, array and composite types can all be represented with [`Composite`]. Only enough information
 /// is preserved here to to be able to encode and decode SCALE bytes with a known type to and from [`Value`]s
 /// losslessly.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Value<T = ()> {
 	/// The shape and associated data for this Value
 	pub value: ValueDef<T>,
@@ -71,8 +73,8 @@ impl Value<()> {
 		Value { value: ValueDef::Variant(Variant::unnamed_fields(name, fields)), context: () }
 	}
 	/// Create a new bit sequence value without additional context.
-	pub fn bit_sequence(bitseq: BitSequence) -> Value<()> {
-		Value { value: ValueDef::BitSequence(bitseq), context: () }
+	pub fn bit_sequence(bits: BitSequence) -> Value<()> {
+		Value { value: ValueDef::BitSequence(bits), context: () }
 	}
 	/// Create a new primitive value without additional context.
 	pub fn primitive(primitive: Primitive) -> Value<()> {
@@ -166,13 +168,13 @@ impl<T> Value<T> {
 }
 
 /// The underlying shape of a given value.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ValueDef<T> {
 	/// A named or unnamed struct-like, array-like or tuple-like set of values.
 	Composite(Composite<T>),
 	/// An enum variant.
 	Variant(Variant<T>),
-	/// A sequence of bits (which is more compactly encoded using [`bitvec`])
+	/// A sequence of bits.
 	BitSequence(BitSequence),
 	/// Any of the primitive values we can have.
 	Primitive(Primitive),
@@ -208,7 +210,7 @@ impl From<BitSequence> for Value<()> {
 /// A named or unnamed struct-like, array-like or tuple-like set of values.
 /// This is used to represent a range of composite values on their own, or
 /// as values for a specific [`Variant`].
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Composite<T> {
 	/// Eg `{ foo: 2, bar: false }`
 	Named(Vec<(String, Value<T>)>),
@@ -334,7 +336,7 @@ impl From<Composite<()>> for Value<()> {
 
 /// This represents the value of a specific variant from an enum, and contains
 /// the name of the variant, and the named/unnamed values associated with it.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Variant<T> {
 	/// The name of the variant.
 	pub name: String,
@@ -382,7 +384,7 @@ impl From<Variant<()>> for Value<()> {
 }
 
 /// A "primitive" value (this includes strings).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Primitive {
 	/// A boolean value.
 	Bool(bool),
@@ -475,6 +477,3 @@ macro_rules! impl_primitive_type {
 }
 
 impl_primitive_type!(Bool(bool), Char(char), String(String), U128(u128), I128(i128),);
-
-/// A sequence of bits.
-pub type BitSequence = BitVec<u8, Lsb0>;

@@ -22,16 +22,17 @@ from_string = [
 # Enable serde support for serializing/deserializing Values.
 serde = [
     "dep:serde",
+    "scale-bits/serde",
 ]
 
 [dependencies]
-bitvec = { version = "1.0.0", default-features = false, features = ["alloc"] }
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "full", "bit-vec"] }
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "full"] }
 serde = { version = "1.0.124", features = ["derive"], optional = true }
 frame-metadata = { version = "15.0.0", default-features = false, features = ["v14"] }
 thiserror = "1.0.24"
-scale-info = { version = "2.0.0", default-features = false, features = ["bit-vec", "std"] }
-scale-decode = { version = "0.3.0" }
+scale-info = { version = "2.0.0", default-features = false, features = ["std"] }
+scale-decode = "0.4.0"
+scale-bits = "0.3.0"
 either = "1.6.1"
 yap = { version = "0.7.2", optional = true }
 

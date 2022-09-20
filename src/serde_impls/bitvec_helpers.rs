@@ -39,15 +39,14 @@ pub fn serialize_bitvec<S>(seq: &BitSequence, serializer: S) -> Result<S::Ok, S:
 where
 	S: Serializer,
 {
-	let bools: Vec<bool> = seq.iter().by_vals().collect();
 	let mut map = serializer.serialize_map(Some(1))?;
-	map.serialize_entry(BITVEC_SERDE_IDENT, &bools)?;
+	map.serialize_entry(BITVEC_SERDE_IDENT, seq)?;
 	map.end()
 }
 
 /// Turn a [`BitSequence`] into a [`MapAccess`] impl that can be handed to a visitor to be consumed.
 pub fn map_access<'de>(seq: BitSequence) -> impl MapAccess<'de, Error = DeserializerError> {
-	let bools: Vec<bool> = seq.iter().by_vals().collect();
+	let bools: Vec<bool> = seq.iter().collect();
 	MapDeserializer::new([(BITVEC_SERDE_IDENT, bools)].into_iter())
 }
 

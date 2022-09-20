@@ -181,7 +181,7 @@ pub mod serde {
 /// assert_eq!(value, new_value.remove_context());
 /// ```
 pub mod scale {
-	pub use crate::scale_impls::{BitSequenceError, DecodeError, EncodeError, TypeId};
+	pub use crate::scale_impls::{DecodeError, EncodeError, TypeId};
 	pub use scale_info::PortableRegistry;
 
 	/// Attempt to decode some SCALE encoded bytes into a value, by providing a pointer

@@ -381,6 +381,8 @@ impl<'de> Visitor<'de> for ValueDefVisitor {
 #[cfg(test)]
 mod test {
 
+	use serde_json::json;
+
 	use super::{super::DeserializerError, *};
 
 	/// Does a value deserialize to itself?
@@ -522,6 +524,26 @@ mod test {
 			"Foo",
 			[("a", Value::u128(123)), ("b", Value::bool(true))],
 		));
+	}
+
+	#[test]
+	fn deserialize_bitsequences_isomorphic() {
+		use scale_bits::bits;
+		assert_value_isomorphic(ValueDef::BitSequence(bits![]));
+		assert_value_isomorphic(ValueDef::BitSequence(bits![0]));
+		assert_value_isomorphic(ValueDef::BitSequence(bits![0, 1, 1, 0, 1, 0, 1, 1, 1]));
+	}
+
+	#[test]
+	fn deserialize_bitsequence_from_json() {
+		use scale_bits::bits;
+
+		let bits_json = json!({
+			"__bitvec__values__": [true, false, true, true, false]
+		});
+
+		let val: Value = serde_json::from_value(bits_json).unwrap();
+		assert_eq!(val.value, ValueDef::BitSequence(bits![true, false, true, true, false]));
 	}
 
 	#[test]

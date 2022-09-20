@@ -172,10 +172,8 @@ impl scale_decode::visitor::Visitor for ValueVisitor {
 		value: &mut scale_decode::visitor::BitSequence,
 		type_id: scale_decode::visitor::TypeId,
 	) -> Result<Self::Value, Self::Error> {
-		Ok(Value {
-			value: ValueDef::BitSequence(value.decode_bitsequence()?.to_u8_lsb0()),
-			context: type_id.into(),
-		})
+		let bits: Result<_, _> = value.decode()?.collect();
+		Ok(Value { value: ValueDef::BitSequence(bits?), context: type_id.into() })
 	}
 	fn visit_str(
 		self,
@@ -440,42 +438,9 @@ mod test {
 
 	#[test]
 	fn decode_bit_sequence() {
-		use bitvec::{
-			bitvec,
-			order::{Lsb0, Msb0},
-		};
+		use scale_bits::bits;
 
-		encode_decode_check(
-			bitvec![u8, Lsb0; 0, 1, 1, 0, 1, 0],
-			Value::bit_sequence(bitvec![u8, Lsb0; 0, 1, 1, 0, 1, 0]),
-		);
-		encode_decode_check(
-			bitvec![u8, Msb0; 0, 1, 1, 0, 1, 0],
-			Value::bit_sequence(bitvec![u8, Lsb0; 0, 1, 1, 0, 1, 0]),
-		);
-		encode_decode_check(
-			bitvec![u16, Lsb0; 0, 1, 1, 0, 1, 0],
-			Value::bit_sequence(bitvec![u8, Lsb0; 0, 1, 1, 0, 1, 0]),
-		);
-		encode_decode_check(
-			bitvec![u16, Msb0; 0, 1, 1, 0, 1, 0],
-			Value::bit_sequence(bitvec![u8, Lsb0; 0, 1, 1, 0, 1, 0]),
-		);
-		encode_decode_check(
-			bitvec![u32, Lsb0; 0, 1, 1, 0, 1, 0],
-			Value::bit_sequence(bitvec![u8, Lsb0; 0, 1, 1, 0, 1, 0]),
-		);
-		encode_decode_check(
-			bitvec![u32, Msb0; 0, 1, 1, 0, 1, 0],
-			Value::bit_sequence(bitvec![u8, Lsb0; 0, 1, 1, 0, 1, 0]),
-		);
-		encode_decode_check(
-			bitvec![u64, Lsb0; 0, 1, 1, 0, 1, 0],
-			Value::bit_sequence(bitvec![u8, Lsb0; 0, 1, 1, 0, 1, 0]),
-		);
-		encode_decode_check(
-			bitvec![u64, Msb0; 0, 1, 1, 0, 1, 0],
-			Value::bit_sequence(bitvec![u8, Lsb0; 0, 1, 1, 0, 1, 0]),
-		);
+		// scale-decode already tests this more thoroughly:
+		encode_decode_check(bits![0, 1, 1, 0, 1, 0], Value::bit_sequence(bits![0, 1, 1, 0, 1, 0]));
 	}
 }

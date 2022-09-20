@@ -13,16 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-	bit_sequence::{get_bitsequence_details, BitOrderTy, BitSequenceError, BitStoreTy},
-	type_id::TypeId,
-	ScaleTypeDef as TypeDef,
-};
+use super::{type_id::TypeId, ScaleTypeDef as TypeDef};
 use crate::value::{Composite, Primitive, Value, ValueDef, Variant};
-use bitvec::{
-	order::{Lsb0, Msb0},
-	vec::BitVec,
-};
 use codec::{Compact, Encode};
 use scale_info::{
 	form::PortableForm, Field, PortableRegistry, TypeDefArray, TypeDefBitSequence, TypeDefCompact,
@@ -30,7 +22,7 @@ use scale_info::{
 };
 
 /// An error encoding a [`Value`] into SCALE bytes.
-#[derive(Debug, Clone, thiserror::Error, PartialEq)]
+#[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
 pub enum EncodeError<T> {
 	/// The composite type we're trying to encode is the wrong length for the type we're trying to encode it into.
 	#[error("Composite type is the wrong length; expected length is {expected_len}, but got {}", actual.len())]
@@ -76,6 +68,9 @@ pub enum EncodeError<T> {
 	#[error("The type {0} cannot be compact encoded")]
 	CannotCompactEncode(TypeId),
 }
+
+/// An error that can occur attempting to encode a bit sequence.
+pub type BitSequenceError = scale_bits::scale::format::FromMetadataError;
 
 /// Attempt to SCALE Encode a Value according to the [`TypeId`] and
 /// [`PortableRegistry`] provided.
@@ -552,10 +547,16 @@ fn encode_bitsequence_value<T: Clone>(
 	types: &PortableRegistry,
 	bytes: &mut Vec<u8>,
 ) -> Result<(), EncodeError<T>> {
-	// First, try to convert whatever we have into a vec of bools:
-	let bools: Vec<bool> = match &value.value {
-		ValueDef::BitSequence(bits) => bits.iter().by_vals().collect(),
+	let format =
+		scale_bits::Format::from_metadata(ty, types).map_err(EncodeError::BitSequenceError)?;
+
+	match &value.value {
+		ValueDef::BitSequence(bits) => {
+			// Bits can be encoded easily enough:
+			scale_bits::encode_using_format_to(bits.iter(), format, bytes)
+		}
 		ValueDef::Composite(Composite::Unnamed(vals)) => {
+			// For composite bools we need to find and store them first:
 			let mut bools = Vec::with_capacity(vals.len());
 			for val in vals {
 				match val.value {
@@ -568,38 +569,11 @@ fn encode_bitsequence_value<T: Clone>(
 					}
 				}
 			}
-			bools
+			// And then we can encode them:
+			scale_bits::encode_using_format_to(bools.into_iter(), format, bytes)
 		}
 		_ => return Err(EncodeError::WrongShape { actual: value.clone(), expected: type_id }),
 	};
-
-	// next, turn those bools into a bit sequence of the expected shape.
-	match get_bitsequence_details(ty, types).map_err(EncodeError::BitSequenceError)? {
-		(BitStoreTy::U8, BitOrderTy::Lsb0) => {
-			bools.into_iter().collect::<BitVec<u8, Lsb0>>().encode_to(bytes);
-		}
-		(BitStoreTy::U16, BitOrderTy::Lsb0) => {
-			bools.into_iter().collect::<BitVec<u16, Lsb0>>().encode_to(bytes);
-		}
-		(BitStoreTy::U32, BitOrderTy::Lsb0) => {
-			bools.into_iter().collect::<BitVec<u32, Lsb0>>().encode_to(bytes);
-		}
-		(BitStoreTy::U64, BitOrderTy::Lsb0) => {
-			bools.into_iter().collect::<BitVec<u64, Lsb0>>().encode_to(bytes);
-		}
-		(BitStoreTy::U8, BitOrderTy::Msb0) => {
-			bools.into_iter().collect::<BitVec<u8, Msb0>>().encode_to(bytes);
-		}
-		(BitStoreTy::U16, BitOrderTy::Msb0) => {
-			bools.into_iter().collect::<BitVec<u16, Msb0>>().encode_to(bytes);
-		}
-		(BitStoreTy::U32, BitOrderTy::Msb0) => {
-			bools.into_iter().collect::<BitVec<u32, Msb0>>().encode_to(bytes);
-		}
-		(BitStoreTy::U64, BitOrderTy::Msb0) => {
-			bools.into_iter().collect::<BitVec<u64, Msb0>>().encode_to(bytes);
-		}
-	}
 
 	Ok(())
 }
@@ -766,27 +740,26 @@ mod test {
 
 	#[test]
 	fn can_encode_bitvecs() {
-		use bitvec::{
-			bitvec,
-			order::{Lsb0, Msb0},
-		};
+		use scale_bits::bits;
 
-		let bits = bitvec![u8, Lsb0; 0, 1, 1, 0, 0, 1];
-		let value = Value::bit_sequence(bits);
-
-		// Support encoding our Value to the different underlying formats that bitvec can have:
-
-		assert_can_encode_to_type(value.clone(), bitvec![u8, Lsb0; 0, 1, 1, 0, 0, 1]);
-		assert_can_encode_to_type(value.clone(), bitvec![u8, Msb0; 0, 1, 1, 0, 0, 1]);
-
-		assert_can_encode_to_type(value.clone(), bitvec![u16, Lsb0; 0, 1, 1, 0, 0, 1]);
-		assert_can_encode_to_type(value.clone(), bitvec![u16, Msb0; 0, 1, 1, 0, 0, 1]);
-
-		assert_can_encode_to_type(value.clone(), bitvec![u32, Lsb0; 0, 1, 1, 0, 0, 1]);
-		assert_can_encode_to_type(value.clone(), bitvec![u32, Msb0; 0, 1, 1, 0, 0, 1]);
-
-		assert_can_encode_to_type(value.clone(), bitvec![u64, Lsb0; 0, 1, 1, 0, 0, 1]);
-		assert_can_encode_to_type(value, bitvec![u64, Msb0; 0, 1, 1, 0, 0, 1]);
+		// We have more thorough tests of bitvec encoding in scale-bits.
+		// Here we just do a basic confirmation that bool composites or
+		// bitsequences encode to the bits we'd expect.
+		assert_can_encode_to_type(
+			Value::bit_sequence(bits![0, 1, 1, 0, 0, 1]),
+			bits![0, 1, 1, 0, 0, 1],
+		);
+		assert_can_encode_to_type(
+			Value::unnamed_composite(vec![
+				Value::bool(false),
+				Value::bool(true),
+				Value::bool(true),
+				Value::bool(false),
+				Value::bool(false),
+				Value::bool(true),
+			]),
+			bits![0, 1, 1, 0, 0, 1],
+		);
 	}
 
 	#[test]
