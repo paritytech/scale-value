@@ -67,9 +67,7 @@ jobs:
         uses: actions-rs/cargo@v1.0.3
         with:
           command: check
-          # Test targets don't compile to WASM successfully because
-          # we run tests using BitVec<u64,_> which doesn't.
-          args: --all-features --target wasm32-unknown-unknown
+          args: --all-targets --all-features --target wasm32-unknown-unknown
 
   fmt:
     name: Cargo fmt
