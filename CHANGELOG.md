@@ -4,6 +4,14 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.6.0
+
+Here we move to `scale_bits` from `bitvec` to handle our encode/decode logic and provide a simple type to decode bits into. We also now add a WASM CI test, and will expect this crate (potentially via features in the future) to be WASM compatible.
+
+### Changed
+
+- Use `scale-bits` for `BitSequence` decoding etc and enable WASM test. ([#24](https://github.com/paritytech/scale-value/pull/24)
+
 ## 0.5.0
 
 The main user-facing change in this release is that the SCALE bytes for compact-encoded _structs_ previously decoded into `Composite` values with the same degree of nesting (ie if the compact encoded value was nested within 2 structs, it would be decoded into a value nested inside 2 `Composite`s). This nesting has now been removed, and the compact value is returned directly. This should have no impact on re-encoding the Value, since encoding into single-field composites will just delegrate to the inner field type as needed.
