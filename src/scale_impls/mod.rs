@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod bit_sequence;
 mod decode;
 mod encode;
 mod type_id;
@@ -24,7 +23,6 @@ type ScaleTypeId = scale_info::interner::UntrackedSymbol<std::any::TypeId>; // e
 /// The portable version of [`scale_info::TypeDef`]
 type ScaleTypeDef = scale_info::TypeDef<scale_info::form::PortableForm>;
 
-pub use bit_sequence::BitSequenceError;
 pub use decode::{decode_value_as_type, DecodeError};
 pub use encode::{encode_value_as_type, EncodeError};
 

@@ -208,4 +208,22 @@ mod test {
 			}),
 		)
 	}
+
+	#[test]
+	fn serialize_bitsequences() {
+		use scale_bits::bits;
+
+		assert_value(
+			Value::bit_sequence(bits![]),
+			json!({
+				"__bitvec__values__": []
+			}),
+		);
+		assert_value(
+			Value::bit_sequence(bits![0, 1, 1, 0, 1]),
+			json!({
+				"__bitvec__values__": [false, true, true, false, true]
+			}),
+		);
+	}
 }

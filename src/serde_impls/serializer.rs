@@ -29,7 +29,7 @@ use serde::{
 pub struct ValueSerializer;
 
 /// An error that can occur when attempting to serialize a type into a [`Value`].
-#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
 pub enum SerializerError {
 	/// Some custom error string.
 	#[error("{0}")]

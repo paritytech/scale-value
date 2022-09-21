@@ -34,7 +34,7 @@ use std::{borrow::Cow, fmt::Display};
 /// Many internal serialization/deserialization errors are relayed
 /// to this in string form, and so we use basic strings for custom
 /// errors as well for simplicity.
-#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
 #[error("{0}")]
 pub struct DeserializerError(Cow<'static, str>);
 
@@ -1033,10 +1033,10 @@ mod test {
 
 	#[test]
 	fn de_bitvec() {
-		use bitvec::{bitvec, order::Lsb0};
+		use scale_bits::bits;
 
 		// If we deserialize a bitvec value into a value, it should come back out the same.
-		let val = Value::bit_sequence(bitvec![u8, Lsb0; 0, 1, 1, 0, 1, 0, 1, 0, 1]);
+		let val = Value::bit_sequence(bits![0, 1, 1, 0, 1, 0, 1, 0, 1]);
 		assert_eq!(Value::deserialize(val.clone()), Ok(val.clone()));
 
 		// We can serialize a bitvec Value to something like JSON and deserialize it again, too.
