@@ -28,14 +28,15 @@ pub fn decode_value_as_type<Id: Into<TypeId>>(
 	ty_id: Id,
 	types: &PortableRegistry,
 ) -> Result<Value<TypeId>, DecodeError> {
-	scale_decode::decode(data, ty_id.into().id(), types, ValueVisitor)
+	scale_decode::visitor::decode_with_visitor(data, ty_id.into().id(), types, ValueVisitor)
 }
 
 // Sequences, Tuples and Arrays all have the same methods, so decode them in the same way:
 macro_rules! to_unnamed_composite {
 	($value:ident, $type_id:ident) => {{
-		let mut vals = Vec::with_capacity($value.len());
-		while let Some(val) = $value.decode_item(ValueVisitor)? {
+		let mut vals = Vec::with_capacity($value.remaining());
+		while let Some(val) = $value.decode_item(ValueVisitor) {
+			let val = val?;
 			vals.push(val);
 		}
 		Ok(Value { value: ValueDef::Composite(Composite::Unnamed(vals)), context: $type_id.into() })
@@ -45,179 +46,184 @@ macro_rules! to_unnamed_composite {
 struct ValueVisitor;
 
 impl scale_decode::visitor::Visitor for ValueVisitor {
-	type Value = Value<TypeId>;
+	type Value<'scale, 'info> = Value<TypeId>;
 	type Error = DecodeError;
 
-	fn visit_bool(
+	fn visit_bool<'scale, 'info>(
 		self,
 		value: bool,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		Ok(Value::bool(value).map_context(|_| type_id.into()))
 	}
-	fn visit_char(
+	fn visit_char<'scale, 'info>(
 		self,
 		value: char,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		Ok(Value::char(value).map_context(|_| type_id.into()))
 	}
-	fn visit_u8(
+	fn visit_u8<'scale, 'info>(
 		self,
 		value: u8,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		self.visit_u128(value as u128, type_id)
 	}
-	fn visit_u16(
+	fn visit_u16<'scale, 'info>(
 		self,
 		value: u16,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		self.visit_u128(value as u128, type_id)
 	}
-	fn visit_u32(
+	fn visit_u32<'scale, 'info>(
 		self,
 		value: u32,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		self.visit_u128(value as u128, type_id)
 	}
-	fn visit_u64(
+	fn visit_u64<'scale, 'info>(
 		self,
 		value: u64,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		self.visit_u128(value as u128, type_id)
 	}
-	fn visit_u128(
+	fn visit_u128<'scale, 'info>(
 		self,
 		value: u128,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		Ok(Value::u128(value as u128).map_context(|_| type_id.into()))
 	}
-	fn visit_u256(
+	fn visit_u256<'info>(
 		self,
-		value: &[u8; 32],
+		value: &'_ [u8; 32],
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'_, 'info>, Self::Error> {
 		Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: type_id.into() })
 	}
-	fn visit_i8(
+	fn visit_i8<'scale, 'info>(
 		self,
 		value: i8,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		self.visit_i128(value as i128, type_id)
 	}
-	fn visit_i16(
+	fn visit_i16<'scale, 'info>(
 		self,
 		value: i16,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		self.visit_i128(value as i128, type_id)
 	}
-	fn visit_i32(
+	fn visit_i32<'scale, 'info>(
 		self,
 		value: i32,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		self.visit_i128(value as i128, type_id)
 	}
-	fn visit_i64(
+	fn visit_i64<'scale, 'info>(
 		self,
 		value: i64,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		self.visit_i128(value as i128, type_id)
 	}
-	fn visit_i128(
+	fn visit_i128<'scale, 'info>(
 		self,
 		value: i128,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		Ok(Value::i128(value as i128).map_context(|_| type_id.into()))
 	}
-	fn visit_i256(
+	fn visit_i256<'info>(
 		self,
-		value: &[u8; 32],
+		value: &'_ [u8; 32],
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'_, 'info>, Self::Error> {
 		Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: type_id.into() })
 	}
-	fn visit_sequence(
+	fn visit_sequence<'scale, 'info>(
 		self,
-		value: &mut scale_decode::visitor::Sequence,
+		value: &mut scale_decode::visitor::types::Sequence<'scale, 'info>,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		to_unnamed_composite!(value, type_id)
 	}
-	fn visit_tuple(
+	fn visit_tuple<'scale, 'info>(
 		self,
-		value: &mut scale_decode::visitor::Tuple,
+		value: &mut scale_decode::visitor::types::Tuple<'scale, 'info>,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		to_unnamed_composite!(value, type_id)
 	}
-	fn visit_array(
+	fn visit_array<'scale, 'info>(
 		self,
-		value: &mut scale_decode::visitor::Array,
+		value: &mut scale_decode::visitor::types::Array<'scale, 'info>,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		to_unnamed_composite!(value, type_id)
 	}
-	fn visit_bitsequence(
+	fn visit_bitsequence<'scale, 'info>(
 		self,
-		value: &mut scale_decode::visitor::BitSequence,
+		value: &mut scale_decode::visitor::types::BitSequence<'scale>,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		let bits: Result<_, _> = value.decode()?.collect();
 		Ok(Value { value: ValueDef::BitSequence(bits?), context: type_id.into() })
 	}
-	fn visit_str(
+	fn visit_str<'scale, 'info>(
 		self,
-		value: scale_decode::visitor::Str,
+		value: &mut scale_decode::visitor::types::Str<'scale>,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		Ok(Value::string(value.as_str()?).map_context(|_| type_id.into()))
 	}
-	fn visit_variant(
+	fn visit_variant<'scale, 'info>(
 		self,
-		value: &mut scale_decode::visitor::Variant,
+		value: &mut scale_decode::visitor::types::Variant<'scale, 'info>,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		let values = visit_composite(value.fields())?;
 		Ok(Value {
 			value: ValueDef::Variant(Variant { name: value.name().to_owned(), values }),
 			context: type_id.into(),
 		})
 	}
-	fn visit_composite(
+	fn visit_composite<'scale, 'info>(
 		self,
-		value: &mut scale_decode::visitor::Composite,
+		value: &mut scale_decode::visitor::types::Composite<'scale, 'info>,
 		type_id: scale_decode::visitor::TypeId,
-	) -> Result<Self::Value, Self::Error> {
+	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		Ok(Value { value: ValueDef::Composite(visit_composite(value)?), context: type_id.into() })
 	}
 }
 
 /// Extract a named/unnamed Composite type out of scale_decode's Composite.
-fn visit_composite(
-	value: &mut scale_decode::visitor::Composite,
+fn visit_composite<'scale, 'info>(
+	value: &mut scale_decode::visitor::types::Composite,
 ) -> Result<Composite<TypeId>, DecodeError> {
 	let len = value.fields().len();
-	let named = value.fields().get(0).map(|f| f.name().is_some()).unwrap_or(false);
+	let named = !value.has_unnamed_fields();
 
 	if named {
 		let mut vals = Vec::with_capacity(len);
-		while let Some((name, v)) = value.decode_item_with_name(ValueVisitor)? {
-			vals.push((name.to_owned(), v));
+		let mut name = value.peek_name();
+		while let Some(v) = value.decode_item(ValueVisitor) {
+			let v = v?;
+			vals.push((name.expect("all fields should be named; we have checked").to_owned(), v));
+			// get the next field name now we've decoded one.
+			name = value.peek_name();
 		}
 		Ok(Composite::Named(vals))
 	} else {
 		let mut vals = Vec::with_capacity(len);
-		while let Some(v) = value.decode_item(ValueVisitor)? {
+		while let Some(v) = value.decode_item(ValueVisitor) {
+			let v = v?;
 			vals.push(v);
 		}
 		Ok(Composite::Unnamed(vals))
