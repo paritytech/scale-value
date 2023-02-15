@@ -208,7 +208,8 @@ fn visit_composite<'scale, 'info>(
 	value: &mut scale_decode::visitor::types::Composite,
 ) -> Result<Composite<TypeId>, DecodeError> {
 	let len = value.fields().len();
-	let named = !value.has_unnamed_fields();
+	// if no fields, we'll always assume unnamed.
+	let named = len > 0 && !value.has_unnamed_fields();
 
 	if named {
 		let mut vals = Vec::with_capacity(len);
@@ -440,6 +441,19 @@ mod test {
 				),
 			]),
 		);
+	}
+
+	#[test]
+	fn decoding_zero_length_composites_always_unnamed() {
+		// The scale-info repr is just a composite, so we don't really track
+		// whether the thing was named or not. either Value will convert back ok anyway.
+		#[derive(Encode, scale_info::TypeInfo)]
+		struct Named {}
+		#[derive(Encode, scale_info::TypeInfo)]
+		struct Unnamed();
+
+		encode_decode_check(Unnamed(), Value::unnamed_composite(vec![]));
+		encode_decode_check(Named {}, Value::unnamed_composite(vec![]));
 	}
 
 	#[test]
