@@ -20,10 +20,6 @@ mod type_id;
 /// The portable version of a [`scale_info`] type ID.
 type ScaleTypeId = scale_info::interner::UntrackedSymbol<std::any::TypeId>; // equivalent to: <scale_info::form::PortableForm as scale_info::form::Form>::Type;
 
-/// The portable version of [`scale_info::TypeDef`]
-type ScaleTypeDef = scale_info::TypeDef<scale_info::form::PortableForm>;
-
-pub use decode::{decode_value_as_type, DecodeError};
-pub use encode::{encode_value_as_type, EncodeError};
+pub use decode::{decode_value_as_type, DecodeError, DecodeValueVisitor};
 
 pub use type_id::TypeId;

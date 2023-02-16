@@ -181,7 +181,9 @@ pub mod serde {
 /// assert_eq!(value, new_value.remove_context());
 /// ```
 pub mod scale {
-	pub use crate::scale_impls::{DecodeError, EncodeError, TypeId};
+	pub use crate::scale_impls::{DecodeError, TypeId};
+	use scale_encode::EncodeAsType;
+	pub use scale_encode::Error as EncodeError;
 	pub use scale_info::PortableRegistry;
 
 	/// Attempt to decode some SCALE encoded bytes into a value, by providing a pointer
@@ -203,8 +205,8 @@ pub mod scale {
 		ty_id: Id,
 		types: &PortableRegistry,
 		buf: &mut Vec<u8>,
-	) -> Result<(), EncodeError<T>> {
-		crate::scale_impls::encode_value_as_type(value, ty_id, types, buf)
+	) -> Result<(), EncodeError> {
+		value.encode_as_type_to(ty_id.into().id(), types, buf)
 	}
 }
 

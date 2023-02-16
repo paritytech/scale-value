@@ -28,14 +28,14 @@ pub fn decode_value_as_type<Id: Into<TypeId>>(
 	ty_id: Id,
 	types: &PortableRegistry,
 ) -> Result<Value<TypeId>, DecodeError> {
-	scale_decode::visitor::decode_with_visitor(data, ty_id.into().id(), types, ValueVisitor)
+	scale_decode::visitor::decode_with_visitor(data, ty_id.into().id(), types, DecodeValueVisitor)
 }
 
 // Sequences, Tuples and Arrays all have the same methods, so decode them in the same way:
 macro_rules! to_unnamed_composite {
 	($value:ident, $type_id:ident) => {{
 		let mut vals = Vec::with_capacity($value.remaining());
-		while let Some(val) = $value.decode_item(ValueVisitor) {
+		while let Some(val) = $value.decode_item(DecodeValueVisitor) {
 			let val = val?;
 			vals.push(val);
 		}
@@ -43,9 +43,10 @@ macro_rules! to_unnamed_composite {
 	}};
 }
 
-struct ValueVisitor;
+/// A [`scale_decode::Visitor`] implementation for decoding into [`Value`]s.
+pub struct DecodeValueVisitor;
 
-impl scale_decode::visitor::Visitor for ValueVisitor {
+impl scale_decode::visitor::Visitor for DecodeValueVisitor {
 	type Value<'scale, 'info> = Value<TypeId>;
 	type Error = DecodeError;
 
@@ -214,7 +215,7 @@ fn visit_composite<'scale, 'info>(
 	if named {
 		let mut vals = Vec::with_capacity(len);
 		let mut name = value.peek_name();
-		while let Some(v) = value.decode_item(ValueVisitor) {
+		while let Some(v) = value.decode_item(DecodeValueVisitor) {
 			let v = v?;
 			vals.push((name.expect("all fields should be named; we have checked").to_owned(), v));
 			// get the next field name now we've decoded one.
@@ -223,7 +224,7 @@ fn visit_composite<'scale, 'info>(
 		Ok(Composite::Named(vals))
 	} else {
 		let mut vals = Vec::with_capacity(len);
-		while let Some(v) = value.decode_item(ValueVisitor) {
+		while let Some(v) = value.decode_item(DecodeValueVisitor) {
 			let v = v?;
 			vals.push(v);
 		}
