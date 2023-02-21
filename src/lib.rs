@@ -189,9 +189,9 @@ pub mod scale {
 	/// Attempt to decode some SCALE encoded bytes into a value, by providing a pointer
 	/// to the bytes (which will be moved forwards as bytes are used in the decoding),
 	/// a type ID, and a type registry from which we'll look up the relevant type information.
-	pub fn decode_as_type<Id: Into<TypeId>>(
+	pub fn decode_as_type(
 		data: &mut &[u8],
-		ty_id: Id,
+		ty_id: TypeId,
 		types: &PortableRegistry,
 	) -> Result<crate::Value<TypeId>, DecodeError> {
 		crate::scale_impls::decode_value_as_type(data, ty_id, types)
@@ -200,13 +200,13 @@ pub mod scale {
 	/// Attempt to encode some [`crate::Value<T>`] into SCALE bytes, by providing a pointer to the
 	/// type ID that we'd like to encode it as, a type registry from which we'll look
 	/// up the relevant type information, and a buffer to encode the bytes to.
-	pub fn encode_as_type<T: Clone, Id: Into<TypeId>>(
+	pub fn encode_as_type<T: Clone>(
 		value: &crate::Value<T>,
-		ty_id: Id,
+		ty_id: TypeId,
 		types: &PortableRegistry,
 		buf: &mut Vec<u8>,
 	) -> Result<(), EncodeError> {
-		value.encode_as_type_to(ty_id.into().id(), types, buf)
+		value.encode_as_type_to(ty_id, types, buf)
 	}
 }
 

@@ -137,7 +137,7 @@ mod test {
 	use serde_json::json;
 
 	fn assert_value(value: Value<()>, expected: serde_json::Value) {
-		let val = serde_json::to_value(&value).expect("can serialize to serde_json::Value");
+		let val = serde_json::to_value(value).expect("can serialize to serde_json::Value");
 		assert_eq!(val, expected);
 	}
 

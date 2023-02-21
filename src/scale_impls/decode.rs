@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::type_id::TypeId;
+use super::TypeId;
 use crate::value::{Composite, Primitive, Value, ValueDef, Variant};
 use scale_info::PortableRegistry;
 
@@ -23,12 +23,12 @@ pub use scale_decode::visitor::DecodeError;
 /// Decode data according to the [`TypeId`] provided.
 /// The provided pointer to the data slice will be moved forwards as needed
 /// depending on what was decoded.
-pub fn decode_value_as_type<Id: Into<TypeId>>(
+pub fn decode_value_as_type(
 	data: &mut &[u8],
-	ty_id: Id,
+	ty_id: TypeId,
 	types: &PortableRegistry,
 ) -> Result<Value<TypeId>, DecodeError> {
-	scale_decode::visitor::decode_with_visitor(data, ty_id.into().id(), types, DecodeValueVisitor)
+	scale_decode::visitor::decode_with_visitor(data, ty_id, types, DecodeValueVisitor)
 }
 
 // Sequences, Tuples and Arrays all have the same methods, so decode them in the same way:
@@ -39,12 +39,19 @@ macro_rules! to_unnamed_composite {
 			let val = val?;
 			vals.push(val);
 		}
-		Ok(Value { value: ValueDef::Composite(Composite::Unnamed(vals)), context: $type_id.into() })
+		Ok(Value { value: ValueDef::Composite(Composite::Unnamed(vals)), context: $type_id.0 })
 	}};
 }
 
 /// A [`scale_decode::Visitor`] implementation for decoding into [`Value`]s.
 pub struct DecodeValueVisitor;
+
+impl scale_decode::IntoVisitor for Value<TypeId> {
+	type Visitor = DecodeValueVisitor;
+	fn into_visitor() -> Self::Visitor {
+		DecodeValueVisitor
+	}
+}
 
 impl scale_decode::visitor::Visitor for DecodeValueVisitor {
 	type Value<'scale, 'info> = Value<TypeId>;
@@ -55,14 +62,14 @@ impl scale_decode::visitor::Visitor for DecodeValueVisitor {
 		value: bool,
 		type_id: scale_decode::visitor::TypeId,
 	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-		Ok(Value::bool(value).map_context(|_| type_id.into()))
+		Ok(Value::bool(value).map_context(|_| type_id.0))
 	}
 	fn visit_char<'scale, 'info>(
 		self,
 		value: char,
 		type_id: scale_decode::visitor::TypeId,
 	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-		Ok(Value::char(value).map_context(|_| type_id.into()))
+		Ok(Value::char(value).map_context(|_| type_id.0))
 	}
 	fn visit_u8<'scale, 'info>(
 		self,
@@ -97,14 +104,14 @@ impl scale_decode::visitor::Visitor for DecodeValueVisitor {
 		value: u128,
 		type_id: scale_decode::visitor::TypeId,
 	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-		Ok(Value::u128(value as u128).map_context(|_| type_id.into()))
+		Ok(Value::u128(value).map_context(|_| type_id.0))
 	}
 	fn visit_u256<'info>(
 		self,
 		value: &'_ [u8; 32],
 		type_id: scale_decode::visitor::TypeId,
 	) -> Result<Self::Value<'_, 'info>, Self::Error> {
-		Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: type_id.into() })
+		Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: type_id.0 })
 	}
 	fn visit_i8<'scale, 'info>(
 		self,
@@ -139,14 +146,14 @@ impl scale_decode::visitor::Visitor for DecodeValueVisitor {
 		value: i128,
 		type_id: scale_decode::visitor::TypeId,
 	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-		Ok(Value::i128(value as i128).map_context(|_| type_id.into()))
+		Ok(Value::i128(value).map_context(|_| type_id.0))
 	}
 	fn visit_i256<'info>(
 		self,
 		value: &'_ [u8; 32],
 		type_id: scale_decode::visitor::TypeId,
 	) -> Result<Self::Value<'_, 'info>, Self::Error> {
-		Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: type_id.into() })
+		Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: type_id.0 })
 	}
 	fn visit_sequence<'scale, 'info>(
 		self,
@@ -175,14 +182,14 @@ impl scale_decode::visitor::Visitor for DecodeValueVisitor {
 		type_id: scale_decode::visitor::TypeId,
 	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
 		let bits: Result<_, _> = value.decode()?.collect();
-		Ok(Value { value: ValueDef::BitSequence(bits?), context: type_id.into() })
+		Ok(Value { value: ValueDef::BitSequence(bits?), context: type_id.0 })
 	}
 	fn visit_str<'scale, 'info>(
 		self,
 		value: &mut scale_decode::visitor::types::Str<'scale>,
 		type_id: scale_decode::visitor::TypeId,
 	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-		Ok(Value::string(value.as_str()?).map_context(|_| type_id.into()))
+		Ok(Value::string(value.as_str()?).map_context(|_| type_id.0))
 	}
 	fn visit_variant<'scale, 'info>(
 		self,
@@ -192,7 +199,7 @@ impl scale_decode::visitor::Visitor for DecodeValueVisitor {
 		let values = visit_composite(value.fields())?;
 		Ok(Value {
 			value: ValueDef::Variant(Variant { name: value.name().to_owned(), values }),
-			context: type_id.into(),
+			context: type_id.0,
 		})
 	}
 	fn visit_composite<'scale, 'info>(
@@ -200,12 +207,12 @@ impl scale_decode::visitor::Visitor for DecodeValueVisitor {
 		value: &mut scale_decode::visitor::types::Composite<'scale, 'info>,
 		type_id: scale_decode::visitor::TypeId,
 	) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-		Ok(Value { value: ValueDef::Composite(visit_composite(value)?), context: type_id.into() })
+		Ok(Value { value: ValueDef::Composite(visit_composite(value)?), context: type_id.0 })
 	}
 }
 
 /// Extract a named/unnamed Composite type out of scale_decode's Composite.
-fn visit_composite<'scale, 'info>(
+fn visit_composite(
 	value: &mut scale_decode::visitor::types::Composite,
 ) -> Result<Composite<TypeId>, DecodeError> {
 	let len = value.fields().len();
@@ -246,7 +253,7 @@ mod test {
 		let id = types.register_type(&m);
 		let portable_registry: PortableRegistry = types.into();
 
-		(id.into(), portable_registry)
+		(id.id(), portable_registry)
 	}
 
 	/// Given a value to encode, and a representation of the decoded value, check that our decode functions

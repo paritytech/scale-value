@@ -70,7 +70,7 @@ fn encode_vals_to_bitsequence<T>(
 	types: &PortableRegistry,
 	out: &mut Vec<u8>,
 ) -> Result<(), Error> {
-	let format = scale_bits::Format::from_metadata(bits, types).map_err(|e| Error::custom(e))?;
+	let format = scale_bits::Format::from_metadata(bits, types).map_err(Error::custom)?;
 	let mut bools = Vec::with_capacity(vals.len());
 	for (idx, value) in vals.iter().enumerate() {
 		if let Some(v) = value.as_bool() {
@@ -79,7 +79,7 @@ fn encode_vals_to_bitsequence<T>(
 		} else if let Some(v) = value.as_u128() {
 			// support turning (1, 0, 1, 1, 0) into a bit sequence.
 			if v == 0 || v == 1 {
-				bools.push(if v == 0 { false } else { true })
+				bools.push(v == 1)
 			} else {
 				return Err(Error::custom(
 					"Cannot encode non-boolean/0/1 value into a bit sequence entry",
@@ -89,7 +89,7 @@ fn encode_vals_to_bitsequence<T>(
 		} else if let Some(v) = value.as_i128() {
 			// support turning (1, 0, 1, 1, 0) into a bit sequence (if the number's are not unsigned it's still fine).
 			if v == 0 || v == 1 {
-				bools.push(if v == 0 { false } else { true })
+				bools.push(v == 1)
 			} else {
 				return Err(Error::custom(
 					"Cannot encode non-boolean/0/1 value into a bit sequence entry",
@@ -397,7 +397,7 @@ mod test {
 		#[derive(Encode, scale_info::TypeInfo)]
 		struct SomeBytes(Vec<u8>);
 		assert_can_encode_to_type(
-			Value::from_bytes(&[1, 2, 3, 4, 5]),
+			Value::from_bytes([1, 2, 3, 4, 5]),
 			SomeBytes(vec![1, 2, 3, 4, 5]),
 		);
 	}

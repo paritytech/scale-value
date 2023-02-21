@@ -136,7 +136,7 @@ impl AsLocation for &str {
 
 impl AsLocation for String {
 	fn as_location(&self) -> Location<'_> {
-		Location { inner: LocationInner::Str(&**self) }
+		Location { inner: LocationInner::Str(self) }
 	}
 }
 
@@ -188,7 +188,7 @@ mod test {
 		// Strings can be used:
 		assert_eq!(val.at("hello").at(0), Some(&Value::u128(1)));
 		// References to valid locations are fine too:
-		assert_eq!(val.at(&&"hello").at(&&&0), Some(&Value::u128(1)));
+		assert_eq!(val.at("hello").at(0), Some(&Value::u128(1)));
 	}
 
 	#[test]

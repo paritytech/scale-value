@@ -306,7 +306,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	{
 		delegate_except_bitseq! { deserialize_unit_struct(self, name, visitor),
 			_ => {
-				Err(DeserializerError::from_string(format!("Cannot deserialize BitSequence into the unit struct {}", name)))
+				Err(DeserializerError::from_string(format!("Cannot deserialize BitSequence into the unit struct {name}")))
 			}
 		}
 	}
@@ -322,7 +322,7 @@ impl<'de, T> Deserializer<'de> for ValueDef<T> {
 	{
 		delegate_except_bitseq! { deserialize_enum(self, name, variants, visitor),
 			_ => {
-				Err(DeserializerError::from_string(format!("Cannot deserialize BitSequence into the enum {}", name)))
+				Err(DeserializerError::from_string(format!("Cannot deserialize BitSequence into the enum {name}")))
 			}
 		}
 	}

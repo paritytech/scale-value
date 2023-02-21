@@ -603,7 +603,7 @@ mod test {
 			assert!(vals.contains(&("b".into(), Value::i128(2))));
 			assert!(vals.contains(&("c".into(), Value::i128(3))));
 		} else {
-			panic!("Map should deserialize into Composite::Named value but we have {:?}", value);
+			panic!("Map should deserialize into Composite::Named value but we have {value:?}");
 		}
 	}
 
