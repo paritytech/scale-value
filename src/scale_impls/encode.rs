@@ -16,7 +16,7 @@
 use crate::value::{Composite, Primitive, Value, ValueDef, Variant};
 use scale_bits::Bits;
 use scale_encode::error::ErrorKind;
-use scale_encode::utils::{Composite as EncodeComposite, Variant as EncodeVariant};
+use scale_encode::{Composite as EncodeComposite, Variant as EncodeVariant};
 use scale_encode::{EncodeAsType, Error};
 use scale_info::form::PortableForm;
 use scale_info::{PortableRegistry, TypeDef, TypeDefBitSequence};
