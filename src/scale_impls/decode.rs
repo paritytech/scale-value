@@ -57,8 +57,9 @@ impl scale_decode::DecodeAsFields for Value<TypeId> {
 		// Run the visitor to decode input as a composite:
 		let val = DecodeValueVisitor
 			.visit_composite(&mut composite, scale_decode::visitor::TypeId(0))?;
-		// This should happen anyway but just to be sure, consume any remaining bytes associated with the fields:
+		// Consume remaining bytes and update input cursor:
 		composite.skip_decoding()?;
+		*input = composite.bytes_from_undecoded();
 
 		Ok(val)
 	}
