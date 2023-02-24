@@ -55,9 +55,12 @@ impl scale_decode::DecodeAsFields for Value<TypeId> {
 		let mut composite =
 			scale_decode::visitor::types::Composite::new(input, &path, fields, types);
 		// Run the visitor to decode input as a composite:
-		DecodeValueVisitor
-			.visit_composite(&mut composite, scale_decode::visitor::TypeId(0))
-			.map_err(scale_decode::Error::from)
+		let val = DecodeValueVisitor
+			.visit_composite(&mut composite, scale_decode::visitor::TypeId(0))?;
+		// This should happen anyway but just to be sure, consume any remaining bytes associated with the fields:
+		composite.skip_decoding()?;
+
+		Ok(val)
 	}
 }
 
