@@ -15,6 +15,7 @@
 
 use super::TypeId;
 use crate::value::{Composite, Primitive, Value, ValueDef, Variant};
+use scale_decode::Visitor;
 use scale_info::PortableRegistry;
 
 // This is emitted if something goes wrong decoding into a Value.
@@ -41,6 +42,23 @@ macro_rules! to_unnamed_composite {
 		}
 		Ok(Value { value: ValueDef::Composite(Composite::Unnamed(vals)), context: $type_id.0 })
 	}};
+}
+
+impl scale_decode::DecodeAsFields for Value<TypeId> {
+	fn decode_as_fields(
+		input: &mut &[u8],
+		fields: &[scale_decode::PortableField],
+		types: &PortableRegistry,
+	) -> Result<Self, scale_decode::Error> {
+		// Build a Composite type to pass to a one-off visitor:
+		let path = Default::default();
+		let mut composite =
+			scale_decode::visitor::types::Composite::new(input, &path, fields, types);
+		// Run the visitor to decode input as a composite:
+		DecodeValueVisitor
+			.visit_composite(&mut composite, scale_decode::visitor::TypeId(0))
+			.map_err(scale_decode::Error::from)
+	}
 }
 
 /// A [`scale_decode::Visitor`] implementation for decoding into [`Value`]s.

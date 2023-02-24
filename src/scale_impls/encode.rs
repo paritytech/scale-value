@@ -17,7 +17,7 @@ use crate::value::{Composite, Primitive, Value, ValueDef, Variant};
 use scale_bits::Bits;
 use scale_encode::error::ErrorKind;
 use scale_encode::{Composite as EncodeComposite, Variant as EncodeVariant};
-use scale_encode::{EncodeAsType, Error};
+use scale_encode::{EncodeAsFields, EncodeAsType, Error};
 use scale_info::form::PortableForm;
 use scale_info::{PortableRegistry, TypeDef, TypeDefBitSequence};
 
@@ -33,6 +33,41 @@ impl<T> EncodeAsType for Value<T> {
 			ValueDef::Variant(val) => encode_variant(val, type_id, types, out),
 			ValueDef::Primitive(val) => encode_primitive(val, type_id, types, out),
 			ValueDef::BitSequence(val) => encode_bitsequence(val, type_id, types, out),
+		}
+	}
+}
+
+impl<T> EncodeAsFields for Value<T> {
+	fn encode_as_fields_to(
+		&self,
+		fields: &[scale_encode::PortableField],
+		types: &PortableRegistry,
+		out: &mut Vec<u8>,
+	) -> Result<(), Error> {
+		match &self.value {
+			ValueDef::Composite(composite) => composite.encode_as_fields_to(fields, types, out),
+			_ => Err(Error::custom("Cannot encode non-composite Value shape into fields")),
+		}
+	}
+}
+
+impl<T> EncodeAsFields for Composite<T> {
+	fn encode_as_fields_to(
+		&self,
+		fields: &[scale_encode::PortableField],
+		types: &PortableRegistry,
+		out: &mut Vec<u8>,
+	) -> Result<(), Error> {
+		match self {
+			Composite::Named(vals) => {
+				let keyvals =
+					vals.iter().map(|(key, val)| (Some(&**key), val as &dyn EncodeAsType));
+				EncodeComposite(keyvals).encode_as_fields_to(fields, types, out)
+			}
+			Composite::Unnamed(vals) => {
+				let vals = vals.iter().map(|val| (None, val as &dyn EncodeAsType));
+				EncodeComposite(vals).encode_as_fields_to(fields, types, out)
+			}
 		}
 	}
 }
