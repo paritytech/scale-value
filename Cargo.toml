@@ -32,7 +32,7 @@ frame-metadata = { version = "15.0.0", default-features = false, features = ["v1
 thiserror = "1.0.24"
 scale-info = { version = "2.0.0", default-features = false, features = ["std"] }
 scale-decode = { git = "https://github.com/paritytech/scale-decode", branch = "jsdw-decode-as-type" }
-scale-encode = { version = "0.0.18", default-features = false, features = ["bits"] }
+scale-encode = { version = "0.1.0", default-features = false, features = ["bits"] }
 scale-bits = "0.3.0"
 either = "1.6.1"
 yap = { version = "0.7.2", optional = true }
