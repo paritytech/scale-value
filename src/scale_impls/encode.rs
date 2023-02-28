@@ -14,10 +14,11 @@
 // limitations under the License.
 
 use crate::value::{Composite, Primitive, Value, ValueDef, Variant};
+use codec::{Compact, Encode};
 use scale_bits::Bits;
 use scale_encode::error::ErrorKind;
+use scale_encode::{error::Kind, EncodeAsFields, EncodeAsType, Error};
 use scale_encode::{Composite as EncodeComposite, Variant as EncodeVariant};
-use scale_encode::{EncodeAsFields, EncodeAsType, Error};
 use scale_info::form::PortableForm;
 use scale_info::{PortableRegistry, TypeDef, TypeDefBitSequence};
 
@@ -72,42 +73,138 @@ impl<T> EncodeAsFields for Composite<T> {
 	}
 }
 
+// A scale-value composite type can represent sequences, arrays, composites and tuples. `scale_encode`'s Composite helper
+// can't handle encoding to sequences/arrays. However, we can encode safely into sequences here because we can inspect the
+// values we have and more safely skip newtype wrappers without also skipping through types that might represent 1-value
+// sequences/arrays for instance.
 fn encode_composite<T>(
 	value: &Composite<T>,
 	type_id: u32,
 	types: &PortableRegistry,
 	out: &mut Vec<u8>,
 ) -> Result<(), Error> {
-	match value {
-		Composite::Named(vals) => {
-			let keyvals = vals.iter().map(|(key, val)| (Some(&**key), val as &dyn EncodeAsType));
-			EncodeComposite(keyvals).encode_as_type_to(type_id, types, out)
+	let type_id = find_single_entry_with_same_repr(type_id, types);
+	let ty = types.resolve(type_id).ok_or_else(|| Error::new(ErrorKind::TypeNotFound(type_id)))?;
+
+	match ty.type_def() {
+		// Our scale_encode Composite helper can encode to these types without issue:
+		TypeDef::Tuple(_) | TypeDef::Composite(_) => match value {
+			Composite::Named(vals) => {
+				let keyvals =
+					vals.iter().map(|(key, val)| (Some(&**key), val as &dyn EncodeAsType));
+				EncodeComposite(keyvals).encode_as_type_to(type_id, types, out)
+			}
+			Composite::Unnamed(vals) => {
+				let vals = vals.iter().map(|val| (None, val as &dyn EncodeAsType));
+				EncodeComposite(vals).encode_as_type_to(type_id, types, out)
+			}
+		},
+		// For sequence types, let's skip our Value until we hit a Composite type containing
+		// a non-composite type or more than 1 entry. This is the best candidate we have for a sequence.
+		TypeDef::Sequence(seq) => {
+			let seq_ty = seq.type_param().id();
+			let value = find_sequence_candidate(value);
+
+			// sequences start with compact encoded length:
+			Compact(value.len() as u32).encode_to(out);
+			match value {
+				Composite::Named(named_vals) => {
+					for (name, val) in named_vals {
+						val.encode_as_type_to(seq_ty, types, out)
+							.map_err(|e| e.at_field(name.to_string()))?;
+					}
+				}
+				Composite::Unnamed(vals) => {
+					for (idx, val) in vals.iter().enumerate() {
+						val.encode_as_type_to(seq_ty, types, out).map_err(|e| e.at_idx(idx))?;
+					}
+				}
+			}
+			Ok(())
 		}
-		Composite::Unnamed(vals) => {
-			// special handling; "unnamed" sequences of bools/0/1 are an easy way to express/write bit sequences.
-			// So, if the target type is a bit sequence, try to encode our unnamed sequence into it.
-			let Some(ty) = types.resolve(type_id) else {
-				return Err(Error::new(ErrorKind::TypeNotFound(type_id)))
-			};
-			if let TypeDef::BitSequence(bits) = ty.type_def() {
-				return encode_vals_to_bitsequence(vals, bits, types, out);
+		// For arrays ee can dig into our composite type much like for sequences, but bail
+		// if the length doesn't align.
+		TypeDef::Array(array) => {
+			let arr_ty = array.type_param().id();
+			let value = find_sequence_candidate(value);
+
+			if value.len() != array.len() as usize {
+				return Err(Error::new(ErrorKind::WrongLength {
+					actual_len: value.len(),
+					expected_len: array.len() as usize,
+				}));
 			}
 
-			let vals = vals.iter().map(|val| (None, val as &dyn EncodeAsType));
-			EncodeComposite(vals).encode_as_type_to(type_id, types, out)
+			for (idx, val) in value.values().enumerate() {
+				val.encode_as_type_to(arr_ty, types, out).map_err(|e| e.at_idx(idx))?;
+			}
+			Ok(())
+		}
+		// Similar to sequence types, we want to find a sequence of values and then try to encode
+		// them as a bit_sequence.
+		TypeDef::BitSequence(seq) => {
+			let value = find_sequence_candidate(value);
+			encode_vals_to_bitsequence(value.values(), seq, types, out)
+		}
+		// For other types, skip our value past a 1-value composite and try again, else error.
+		_ => {
+			if value.len() == 1 {
+				let inner_val = value.values().next().unwrap();
+				inner_val.encode_as_type_to(type_id, types, out)
+			} else {
+				Err(Error::new(ErrorKind::WrongShape { actual: Kind::Tuple, expected: type_id }))
+			}
 		}
 	}
 }
 
-fn encode_vals_to_bitsequence<T>(
-	vals: &[Value<T>],
+// skip into the target type past any newtype wrapper like things:
+fn find_single_entry_with_same_repr(type_id: u32, types: &PortableRegistry) -> u32 {
+	let Some(ty) = types.resolve(type_id) else {
+		return type_id
+	};
+	match ty.type_def() {
+		TypeDef::Tuple(tuple) if tuple.fields().len() == 1 => {
+			find_single_entry_with_same_repr(tuple.fields()[0].id(), types)
+		}
+		TypeDef::Composite(composite) if composite.fields().len() == 1 => {
+			find_single_entry_with_same_repr(composite.fields()[0].ty().id(), types)
+		}
+		_ => type_id,
+	}
+}
+
+// dig into a composite type and find a composite that is a candidate
+// for being encoded into a sequence.
+fn find_sequence_candidate<T>(value: &'_ Composite<T>) -> &'_ Composite<T> {
+	if value.len() != 1 {
+		return value;
+	}
+
+	let inner_value = value.values().next().unwrap();
+	match &inner_value.value {
+		ValueDef::Composite(inner_composite) => {
+			// Try the next layer.
+			find_sequence_candidate(inner_composite)
+		}
+		_ => {
+			// The value has non-composite inside, so just return it.
+			value
+		}
+	}
+}
+
+// It's likely that people will use a composite to represen bit sequences,
+// so support encoding to them in this way too.
+fn encode_vals_to_bitsequence<'a, T: 'a>(
+	vals: impl ExactSizeIterator<Item = &'a Value<T>>,
 	bits: &TypeDefBitSequence<PortableForm>,
 	types: &PortableRegistry,
 	out: &mut Vec<u8>,
 ) -> Result<(), Error> {
 	let format = scale_bits::Format::from_metadata(bits, types).map_err(Error::custom)?;
 	let mut bools = Vec::with_capacity(vals.len());
-	for (idx, value) in vals.iter().enumerate() {
+	for (idx, value) in vals.enumerate() {
 		if let Some(v) = value.as_bool() {
 			// support turning (true, false, true, true, false) into a bit sequence.
 			bools.push(v);
@@ -361,6 +458,8 @@ mod test {
 			Value::bit_sequence(bits![0, 1, 1, 0, 0, 1]),
 			bits![0, 1, 1, 0, 0, 1],
 		);
+		// a single value should still encode OK:
+		assert_can_encode_to_type(Value::unnamed_composite(vec![Value::bool(false)]), bits![0]);
 		assert_can_encode_to_type(
 			Value::unnamed_composite(vec![
 				Value::bool(false),
@@ -427,6 +526,10 @@ mod test {
 		#[derive(Encode, scale_info::TypeInfo)]
 		struct Bar(Foo);
 		assert_can_encode_to_type(Value::u128(32), Bar(Foo { inner: 32 }));
+		assert_can_encode_to_type(
+			Value::unnamed_composite([Value::u128(32)]),
+			Bar(Foo { inner: 32 }),
+		);
 
 		// Encoding a Composite to a Composite(Composite) shape is fine too:
 		#[derive(Encode, scale_info::TypeInfo)]
@@ -435,5 +538,6 @@ mod test {
 			Value::from_bytes([1, 2, 3, 4, 5]),
 			SomeBytes(vec![1, 2, 3, 4, 5]),
 		);
+		assert_can_encode_to_type(Value::from_bytes([1]), SomeBytes(vec![1]));
 	}
 }
