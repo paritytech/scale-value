@@ -41,9 +41,12 @@ These steps assume that you've checked out the `scale-value` repository and are 
 
     Checkout `main`, ensuring we're looking at that latest merge (`git pull`).
 
-    Next, do a dry run to make sure that things seem sane:
+    Next, do a final sanity check to make sure there are no new issues:
     ```
-    cargo publish --dry-run
+    cargo fmt
+    cargo clippy --all-targets
+    cargo test --all-targets
+    cargo test --doc
     ```
 
     If we're happy with everything, proceed with the release:
