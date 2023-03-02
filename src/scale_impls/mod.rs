@@ -17,6 +17,7 @@ mod decode;
 mod encode;
 
 pub use decode::{decode_value_as_type, DecodeError, DecodeValueVisitor};
+pub use encode::EncodeError;
 
 /// A type ID which can be resolved into a type given a [`scale_info::PortableRegistry`].
 pub type TypeId = u32;

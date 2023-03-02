@@ -13,17 +13,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! This crate exposes the [`Value`] type and related subtypes, which are used as the runtime
-//! representations of SCALE encoded data (much like `serde_json::Value` is a runtime representation
-//! of JSON data).
-//!
-//! Use the [`crate::scale`] module to encode and decode [`Value`]s to SCALE bytes. In most cases, you'll
-//! use this module in conjunction with node metadata so that you have access to a type registry and know
-//! which type you'll want to try and encode or decode your [`Value`] into.
-//!
-//! With the serde feature enabled, you can also use the [`crate::serde`] module to convert rust types to
-//! and from [`Value`]s, or serialize/deserialize them to/from other formats like JSON.
+/*!
+This crate exposes the [`Value`] type and related subtypes, which are used as the runtime
+representations of SCALE encoded data (much like `serde_json::Value` is a runtime representation
+of JSON data).
 
+[`Value`]'s can be:
+
+- Encoded and decoded from SCALE bytes via [`scale_encode::EncodeAsType`] and [`scale_decode::DecodeAsType`]
+  traits (or by calling [`crate::scale::decode_as_type`] and [`crate::scale::encode_as_type`]).
+- Parsed to and from strings by calling [`crate::stringify::from_str`] and [`crate::stringify::to_string`]).
+  Parsing from strings requires the `from_string` feature to be enabled.
+- Serialized and deserialized via `serde` traits (for example, to and from JSON). They can also be serialized
+  from and to other types with the relevant serde derives on. These require the `serde` feature to be enabled.
+- Accessed ergonomically via the [`At`] trait.
+*/
 #![deny(missing_docs)]
 
 mod at;
@@ -219,6 +223,62 @@ pub mod stringify {
 	/// consisting of a result (either the value or a [`ParseError`] containing
 	/// location and error information) and the remainder of the string that wasn't
 	/// parsed.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// fn to_value(str: &str) -> Value {
+	/// 	scale_value::stringify::from_str(str).0.unwrap()
+	/// }
+	///
+	/// // Primitive values:
+	/// assert_eq!(to_value("1"), Value::u128(1));
+	/// assert_eq!(to_value("-1"), Value::i128(-1));
+	/// assert_eq!(to_value("true"), Value::bool(true));
+	/// assert_eq!(to_value("'a'"), Value::char('a'));
+	/// assert_eq!(to_value("\"hi\""), Value::string("hi"));
+	///
+	/// // Named composite values look a bit like rust structs:
+	/// let value = to_value("{ a: true, b: \"hello\" }");
+	/// assert_eq!(
+	/// 	value,
+	/// 	Value::named_composite(vec![
+	/// 		("a", Value::bool(true)),
+	/// 		("b", Value::string("hello"))
+	/// 	])
+	/// );
+	///
+	/// // Unnamed composite values look a bit like rust tuples:
+	/// let value = to_value("(true, \"hello\")");
+	/// assert_eq!(
+	/// 	value,
+	/// 	Value::unnamed_composite(vec![
+	/// 		Value::bool(true),
+	/// 		Value::string("hello")
+	/// 	])
+	/// );
+	///
+	/// // Variant values (named or unnamed) are just the above with a variant name
+	/// // prefixed:
+	/// let value = to_value("MyVariant { a: true, b: \"hello\" }");
+	/// assert_eq!(
+	/// 	value,
+	/// 	Value::named_variant(
+	/// 		"MyVariant",
+	/// 		vec![
+	/// 			("a", Value::bool(true)),
+	/// 			("b", Value::string("hello"))
+	/// 		]
+	/// 	)
+	/// );
+	///
+	/// // Bit sequences can be encoded from unnamed composites, but we have a
+	/// // compact syntax for them too:
+	/// assert_eq!(
+	/// 	to_value("<0101>"),
+	/// 	Value::bit_sequence(scale_bits::Bits::from_iter([false, true, false, true]))
+	/// );
+	/// ```
 	#[cfg(feature = "from_string")]
 	pub fn from_str(s: &str) -> (Result<crate::Value<()>, ParseError>, &str) {
 		crate::string_impls::from_str(s)

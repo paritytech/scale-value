@@ -22,6 +22,8 @@ use scale_encode::{Composite as EncodeComposite, Variant as EncodeVariant};
 use scale_info::form::PortableForm;
 use scale_info::{PortableRegistry, TypeDef, TypeDefBitSequence};
 
+pub use scale_encode::Error as EncodeError;
+
 impl<T> EncodeAsType for Value<T> {
 	fn encode_as_type_to(
 		&self,
