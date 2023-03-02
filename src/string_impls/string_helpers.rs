@@ -16,17 +16,17 @@
 /// Return the escape code for a given char, or None
 /// if there is no escape code for it.
 pub fn to_escape_code(c: char) -> Option<char> {
-	let escaped = match c {
-		'\n' => 'n',
-		'\t' => 't',
-		'"' => '"',
-		'\'' => '\'',
-		'\r' => 'r',
-		'\\' => '\\',
-		'\0' => '0',
-		_ => return None,
-	};
-	Some(escaped)
+    let escaped = match c {
+        '\n' => 'n',
+        '\t' => 't',
+        '"' => '"',
+        '\'' => '\'',
+        '\r' => 'r',
+        '\\' => '\\',
+        '\0' => '0',
+        _ => return None,
+    };
+    Some(escaped)
 }
 
 /// Given some escape code (char following a '\'), return the
@@ -34,15 +34,15 @@ pub fn to_escape_code(c: char) -> Option<char> {
 /// valid escape code.
 #[cfg(feature = "from_string")]
 pub fn from_escape_code(c: char) -> Option<char> {
-	let unescaped = match c {
-		'n' => '\n',
-		't' => '\t',
-		'"' => '"',
-		'\'' => '\'',
-		'r' => '\r',
-		'\\' => '\\',
-		'0' => '\0',
-		_ => return None,
-	};
-	Some(unescaped)
+    let unescaped = match c {
+        'n' => '\n',
+        't' => '\t',
+        '"' => '"',
+        '\'' => '\'',
+        'r' => '\r',
+        '\\' => '\\',
+        '0' => '\0',
+        _ => return None,
+    };
+    Some(unescaped)
 }
