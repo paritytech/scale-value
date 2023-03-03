@@ -227,6 +227,8 @@ pub mod stringify {
     /// # Examples
     ///
     /// ```rust
+    /// use scale_value::Value;
+    ///
     /// fn to_value(str: &str) -> Value {
     ///     scale_value::stringify::from_str(str).0.unwrap()
     /// }
