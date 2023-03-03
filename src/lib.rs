@@ -146,7 +146,7 @@ pub mod serde {
 ///
 /// # Exmaple
 ///
-/// Given some known metadata type ID, encode and desome some [`crate::Value`]
+/// Given some known metadata type ID, encode and decode some [`crate::Value`]
 /// to SCALE bytes.
 ///
 /// ```rust
