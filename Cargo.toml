@@ -35,7 +35,7 @@ scale-decode = { version = "0.5.0", default-features = false }
 scale-encode = { version = "0.1.0", default-features = false, features = ["bits"] }
 scale-bits = "0.3.0"
 either = "1.6.1"
-yap = { version = "0.7.2", optional = true }
+yap = { version = "0.10.0", optional = true }
 
 [dev-dependencies]
 serde_json = "1.0.64"
