@@ -124,7 +124,7 @@ fn encode_composite<T>(
             }
             Ok(())
         }
-        // For arrays ee can dig into our composite type much like for sequences, but bail
+        // For arrays we can dig into our composite type much like for sequences, but bail
         // if the length doesn't align.
         TypeDef::Array(array) => {
             let arr_ty = array.type_param().id();
@@ -151,7 +151,7 @@ fn encode_composite<T>(
         // For other types, skip our value past a 1-value composite and try again, else error.
         _ => {
             if value.len() == 1 {
-                let inner_val = value.values().next().unwrap();
+                let inner_val = value.values().next().expect("we've just checked for one value");
                 inner_val.encode_as_type_to(type_id, types, out)
             } else {
                 Err(Error::new(ErrorKind::WrongShape { actual: Kind::Tuple, expected: type_id }))
@@ -163,8 +163,8 @@ fn encode_composite<T>(
 // skip into the target type past any newtype wrapper like things:
 fn find_single_entry_with_same_repr(type_id: u32, types: &PortableRegistry) -> u32 {
     let Some(ty) = types.resolve(type_id) else {
-		return type_id
-	};
+        return type_id
+    };
     match ty.type_def() {
         TypeDef::Tuple(tuple) if tuple.fields().len() == 1 => {
             find_single_entry_with_same_repr(tuple.fields()[0].id(), types)
@@ -183,7 +183,7 @@ fn find_sequence_candidate<T>(value: &'_ Composite<T>) -> &'_ Composite<T> {
         return value;
     }
 
-    let inner_value = value.values().next().unwrap();
+    let inner_value = value.values().next().expect("We've just checked for 1 value");
     match &inner_value.value {
         ValueDef::Composite(inner_composite) => {
             // Try the next layer.

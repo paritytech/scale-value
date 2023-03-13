@@ -519,19 +519,19 @@ impl<'de, T> Deserializer<'de> for Composite<T> {
     where
         V: de::Visitor<'de>,
     {
-        let mut bytes: Vec<u8> = Vec::new();
-        for v in self.into_values() {
-            if let ValueDef::Primitive(Primitive::U128(n)) = v.value {
-                let byte = n
-					.try_into()
-					.map_err(|_| DeserializerError::from_str("Cannot deserialize composite that is not entirely U8's into bytes (number out of range)"))?;
-                bytes.push(byte);
-            } else {
-                return Err(DeserializerError::from_str(
-					"Cannot deserialize composite that is not entirely U8's into bytes (non-numeric values encountered)",
-				));
+        let bytes = self.into_values().map(|v| {
+            match v.value {
+                ValueDef::Primitive(Primitive::U128(n)) => {
+                    n.try_into()
+                     .map_err(|_| DeserializerError::from_str("Cannot deserialize composite that is not entirely U8's into bytes (number out of range)"))
+                },
+                _ => {
+                    Err(DeserializerError::from_str(
+                        "Cannot deserialize composite that is not entirely U8's into bytes (non-numeric values encountered)",
+                    ))
+                }
             }
-        }
+        }).collect::<Result<Vec<u8>, _>>()?;
         visitor.visit_byte_buf(bytes)
     }
 

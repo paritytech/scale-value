@@ -320,8 +320,8 @@ mod test {
         encode_decode_check(123u128, Value::u128(123));
         //// Todo [jsdw]: Can we test this if we need a TypeInfo param?:
         // encode_decode_check_explicit_info(
-        // 	[123u8; 32], // Anything 32 bytes long will do here
-        // 	Value::u256([123u8; 32]),
+        //     [123u8; 32], // Anything 32 bytes long will do here
+        //     Value::u256([123u8; 32]),
         // );
         encode_decode_check(123i8, Value::i128(123));
         encode_decode_check(123i16, Value::i128(123));
@@ -330,8 +330,8 @@ mod test {
         encode_decode_check(123i128, Value::i128(123));
         //// Todo [jsdw]: Can we test this if we need a TypeInfo param?:
         // encode_decode_check_explicit_info(
-        // 	[123u8; 32], // Anything 32 bytes long will do here
-        // 	Value::i256([123u8; 32]),
+        //     [123u8; 32], // Anything 32 bytes long will do here
+        //     Value::i256([123u8; 32]),
         // );
     }
 

@@ -74,16 +74,16 @@ impl<T> Serialize for Composite<T> {
 }
 
 macro_rules! serialize_as_first_ok_type {
-	($serializer:ident $val:ident; $first:ident $($rest:ident)*) => {{
-		let n: Result<$first,_> = $val.try_into();
-		match n {
-			Ok(n) => n.serialize($serializer),
-			Err(_) => serialize_as_first_ok_type!($serializer $val; $($rest)*)
-		}
-	}};
-	($serializer:ident $val:ident;) => {{
-		$val.serialize($serializer)
-	}};
+    ($serializer:ident $val:ident; $first:ident $($rest:ident)*) => {{
+        let n: Result<$first,_> = $val.try_into();
+        match n {
+            Ok(n) => n.serialize($serializer),
+            Err(_) => serialize_as_first_ok_type!($serializer $val; $($rest)*)
+        }
+    }};
+    ($serializer:ident $val:ident;) => {{
+        $val.serialize($serializer)
+    }};
 }
 
 impl Serialize for Primitive {

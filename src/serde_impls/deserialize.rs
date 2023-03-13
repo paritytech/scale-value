@@ -290,17 +290,17 @@ struct ValueDefVisitor;
 // It gets repetitive writing out the visitor impls to delegate to the Value subtypes;
 // this helper makes that a little easier:
 macro_rules! delegate_visitor_fn {
-	(
-		$visitor:ident $mapping:path,
-		$( $name:ident($($ty:ty)?) )+
-	) => {
-		$(
-			fn $name<E>(self, $(v: $ty)?) -> Result<Self::Value, E>
-			where E: serde::de::Error {
-				$visitor.$name($(v as $ty)?).map($mapping)
-			}
-		)+
-	}
+    (
+        $visitor:ident $mapping:path,
+        $( $name:ident($($ty:ty)?) )+
+    ) => {
+        $(
+            fn $name<E>(self, $(v: $ty)?) -> Result<Self::Value, E>
+            where E: serde::de::Error {
+                $visitor.$name($(v as $ty)?).map($mapping)
+            }
+        )+
+    }
 }
 
 impl<'de> Visitor<'de> for ValueDefVisitor {
