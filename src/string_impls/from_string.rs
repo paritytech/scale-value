@@ -469,7 +469,7 @@ fn parse_ident(t: &mut impl Tokens<Item = char>) -> Result<String, ParseError> {
     t.skip_tokens_while(|c| c.is_alphanumeric() || *c == '_');
     let end = t.location();
 
-    let ident_str = t.slice(start, end).collect();
+    let ident_str = t.slice(start, end).as_iter().collect();
     Ok(ident_str)
 }
 
