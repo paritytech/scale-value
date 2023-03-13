@@ -4,13 +4,26 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.7.0
+
+The main change in this release is that it makes use of a new `scale-encode` crate and updated `scale-decode` crate for the SCALE encoding and decoding of `Value`s.
+- `Value`s now implement `DecodeAsType` and `EncodeAsType`.
+- `Composite`s now implement `DecodeAsFields`.
+- As a small breaking API change, the `TypeId` passed to the encode and decode methods is now a plain `u32` for simplicity, rather than a newtype struct.
+
+It should be very straightforward to update to this release as the changes are mainly additive in nature.
+
+### Changed
+
+- Use latest `scale-decode` and new `scale-encode` crate for SCALE encoding and decoding Values. ([#25](https://github.com/paritytech/scale-value/pull/25))
+
 ## 0.6.0
 
 Here we move to `scale_bits` from `bitvec` to handle our encode/decode logic and provide a simple type to decode bits into. We also now add a WASM CI test, and will expect this crate (potentially via features in the future) to be WASM compatible.
 
 ### Changed
 
-- Use `scale-bits` for `BitSequence` decoding etc and enable WASM test. ([#24](https://github.com/paritytech/scale-value/pull/24)
+- Use `scale-bits` for `BitSequence` decoding etc and enable WASM test. ([#24](https://github.com/paritytech/scale-value/pull/24))
 
 ## 0.5.0
 
@@ -22,7 +35,7 @@ Full list of changes:
 
 ### Changed
 
-- Use `scale-decode` for `Value` decoding. ([#22](https://github.com/paritytech/scale-value/pull/22)
+- Use `scale-decode` for `Value` decoding. ([#22](https://github.com/paritytech/scale-value/pull/22))
 
 ## 0.4.0
 
