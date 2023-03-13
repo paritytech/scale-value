@@ -188,7 +188,10 @@ mod test {
         // Strings can be used:
         assert_eq!(val.at("hello".to_string()).at(0), Some(&Value::u128(1)));
         // References to valid locations are fine too:
-        assert_eq!(val.at(&"hello").at(&0), Some(&Value::u128(1)));
+        #[allow(clippy::needless_borrow)]
+        {
+            assert_eq!(val.at(&"hello").at(&0), Some(&Value::u128(1)));
+        }
     }
 
     #[test]

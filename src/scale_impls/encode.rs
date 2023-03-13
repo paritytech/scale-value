@@ -150,11 +150,15 @@ fn encode_composite<T>(
         }
         // For other types, skip our value past a 1-value composite and try again, else error.
         _ => {
-            if value.len() == 1 {
-                let inner_val = value.values().next().expect("we've just checked for one value");
-                inner_val.encode_as_type_to(type_id, types, out)
-            } else {
-                Err(Error::new(ErrorKind::WrongShape { actual: Kind::Tuple, expected: type_id }))
+            let mut values = value.values();
+            match (values.next(), values.next()) {
+                // Exactly one value:
+                (Some(value), None) => value.encode_as_type_to(type_id, types, out),
+                // Some other number of values:
+                _ => Err(Error::new(ErrorKind::WrongShape {
+                    actual: Kind::Tuple,
+                    expected: type_id,
+                })),
             }
         }
     }
@@ -179,20 +183,14 @@ fn find_single_entry_with_same_repr(type_id: u32, types: &PortableRegistry) -> u
 // dig into a composite type and find a composite that is a candidate
 // for being encoded into a sequence.
 fn find_sequence_candidate<T>(value: &'_ Composite<T>) -> &'_ Composite<T> {
-    if value.len() != 1 {
-        return value;
-    }
-
-    let inner_value = value.values().next().expect("We've just checked for 1 value");
-    match &inner_value.value {
-        ValueDef::Composite(inner_composite) => {
-            // Try the next layer.
+    let mut values = value.values();
+    match (values.next(), values.next()) {
+        // A single composite value is found inside:
+        (Some(Value { value: ValueDef::Composite(inner_composite), .. }), None) => {
             find_sequence_candidate(inner_composite)
         }
-        _ => {
-            // The value has non-composite inside, so just return it.
-            value
-        }
+        // Anything else? Just return the value passed in:
+        _ => value,
     }
 }
 
