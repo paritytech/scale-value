@@ -6,9 +6,9 @@ The format is based on [Keep a Changelog].
 
 ## 0.7.0
 
-The main change in this release is that it makes use of a new `scale-encode` crate and updated `scale-decode` crate for the SCALE encoding and decoding of `Value`s.
-- `Value`s now implement `DecodeAsType` and `EncodeAsType`.
-- `Composite`s now implement `DecodeAsFields`.
+The main change in this release is that it makes use of a new `scale-encode` crate and updated `scale-decode` crate for the SCALE encoding and decoding of Values.
+- Values now implement `DecodeAsType` and `EncodeAsType`.
+- Composites now implement `DecodeAsFields`.
 - As a small breaking API change, the `TypeId` passed to the encode and decode methods is now a plain `u32` for simplicity, rather than a newtype struct.
 
 It should be very straightforward to update to this release as the changes are mainly additive in nature.
