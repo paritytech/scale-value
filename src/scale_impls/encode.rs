@@ -88,7 +88,7 @@ fn encode_composite<T>(
     let type_id = find_single_entry_with_same_repr(type_id, types);
     let ty = types.resolve(type_id).ok_or_else(|| Error::new(ErrorKind::TypeNotFound(type_id)))?;
 
-    match ty.type_def() {
+    match &ty.type_def {
         // Our scale_encode Composite helper can encode to these types without issue:
         TypeDef::Tuple(_) | TypeDef::Composite(_) => match value {
             Composite::Named(vals) => {
@@ -104,7 +104,7 @@ fn encode_composite<T>(
         // For sequence types, let's skip our Value until we hit a Composite type containing
         // a non-composite type or more than 1 entry. This is the best candidate we have for a sequence.
         TypeDef::Sequence(seq) => {
-            let seq_ty = seq.type_param().id();
+            let seq_ty = seq.type_param.id;
             let value = find_sequence_candidate(value);
 
             // sequences start with compact encoded length:
@@ -127,13 +127,13 @@ fn encode_composite<T>(
         // For arrays we can dig into our composite type much like for sequences, but bail
         // if the length doesn't align.
         TypeDef::Array(array) => {
-            let arr_ty = array.type_param().id();
+            let arr_ty = array.type_param.id;
             let value = find_sequence_candidate(value);
 
-            if value.len() != array.len() as usize {
+            if value.len() != array.len as usize {
                 return Err(Error::new(ErrorKind::WrongLength {
                     actual_len: value.len(),
-                    expected_len: array.len() as usize,
+                    expected_len: array.len as usize,
                 }));
             }
 
@@ -169,12 +169,12 @@ fn find_single_entry_with_same_repr(type_id: u32, types: &PortableRegistry) -> u
     let Some(ty) = types.resolve(type_id) else {
         return type_id
     };
-    match ty.type_def() {
-        TypeDef::Tuple(tuple) if tuple.fields().len() == 1 => {
-            find_single_entry_with_same_repr(tuple.fields()[0].id(), types)
+    match &ty.type_def {
+        TypeDef::Tuple(tuple) if tuple.fields.len() == 1 => {
+            find_single_entry_with_same_repr(tuple.fields[0].id, types)
         }
-        TypeDef::Composite(composite) if composite.fields().len() == 1 => {
-            find_single_entry_with_same_repr(composite.fields()[0].ty().id(), types)
+        TypeDef::Composite(composite) if composite.fields.len() == 1 => {
+            find_single_entry_with_same_repr(composite.fields[0].ty.id, types)
         }
         _ => type_id,
     }
@@ -300,7 +300,7 @@ mod test {
         let id = types.register_type(&m);
         let portable_registry: PortableRegistry = types.into();
 
-        (id.id(), portable_registry)
+        (id.id, portable_registry)
     }
 
     // Attempt to SCALE encode a Value and expect it to match the standard Encode impl for the second param given.

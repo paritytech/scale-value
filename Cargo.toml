@@ -30,7 +30,7 @@ codec = { package = "parity-scale-codec", version = "3.0.0", default-features = 
 serde = { version = "1.0.124", features = ["derive"], optional = true }
 frame-metadata = { version = "15.0.0", default-features = false, features = ["v14"] }
 thiserror = "1.0.24"
-scale-info = { version = "2.0.0", default-features = false, features = ["std"] }
+scale-info = { version = "2.5.0", default-features = false, features = ["std"] }
 scale-decode = { version = "0.5.0", default-features = false }
 scale-encode = { version = "0.1.0", default-features = false, features = ["bits"] }
 scale-bits = "0.3.0"
