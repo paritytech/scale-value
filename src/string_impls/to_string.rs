@@ -217,7 +217,7 @@ mod test {
             let v = Value::variant(ident, Composite::Named(vec![]));
             let s = v.to_string();
             assert_eq!(
-                !s.trim().starts_with("v"),
+                !s.trim().starts_with('v'),
                 should_be_simple,
                 "{s} should be simple: {should_be_simple}"
             );

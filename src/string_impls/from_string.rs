@@ -18,17 +18,54 @@
 use super::string_helpers;
 use crate::value::{BitSequence, Composite, Primitive, Value, Variant};
 use std::num::ParseIntError;
-use yap::{IntoTokens, TokenLocation, Tokens};
+use yap::{types::StrTokens, IntoTokens, TokenLocation, Tokens};
 
-pub fn from_str(s: &str) -> (Result<Value<()>, ParseError>, &str) {
-    let mut toks = s.into_tokens();
-    let res = parse_value(&mut toks);
-    let remaining = toks.remaining();
-    (res, remaining)
+/// A struct which will try to parse a string into a [`Value`].
+/// This can be configured with custom parsers to extend what we're able
+/// to parse into a [`Value`].
+pub struct FromStrBuilder {
+    custom_parsers: Vec<CustomParser>,
+}
+
+type CustomParser = Box<dyn Fn(&mut &str) -> Option<Result<Value<()>, ParseError>> + 'static>;
+
+impl FromStrBuilder {
+    pub(crate) fn new() -> Self {
+        FromStrBuilder { custom_parsers: Vec::new() }
+    }
+
+    /// Add a custom parser. A custom parser is a function which is given a mutable string
+    /// reference and will:
+    ///
+    /// - return `None` if the string given is not applicable,
+    /// - return `Some(Ok(value))` if we can successfully parse a value from the string. In
+    ///   this case, the parser should update the `&mut str` it's given to consume however
+    ///   much was parsed.
+    /// - return `Some(Err(error))` if the string given looks like a match, but something went
+    ///   wrong in trying to properly parse it. In this case, parsing will stop immediately and
+    ///   this error will be returned, so use this sparingly, as other parsers may be able to
+    ///   successfully parse what this one has failed to parse. No additional tokens will be consumed
+    ///   if an error occurs.
+    pub fn add_custom_parser<F>(mut self, f: F) -> Self
+    where
+        F: Fn(&mut &str) -> Option<Result<Value<()>, ParseError>> + 'static,
+    {
+        self.custom_parsers.push(Box::new(f));
+        self
+    }
+
+    /// Attempt to parse the string provided into a value, returning any error that occurred while
+    /// attempting to do so, as well as the rest of the string that was not consumed by this parsing.
+    pub fn parse<'a>(&self, s: &'a str) -> (Result<Value<()>, ParseError>, &'a str) {
+        let mut tokens = s.into_tokens();
+        let res = parse_value(&mut tokens, &self.custom_parsers);
+        let remaining = tokens.remaining();
+        (res, remaining)
+    }
 }
 
 /// An error parsing the provided string into a Value
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub struct ParseError {
     /// Byte offset into the provided string that the error begins.
     pub start_loc: usize,
@@ -40,11 +77,13 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    fn new_at(err: ParseErrorKind, loc: usize) -> Self {
-        Self { start_loc: loc, end_loc: None, err }
+    /// Construct a new `ParseError` for tokens at the given location.
+    pub fn new_at<E: Into<ParseErrorKind>>(err: E, loc: usize) -> Self {
+        Self { start_loc: loc, end_loc: None, err: err.into() }
     }
-    fn new_between(err: ParseErrorKind, start: usize, end: usize) -> Self {
-        Self { start_loc: start, end_loc: Some(end), err }
+    /// Construct a new `ParseError` for tokens between the given locations.
+    pub fn new_between<E: Into<ParseErrorKind>>(err: E, start: usize, end: usize) -> Self {
+        Self { start_loc: start, end_loc: Some(end), err: err.into() }
     }
 }
 
@@ -58,8 +97,28 @@ impl std::fmt::Display for ParseError {
     }
 }
 
+// Add handy helper methods to error-kinds
+macro_rules! at_between {
+    ($ty:ident) => {
+        impl $ty {
+            /// Error at a specific location with no specific end
+            pub fn at(self, loc: usize) -> ParseError {
+                ParseError::new_at(self, loc)
+            }
+            /// Error at a specific location for the next character
+            pub fn at_one(self, loc: usize) -> ParseError {
+                ParseError::new_between(self, loc, loc + 1)
+            }
+            /// Error between two locations.
+            pub fn between(self, start: usize, end: usize) -> ParseError {
+                ParseError::new_between(self, start, end)
+            }
+        }
+    };
+}
+
 /// Details about the error that occurred.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum ParseErrorKind {
     #[error("Expected a value")]
     ExpectedValue,
@@ -73,33 +132,20 @@ pub enum ParseErrorKind {
     Number(#[from] ParseNumberError),
     #[error("{0}")]
     BitSequence(#[from] ParseBitSequenceError),
+    #[error("{0}")]
+    Custom(CustomError),
+}
+at_between!(ParseErrorKind);
+
+impl ParseErrorKind {
+    /// Construct a custom error.
+    pub fn custom<E: Into<CustomError>>(e: E) -> Self {
+        ParseErrorKind::Custom(e.into())
+    }
 }
 
-// Add handy helper methods to sub-error-kinds
-macro_rules! at_between {
-    ($ty:ident) => {
-        impl $ty {
-            /// Error at a specific location with no specific end
-            #[allow(unused)]
-            fn at(self, loc: usize) -> ParseError {
-                let e: ParseErrorKind = self.into();
-                ParseError::new_at(e, loc)
-            }
-            /// Error at a specific location for the next character
-            #[allow(unused)]
-            fn at_one(self, loc: usize) -> ParseError {
-                let e: ParseErrorKind = self.into();
-                ParseError::new_between(e, loc, loc + 1)
-            }
-            /// Error between two locations.
-            #[allow(unused)]
-            fn between(self, start: usize, end: usize) -> ParseError {
-                let e: ParseErrorKind = self.into();
-                ParseError::new_between(e, start, end)
-            }
-        }
-    };
-}
+/// An arbitrary custom error.
+pub type CustomError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ParseComplexError {
@@ -153,7 +199,42 @@ pub enum ParseBitSequenceError {
 at_between!(ParseBitSequenceError);
 
 // Parse a value.
-fn parse_value(t: &mut impl Tokens<Item = char>) -> Result<Value<()>, ParseError> {
+fn parse_value(
+    t: &mut StrTokens,
+    custom_parsers: &[CustomParser],
+) -> Result<Value<()>, ParseError> {
+    // Try any custom parsers first.
+    if !custom_parsers.is_empty() {
+        let s = t.remaining();
+        let start_offset = t.offset();
+        let cursor = &mut &*s;
+
+        for parser in custom_parsers {
+            if let Some(res) = parser(cursor) {
+                match res {
+                    Ok(value) => {
+                        // Wind our StrTokens forward to take into account anything that
+                        // was consumed. We do this rather than replacing it because we want
+                        // to preserve the full string and offsets.
+                        for _ in cursor.len()..s.len() {
+                            t.next();
+                        }
+                        return Ok(value);
+                    }
+                    Err(e) => {
+                        // Adjust locations in error to be relative to the big string,
+                        // not the smaller slice that was passed to the custom parser.
+                        return Err(ParseError {
+                            start_loc: start_offset + e.start_loc,
+                            end_loc: e.end_loc.map(|l| start_offset + l),
+                            err: e.err,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
     // Our parsers return `Result<Thing, Option<ParseError>>`, but in order to know
     // whether to try the next item, `one_of` expects `Option<T>`, so we transpose_err
     // to convert to the right shape.
@@ -162,10 +243,10 @@ fn parse_value(t: &mut impl Tokens<Item = char>) -> Result<Value<()>, ParseError
         transpose_err(parse_char(t).map(Value::char)),
         transpose_err(parse_string(t).map(Value::string)),
         transpose_err(parse_number(t).map(Value::primitive)),
-        transpose_err(parse_named_composite(t).map(|v| v.into())),
-        transpose_err(parse_unnamed_composite(t).map(|v| v.into())),
+        transpose_err(parse_named_composite(t, custom_parsers).map(|v| v.into())),
+        transpose_err(parse_unnamed_composite(t, custom_parsers).map(|v| v.into())),
         transpose_err(parse_bit_sequence(t).map(Value::bit_sequence)),
-        transpose_err(parse_variant(t).map(|v| v.into())),
+        transpose_err(parse_variant(t, custom_parsers).map(|v| v.into())),
     );
 
     match val {
@@ -182,7 +263,8 @@ fn parse_value(t: &mut impl Tokens<Item = char>) -> Result<Value<()>, ParseError
 // that we can see up front that the characters we're parsing aren't going to be the right shape,
 // and can attempt to parse the characters into a different thing if we wish.
 fn parse_named_composite(
-    t: &mut impl Tokens<Item = char>,
+    t: &mut StrTokens,
+    custom_parsers: &[CustomParser],
 ) -> Result<Composite<()>, Option<ParseError>> {
     let start = t.offset();
     if !t.token('{') {
@@ -196,7 +278,10 @@ fn parse_named_composite(
     }
 
     let vals = t
-        .sep_by_err(|t| parse_field_name_and_value(t), |t| skip_spaced_separator(t, ','))
+        .sep_by_err(
+            |t| parse_field_name_and_value(t, custom_parsers),
+            |t| skip_spaced_separator(t, ','),
+        )
         .collect::<Result<_, _>>()?;
 
     skip_whitespace(t);
@@ -208,7 +293,8 @@ fn parse_named_composite(
 
 // Parse an unnamed composite value like `(true, 123)`
 fn parse_unnamed_composite(
-    t: &mut impl Tokens<Item = char>,
+    t: &mut StrTokens,
+    custom_parsers: &[CustomParser],
 ) -> Result<Composite<()>, Option<ParseError>> {
     let start = t.offset();
     if !t.token('(') {
@@ -222,7 +308,7 @@ fn parse_unnamed_composite(
     }
 
     let vals = t
-        .sep_by_err(|t| parse_value(t), |t| skip_spaced_separator(t, ','))
+        .sep_by_err(|t| parse_value(t, custom_parsers), |t| skip_spaced_separator(t, ','))
         .collect::<Result<_, _>>()?;
 
     skip_whitespace(t);
@@ -233,7 +319,10 @@ fn parse_unnamed_composite(
 }
 
 // Parse a variant like `Variant { hello: "there" }` or `Foo (123, true)`
-fn parse_variant(t: &mut impl Tokens<Item = char>) -> Result<Variant<()>, Option<ParseError>> {
+fn parse_variant(
+    t: &mut StrTokens,
+    custom_parsers: &[CustomParser],
+) -> Result<Variant<()>, Option<ParseError>> {
     let ident = match parse_optional_variant_ident(t) {
         Some(ident) => ident,
         None => return Err(None),
@@ -242,8 +331,8 @@ fn parse_variant(t: &mut impl Tokens<Item = char>) -> Result<Variant<()>, Option
     skip_whitespace(t);
 
     let composite = yap::one_of!(t;
-        transpose_err(parse_named_composite(t)),
-        transpose_err(parse_unnamed_composite(t))
+        transpose_err(parse_named_composite(t, custom_parsers)),
+        transpose_err(parse_unnamed_composite(t, custom_parsers))
     );
 
     match composite {
@@ -254,7 +343,7 @@ fn parse_variant(t: &mut impl Tokens<Item = char>) -> Result<Variant<()>, Option
 }
 
 // Parse a sequence of bits like `<01101>` or `<>` into a bit sequence.
-fn parse_bit_sequence(t: &mut impl Tokens<Item = char>) -> Result<BitSequence, Option<ParseError>> {
+fn parse_bit_sequence(t: &mut StrTokens) -> Result<BitSequence, Option<ParseError>> {
     let start = t.offset();
     if !t.token('<') {
         return Err(None);
@@ -274,7 +363,7 @@ fn parse_bit_sequence(t: &mut impl Tokens<Item = char>) -> Result<BitSequence, O
 }
 
 // Parse a bool (`true` or `false`)
-fn parse_bool(t: &mut impl Tokens<Item = char>) -> Option<bool> {
+fn parse_bool(t: &mut StrTokens) -> Option<bool> {
     if t.tokens("true".chars()) {
         Some(true)
     } else if t.tokens("false".chars()) {
@@ -285,7 +374,7 @@ fn parse_bool(t: &mut impl Tokens<Item = char>) -> Option<bool> {
 }
 
 // Parse a char like `'a'`
-fn parse_char(t: &mut impl Tokens<Item = char>) -> Result<char, Option<ParseError>> {
+fn parse_char(t: &mut StrTokens) -> Result<char, Option<ParseError>> {
     let start = t.offset();
     if !t.token('\'') {
         return Err(None);
@@ -317,7 +406,7 @@ fn parse_char(t: &mut impl Tokens<Item = char>) -> Result<char, Option<ParseErro
 }
 
 // Parse a number like `-123_456` or `234` or `+1234_5`
-fn parse_number(t: &mut impl Tokens<Item = char>) -> Result<Primitive, Option<ParseError>> {
+fn parse_number(t: &mut StrTokens) -> Result<Primitive, Option<ParseError>> {
     let start_loc = t.offset();
     let is_positive = t.token('+') || !t.token('-');
 
@@ -366,7 +455,7 @@ fn parse_number(t: &mut impl Tokens<Item = char>) -> Result<Primitive, Option<Pa
 }
 
 // Parse a string like `"hello\n there"`
-fn parse_string(t: &mut impl Tokens<Item = char>) -> Result<String, Option<ParseError>> {
+fn parse_string(t: &mut StrTokens) -> Result<String, Option<ParseError>> {
     let start = t.offset();
     if !t.token('"') {
         return Err(None);
@@ -418,18 +507,19 @@ fn parse_string(t: &mut impl Tokens<Item = char>) -> Result<String, Option<Parse
 
 // Parse a field in a named composite like `foo: 123` or `"hello there": 123`
 fn parse_field_name_and_value(
-    t: &mut impl Tokens<Item = char>,
+    t: &mut StrTokens,
+    custom_parsers: &[CustomParser],
 ) -> Result<(String, Value<()>), ParseError> {
     let name = parse_field_name(t)?;
     if !skip_spaced_separator(t, ':') {
         return Err(ParseComplexError::MissingFieldSeparator(':').at_one(t.offset()));
     }
-    let value = parse_value(t)?;
+    let value = parse_value(t, custom_parsers)?;
     Ok((name, value))
 }
 
 // Parse a field name in a named composite like `foo` or `"hello there"`
-fn parse_field_name(t: &mut impl Tokens<Item = char>) -> Result<String, ParseError> {
+fn parse_field_name(t: &mut StrTokens) -> Result<String, ParseError> {
     let field_name = yap::one_of!(t;
         transpose_err(parse_string(t)),
         Some(parse_ident(t)),
@@ -446,8 +536,8 @@ fn parse_field_name(t: &mut impl Tokens<Item = char>) -> Result<String, ParseErr
 // `i"My variant name"` for idents that are not normally valid variant names, but
 // can be set in Value variants (this is to ensure that we can display and then parse
 // as many user-generated Values as possible).
-fn parse_optional_variant_ident(t: &mut impl Tokens<Item = char>) -> Option<String> {
-    fn parse_i_string(t: &mut impl Tokens<Item = char>) -> Option<String> {
+fn parse_optional_variant_ident(t: &mut StrTokens) -> Option<String> {
+    fn parse_i_string(t: &mut StrTokens) -> Option<String> {
         if t.next()? != 'v' {
             return None;
         }
@@ -461,7 +551,7 @@ fn parse_optional_variant_ident(t: &mut impl Tokens<Item = char>) -> Option<Stri
 }
 
 // Parse an ident like `foo` or `MyVariant`
-fn parse_ident(t: &mut impl Tokens<Item = char>) -> Result<String, ParseError> {
+fn parse_ident(t: &mut StrTokens) -> Result<String, ParseError> {
     let start = t.location();
     if t.skip_tokens_while(|c| c.is_alphabetic()) == 0 {
         return Err(ParseComplexError::InvalidStartingCharacterInIdent.at_one(start.offset()));
@@ -474,12 +564,12 @@ fn parse_ident(t: &mut impl Tokens<Item = char>) -> Result<String, ParseError> {
 }
 
 // Skip any whitespace characters
-fn skip_whitespace(t: &mut impl Tokens<Item = char>) {
+fn skip_whitespace(t: &mut StrTokens) {
     t.skip_tokens_while(|c| c.is_whitespace());
 }
 
 // Skip a provided separator, with optional spaces on either side
-fn skip_spaced_separator(t: &mut impl Tokens<Item = char>, s: char) -> bool {
+fn skip_spaced_separator(t: &mut StrTokens, s: char) -> bool {
     skip_whitespace(t);
     let is_sep = t.token(s);
     skip_whitespace(t);
@@ -499,13 +589,50 @@ fn transpose_err<T, E>(r: Result<T, Option<E>>) -> Option<Result<T, E>> {
 mod test {
     use super::*;
 
-    fn from(s: &str) -> Result<Value<()>, ParseError> {
-        let (res, remaining) = from_str(s);
-        if res.is_ok() {
-            // all successful parse tests fully consume the input string:
-            assert_eq!(remaining.len(), 0, "was not expecting any unparsed output");
+    // Wrap our error type to impl PartialEq on it for tests,
+    // which we otherwise don't want to have to implement in
+    // production code.
+    #[derive(Debug)]
+    pub struct E(ParseError);
+
+    impl From<ParseError> for E {
+        fn from(value: ParseError) -> Self {
+            E(value)
         }
-        res
+    }
+    impl PartialEq for E {
+        fn eq(&self, other: &Self) -> bool {
+            let (a, b) = (&self.0, &other.0);
+
+            // locations should match in tests.
+            if (a.start_loc, a.end_loc) != (b.start_loc, b.end_loc) {
+                return false;
+            }
+
+            // error kinds should match; only bother to impl the ones we want to compare for tests.
+            match (&a.err, &b.err) {
+                (ParseErrorKind::String(a), ParseErrorKind::String(b)) => a == b,
+                (ParseErrorKind::Char(a), ParseErrorKind::Char(b)) => a == b,
+                (ParseErrorKind::Number(a), ParseErrorKind::Number(b)) => a == b,
+                (ParseErrorKind::Custom(a), ParseErrorKind::Custom(b)) => {
+                    a.to_string() == b.to_string()
+                }
+                _ => {
+                    panic!("PartialEq not implemented for these variants yet.")
+                }
+            }
+        }
+    }
+
+    fn from(s: &str) -> Result<Value<()>, E> {
+        let (res, remaining) = FromStrBuilder::new().parse(s);
+        match res {
+            Ok(value) => {
+                assert_eq!(remaining.len(), 0, "was not expecting any unparsed output");
+                Ok(value)
+            }
+            Err(e) => Err(E(e)),
+        }
     }
 
     #[test]
@@ -520,7 +647,7 @@ mod test {
         assert_eq!(from("1_234_56"), Ok(Value::u128(123_456)));
         assert_eq!(from("+1_234_56"), Ok(Value::u128(123_456)));
         assert_eq!(from("-123_4"), Ok(Value::i128(-1234)));
-        assert_eq!(from("-abc"), Err(ParseNumberError::ExpectedDigit.between(1, 2)));
+        assert_eq!(from("-abc"), Err(E(ParseNumberError::ExpectedDigit.between(1, 2))));
     }
 
     #[test]
@@ -534,7 +661,7 @@ mod test {
         assert_eq!(from("'\\r'"), Ok(Value::char('\r')));
         assert_eq!(from("'\\\\'"), Ok(Value::char('\\')));
         assert_eq!(from("'\\0'"), Ok(Value::char('\0')));
-        assert_eq!(from("'a"), Err(ParseCharError::ExpectedClosingQuoteToMatch(0).at_one(2)));
+        assert_eq!(from("'a"), Err(E(ParseCharError::ExpectedClosingQuoteToMatch(0).at_one(2))));
     }
 
     #[test]
@@ -545,9 +672,12 @@ mod test {
         assert_eq!(from("\"Hello\\\\ there\""), Ok(Value::string("Hello\\ there")));
         assert_eq!(
             from("\"Hello\\p there\""),
-            Err(ParseStringError::ExpectedValidEscapeCode.between(7, 8))
+            Err(E(ParseStringError::ExpectedValidEscapeCode.between(7, 8)))
         );
-        assert_eq!(from("\"Hi"), Err(ParseStringError::ExpectedClosingQuoteToMatch(0).at_one(3)));
+        assert_eq!(
+            from("\"Hi"),
+            Err(E(ParseStringError::ExpectedClosingQuoteToMatch(0).at_one(3)))
+        );
     }
 
     #[test]
@@ -632,5 +762,71 @@ mod test {
         assert_eq!(from("<01101>"), Ok(Value::bit_sequence(bits![0, 1, 1, 0, 1])));
         assert_eq!(from("<0>"), Ok(Value::bit_sequence(bits![0])));
         assert_eq!(from("<>"), Ok(Value::bit_sequence(bits![])));
+    }
+
+    #[test]
+    fn custom_parsers() {
+        let custom_parser = FromStrBuilder::new()
+            // We add the ability to parse custom hex strings:
+            .add_custom_parser(|s| {
+                let mut toks = s.into_tokens();
+
+                // Return None if this clearly isn't hex.
+                if !toks.tokens("0x".chars()) {
+                    return None;
+                }
+
+                let from = toks.location();
+                let num_hex_chars = toks.skip_tokens_while(|c| {
+                    c.is_numeric()
+                        || ['a', 'b', 'c', 'd', 'e', 'f'].contains(&c.to_ascii_lowercase())
+                });
+
+                // Return an error if is _looks_ like hex but something isn't right about it.
+                if num_hex_chars % 2 != 0 {
+                    let e = ParseErrorKind::custom("Wrong number hex")
+                        .between(from.offset(), toks.offset());
+                    return Some(Err(e));
+                }
+
+                // For testing, we just dump the hex chars into a string.
+                let hex: String = toks.slice(from, toks.location()).as_iter().collect();
+                // Since we parsed stuff, we need to update the cursor to consume what we parsed.
+                *s = toks.remaining();
+
+                Some(Ok(Value::string(hex)))
+            });
+
+        let expected = [
+            // Hex can be parsed as a part of values now!
+            (
+                "(1, 0x1234, true)",
+                (
+                    Ok(Value::unnamed_composite([
+                        Value::u128(1),
+                        Value::string("1234"),
+                        Value::bool(true),
+                    ])),
+                    "",
+                ),
+            ),
+            // Invalid hex emits the expected custom error:
+            (
+                "0x12345zzz",
+                (Err(ParseErrorKind::custom("Wrong number hex").between(2, 7)), "0x12345zzz"),
+            ),
+            // Custom error locations are relative to the entire string:
+            (
+                "(true, 0x12345)",
+                (Err(ParseErrorKind::custom("Wrong number hex").between(9, 14)), ", 0x12345)"),
+            ),
+        ];
+
+        for (s, v) in expected {
+            let (expected_res, expected_leftover) = (v.0.map_err(E), v.1);
+            let (res, leftover) = custom_parser.parse(s);
+            assert_eq!(res.map_err(E), expected_res, "result isn't what we expected for: {s}");
+            assert_eq!(leftover, expected_leftover, "wrong number of leftover bytes for: {s}");
+        }
     }
 }
