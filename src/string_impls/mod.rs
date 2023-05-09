@@ -27,5 +27,7 @@ pub use from_string::{
     ParseError, ParseErrorKind, ParseNumberError, ParseStringError,
 };
 
+#[cfg(feature = "parser-ss58")]
+pub use custom_parsers::parse_ss58;
 #[cfg(feature = "from_string")]
-pub use custom_parsers::{parse_hex, parse_ss58, ParseHexError};
+pub use custom_parsers::{parse_hex, ParseHexError};

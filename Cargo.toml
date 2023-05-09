@@ -20,7 +20,7 @@ from_string = ["dep:yap"]
 # Enable serde support for serializing/deserializing Values.
 serde = ["dep:serde", "scale-bits/serde"]
 # Provide an ss58 address parser
-parser-ss58 = ["dep:base58", "dep:blake2"]
+parser-ss58 = ["dep:base58", "dep:blake2", "from_string"]
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "full"] }

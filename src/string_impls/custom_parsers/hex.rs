@@ -55,7 +55,7 @@ pub fn parse_hex(s: &mut &str) -> Option<Result<Value<()>, ParseError>> {
             .contains(b)
             .then(|| b - b'a' + 10)
             .or_else(|| (b'A'..=b'F').contains(b).then(|| b - b'A' + 10))
-            .or_else(|| (b'0'..=b'9').contains(b).then(|| b - b'0'));
+            .or_else(|| b.is_ascii_digit().then(|| b - b'0'));
 
         let Some(hex_nibble) = hex_nibble else {
             return Some(Err(ParseErrorKind::custom(ParseHexError::InvalidChar(*b as char)).at(idx)))

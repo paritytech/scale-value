@@ -225,8 +225,11 @@ pub mod stringify {
     /// This module provides custom parsers that work alongside [`crate::stringify::from_str_custom`]
     /// and extend the syntax to support parsing common formats into [`crate::Value`]'s. See
     /// [`crate::stringify::from_str_custom`] for a usage example.
+    #[cfg(feature = "from_string")]
     pub mod custom_parsers {
-        pub use crate::string_impls::{parse_hex, parse_ss58, ParseHexError};
+        #[cfg(feature = "parser-ss58")]
+        pub use crate::string_impls::parse_ss58;
+        pub use crate::string_impls::{parse_hex, ParseHexError};
     }
 
     /// Attempt to parse a string into a [`crate::Value<()>`], returning a tuple

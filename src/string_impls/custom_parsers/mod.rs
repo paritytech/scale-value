@@ -14,7 +14,11 @@
 // limitations under the License.
 
 mod hex;
+
+#[cfg(feature = "parser-ss58")]
 mod ss58;
 
 pub use self::hex::{parse_hex, ParseHexError};
+
+#[cfg(feature = "parser-ss58")]
 pub use ss58::parse_ss58;

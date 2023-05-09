@@ -75,7 +75,7 @@ fn parse_ss58_bytes(s: &mut &str) -> Option<Vec<u8>> {
     // Everything checks out; wind the string cursor forwards and
     // return the bytes representing the address provided.
     *s = rest;
-    return Some(bytes[prefix_len..checksum_start_idx].to_vec());
+    Some(bytes[prefix_len..checksum_start_idx].to_vec())
 }
 
 fn ss58hash(data: &[u8]) -> Vec<u8> {
