@@ -274,7 +274,7 @@ mod test {
         let id = types.register_type(&m);
         let portable_registry: PortableRegistry = types.into();
 
-        (id.id(), portable_registry)
+        (id.id, portable_registry)
     }
 
     /// Given a value to encode, and a representation of the decoded value, check that our decode functions

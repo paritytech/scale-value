@@ -19,4 +19,4 @@ mod string_helpers;
 mod to_string;
 
 #[cfg(feature = "from_string")]
-pub use from_string::{from_str, ParseError};
+pub use from_string::{FromStrBuilder, ParseError};

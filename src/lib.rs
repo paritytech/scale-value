@@ -217,7 +217,7 @@ pub mod scale {
 /// Converting a [`crate::Value`] to or from strings.
 pub mod stringify {
     #[cfg(feature = "from_string")]
-    pub use crate::string_impls::ParseError;
+    pub use crate::string_impls::{FromStrBuilder, ParseError};
 
     /// Attempt to parse a string into a [`crate::Value<()>`], returning a tuple
     /// consisting of a result (either the value or a [`ParseError`] containing
@@ -283,7 +283,14 @@ pub mod stringify {
     /// ```
     #[cfg(feature = "from_string")]
     pub fn from_str(s: &str) -> (Result<crate::Value<()>, ParseError>, &str) {
-        crate::string_impls::from_str(s)
+        crate::string_impls::FromStrBuilder::new().parse(s)
+    }
+
+    /// This is similar to [`from_str`], except that it returns a [`FromStrBuilder`],
+    /// which allows for some additional configuration in how strings are parsed.
+    #[cfg(feature = "from_string")]
+    pub fn from_str_custom() -> FromStrBuilder {
+        crate::string_impls::FromStrBuilder::new()
     }
 
     /// Identical to calling `to_string()` on the [`crate::Value`], but here just

@@ -80,6 +80,7 @@ impl<T> Display for Variant<T> {
             f.write_char('v')?;
             fmt_string(&self.name, f)?;
         }
+        f.write_char(' ')?;
         self.values.fmt(f)
     }
 }
@@ -139,8 +140,17 @@ fn fmt_bitsequence(b: &BitSequence, f: &mut std::fmt::Formatter<'_>) -> std::fmt
 
 /// Is the string provided a valid ident (as per from_string::parse_ident).
 fn is_ident(s: &str) -> bool {
-    for (idx, c) in s.chars().enumerate() {
-        if (idx == 0 && !c.is_alphabetic()) || !c.is_alphanumeric() || c != '_' {
+    let mut chars = s.chars();
+
+    // First char must be a letter (false if no chars)
+    let Some(fst) = chars.next() else { return false };
+    if !fst.is_alphabetic() {
+        return false;
+    }
+
+    // Other chars must be letter, number or underscore
+    for c in chars {
+        if !c.is_alphanumeric() && c != '_' {
             return false;
         }
     }
@@ -148,81 +158,152 @@ fn is_ident(s: &str) -> bool {
 }
 
 #[cfg(test)]
-// These tests only work with from_string enabled, because we go back and forth from both.
-#[cfg(feature = "from_string")]
 mod test {
     use super::*;
 
-    fn assert_from_to<T: std::fmt::Debug + PartialEq>(val: Value<T>) {
-        let s = val.to_string();
-        match crate::stringify::from_str(&s) {
-            (Err(e), _) => {
-                panic!("'{s}' cannot be parsed back into the value {val:?}: {e}");
-            }
-            (Ok(new_val), rest) => {
-                assert_eq!(
-                    val.remove_context(),
-                    new_val,
-                    "value should be the same after parsing to/from a string"
-                );
-                assert_eq!(rest.len(), 0, "there should be no unparsed string but got '{rest}'");
-            }
+    #[test]
+    fn outputs_expected_string() {
+        let expected = [
+            (Value::bool(true), "true"),
+            (Value::bool(false), "false"),
+            (Value::char('a'), "'a'"),
+            (Value::u128(123), "123"),
+            (Value::unnamed_composite([Value::bool(true), Value::string("hi")]), r#"(true, "hi")"#),
+            (
+                Value::named_composite([
+                    ("hi there", Value::bool(true)),
+                    ("other", Value::string("hi")),
+                ]),
+                r#"{ "hi there": true, other: "hi" }"#,
+            ),
+            (
+                Value::named_variant(
+                    "Foo",
+                    [
+                        (
+                            "ns",
+                            Value::unnamed_composite([
+                                Value::u128(1),
+                                Value::u128(2),
+                                Value::u128(3),
+                            ]),
+                        ),
+                        ("other", Value::char('a')),
+                    ],
+                ),
+                "Foo { ns: (1, 2, 3), other: 'a' }",
+            ),
+        ];
+
+        for (value, expected_str) in expected {
+            assert_eq!(&value.to_string(), expected_str);
         }
     }
 
     #[test]
-    fn primitives() {
-        assert_from_to(Value::bool(true));
-        assert_from_to(Value::bool(false));
+    fn pretty_variant_ident_used_when_possible() {
+        let expected = [
+            ("simpleIdent", true),
+            ("S", true),
+            ("S123", true),
+            ("S123_", true),
+            ("", false),
+            ("complex ident", false),
+            ("0Something", false),
+            ("_Something", false),
+        ];
 
-        assert_from_to(Value::char('\n'));
-        assert_from_to(Value::char('😀'));
-        assert_from_to(Value::char('a'));
-        assert_from_to(Value::char('\0'));
-        assert_from_to(Value::char('\t'));
-
-        assert_from_to(Value::i128(-123_456));
-        assert_from_to(Value::u128(0));
-        assert_from_to(Value::u128(123456));
-
-        assert_from_to(Value::string("hello \"you\",\n\n\t How are you??"));
-        assert_from_to(Value::string(""));
+        for (ident, should_be_simple) in expected {
+            let v = Value::variant(ident, Composite::Named(vec![]));
+            let s = v.to_string();
+            assert_eq!(
+                !s.trim().starts_with('v'),
+                should_be_simple,
+                "{s} should be simple: {should_be_simple}"
+            );
+        }
     }
 
-    #[test]
-    fn composites() {
-        assert_from_to(Value::named_composite([
-            ("foo", Value::u128(12345)),
-            ("bar", Value::bool(true)),
-            ("a \"weird\" name", Value::string("Woop!")),
-        ]));
-        assert_from_to(Value::unnamed_composite([
-            Value::u128(12345),
-            Value::bool(true),
-            Value::string("Woop!"),
-        ]));
-    }
+    // These tests stringify and then parse from string, so need "from_string" feature.
+    #[cfg(feature = "from_string")]
+    mod from_to {
+        use super::*;
 
-    #[test]
-    fn variants() {
-        assert_from_to(Value::named_variant(
-            "A weird variant name",
-            [
+        fn assert_from_to<T: std::fmt::Debug + PartialEq>(val: Value<T>) {
+            let s = val.to_string();
+            match crate::stringify::from_str(&s) {
+                (Err(e), _) => {
+                    panic!("'{s}' cannot be parsed back into the value {val:?}: {e}");
+                }
+                (Ok(new_val), rest) => {
+                    assert_eq!(
+                        val.remove_context(),
+                        new_val,
+                        "value should be the same after parsing to/from a string"
+                    );
+                    assert_eq!(
+                        rest.len(),
+                        0,
+                        "there should be no unparsed string but got '{rest}'"
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn primitives() {
+            assert_from_to(Value::bool(true));
+            assert_from_to(Value::bool(false));
+
+            assert_from_to(Value::char('\n'));
+            assert_from_to(Value::char('😀'));
+            assert_from_to(Value::char('a'));
+            assert_from_to(Value::char('\0'));
+            assert_from_to(Value::char('\t'));
+
+            assert_from_to(Value::i128(-123_456));
+            assert_from_to(Value::u128(0));
+            assert_from_to(Value::u128(123456));
+
+            assert_from_to(Value::string("hello \"you\",\n\n\t How are you??"));
+            assert_from_to(Value::string(""));
+        }
+
+        #[test]
+        fn composites() {
+            assert_from_to(Value::named_composite([
                 ("foo", Value::u128(12345)),
                 ("bar", Value::bool(true)),
                 ("a \"weird\" name", Value::string("Woop!")),
-            ],
-        ));
-        assert_from_to(Value::unnamed_variant(
-            "MyVariant",
-            [Value::u128(12345), Value::bool(true), Value::string("Woop!")],
-        ));
-    }
+            ]));
+            assert_from_to(Value::unnamed_composite([
+                Value::u128(12345),
+                Value::bool(true),
+                Value::string("Woop!"),
+            ]));
+        }
 
-    #[test]
-    fn bit_sequences() {
-        use scale_bits::bits;
-        assert_from_to(Value::bit_sequence(bits![0, 1, 1, 0, 1, 1, 0]));
-        assert_from_to(Value::bit_sequence(bits![]));
+        #[test]
+        fn variants() {
+            assert_from_to(Value::named_variant(
+                "A weird variant name",
+                [
+                    ("foo", Value::u128(12345)),
+                    ("bar", Value::bool(true)),
+                    ("a \"weird\" name", Value::string("Woop!")),
+                ],
+            ));
+            assert_from_to(Value::unnamed_variant(
+                "MyVariant",
+                [Value::u128(12345), Value::bool(true), Value::string("Woop!")],
+            ));
+        }
+
+        #[test]
+        fn bit_sequences() {
+            use scale_bits::bits;
+            assert_from_to(Value::bit_sequence(bits![0, 1, 1, 0, 1, 1, 0]));
+            assert_from_to(Value::bit_sequence(bits![]));
+        }
     }
 }
