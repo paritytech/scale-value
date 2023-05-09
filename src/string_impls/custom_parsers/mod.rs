@@ -13,23 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(feature = "from_string")]
-mod from_string;
-#[cfg(feature = "from_string")]
-mod custom_parsers;
+mod hex;
 
-mod string_helpers;
-mod to_string;
-
-#[cfg(feature = "from_string")]
-pub use from_string::{
-    FromStrBuilder,
-    ParseError,
-    ParseErrorKind,
-    ParseBitSequenceError,
-    ParseCharError,
-    ParseComplexError,
-    ParseCustomError,
-    ParseNumberError,
-    ParseStringError,
-};
+pub use self::hex::{ parse_hex, ParseHexError };

@@ -16,14 +16,9 @@ include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE"]
 [features]
 default = ["serde", "from_string"]
 # Enable support for parsing strings into Values.
-from_string = [
-    "dep:yap"
-]
+from_string = ["dep:yap"]
 # Enable serde support for serializing/deserializing Values.
-serde = [
-    "dep:serde",
-    "scale-bits/serde",
-]
+serde = ["dep:serde", "scale-bits/serde"]
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "full"] }
@@ -38,4 +33,5 @@ either = "1.6.1"
 yap = { version = "0.10.0", optional = true }
 
 [dev-dependencies]
+hex = "0.4.3"
 serde_json = "1.0.64"

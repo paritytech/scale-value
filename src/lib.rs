@@ -217,7 +217,17 @@ pub mod scale {
 /// Converting a [`crate::Value`] to or from strings.
 pub mod stringify {
     #[cfg(feature = "from_string")]
-    pub use crate::string_impls::{FromStrBuilder, ParseError};
+    pub use crate::string_impls::{
+        FromStrBuilder,
+        ParseError,
+        ParseErrorKind,
+        ParseBitSequenceError,
+        ParseCharError,
+        ParseComplexError,
+        ParseCustomError,
+        ParseNumberError,
+        ParseStringError,
+    };
 
     /// Attempt to parse a string into a [`crate::Value<()>`], returning a tuple
     /// consisting of a result (either the value or a [`ParseError`] containing
