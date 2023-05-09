@@ -29,6 +29,11 @@ use crate::{
 pub fn parse_hex(s: &mut &str) -> Option<Result<Value<()>, ParseError>> {
     let bytes = s.as_bytes();
 
+    // Need at least 2 bytes for 0x
+    if bytes.len() < 2 {
+        return None;
+    }
+
     // Look for leading "0x"; None if this obviously isn't hex.
     if bytes[0] != b'0' || bytes[1] != b'x' {
         return None;
@@ -173,5 +178,11 @@ mod test {
             assert_eq!(&*concrete_err, &ParseHexError::InvalidChar(bad_char));
             assert_eq!(input, *cursor);
         }
+    }
+
+    #[test]
+    fn empty_string_doesnt_panic() {
+        assert!(parse_hex(&mut "").is_none());
+        assert!(parse_hex(&mut "0").is_none());
     }
 }
