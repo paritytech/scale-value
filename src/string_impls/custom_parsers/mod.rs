@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Parity Technologies (UK) Ltd. (admin@parity.io)
+// Copyright (C) 2022-2023 Parity Technologies (UK) Ltd. (admin@parity.io)
 // This file is a part of the scale-value crate.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,5 +14,7 @@
 // limitations under the License.
 
 mod hex;
+mod ss58;
 
-pub use self::hex::{ parse_hex, ParseHexError };
+pub use self::hex::{parse_hex, ParseHexError};
+pub use ss58::parse_ss58;

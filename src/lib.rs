@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Parity Technologies (UK) Ltd. (admin@parity.io)
+// Copyright (C) 2022-2023 Parity Technologies (UK) Ltd. (admin@parity.io)
 // This file is a part of the scale-value crate.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -218,16 +218,16 @@ pub mod scale {
 pub mod stringify {
     #[cfg(feature = "from_string")]
     pub use crate::string_impls::{
-        FromStrBuilder,
-        ParseError,
-        ParseErrorKind,
-        ParseBitSequenceError,
-        ParseCharError,
-        ParseComplexError,
-        ParseCustomError,
-        ParseNumberError,
-        ParseStringError,
+        FromStrBuilder, ParseBitSequenceError, ParseCharError, ParseComplexError, ParseCustomError,
+        ParseError, ParseErrorKind, ParseNumberError, ParseStringError,
     };
+
+    /// This module provides custom parsers that work alongside [`crate::stringify::from_str_custom`]
+    /// and extend the syntax to support parsing common formats into [`crate::Value`]'s. See
+    /// [`crate::stringify::from_str_custom`] for a usage example.
+    pub mod custom_parsers {
+        pub use crate::string_impls::{parse_hex, parse_ss58, ParseHexError};
+    }
 
     /// Attempt to parse a string into a [`crate::Value<()>`], returning a tuple
     /// consisting of a result (either the value or a [`ParseError`] containing
@@ -298,6 +298,60 @@ pub mod stringify {
 
     /// This is similar to [`from_str`], except that it returns a [`FromStrBuilder`],
     /// which allows for some additional configuration in how strings are parsed.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use scale_value::Value;
+    /// use scale_value::stringify::custom_parsers;
+    ///
+    /// fn to_value(str: &str) -> Value {
+    ///     scale_value::stringify::from_str_custom()
+    ///         // You can write your own custom parser, but for
+    ///         // this example, we just use some provided ones.
+    ///         .add_custom_parser(custom_parsers::parse_hex)
+    ///         .add_custom_parser(custom_parsers::parse_ss58)
+    ///         .parse(str)
+    ///         .0
+    ///         .unwrap()
+    /// }
+    ///
+    /// // Hex strings will now be parsed into unnamed composite types
+    /// let value = to_value("(1,2,0x030405)");
+    /// assert_eq!(
+    ///     value,
+    ///     Value::unnamed_composite(vec![
+    ///         Value::u128(1),
+    ///         Value::u128(2),
+    ///         Value::unnamed_composite(vec![
+    ///             Value::u128(3),
+    ///             Value::u128(4),
+    ///             Value::u128(5),
+    ///         ])
+    ///     ])
+    /// );
+    ///
+    /// // ss58 addresses will also become unnamed composite types
+    /// let value = to_value(r#"{
+    ///     name: "Alice",
+    ///     address: 5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty
+    /// }"#);
+    ///
+    /// // Manually obtain and decode the hex value for the address:
+    /// let addr: Vec<_> = hex::decode("8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48")
+    ///     .unwrap()
+    ///     .into_iter()
+    ///     .map(|b| Value::u128(b as u128))
+    ///     .collect();
+    ///
+    /// assert_eq!(
+    ///     value,
+    ///     Value::named_composite(vec![
+    ///         ("name", Value::string("Alice")),
+    ///         ("address", Value::unnamed_composite(addr))
+    ///     ])
+    /// )
+    /// ```
     #[cfg(feature = "from_string")]
     pub fn from_str_custom() -> FromStrBuilder {
         crate::string_impls::FromStrBuilder::new()

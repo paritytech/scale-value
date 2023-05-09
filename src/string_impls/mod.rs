@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Parity Technologies (UK) Ltd. (admin@parity.io)
+// Copyright (C) 2022-2023 Parity Technologies (UK) Ltd. (admin@parity.io)
 // This file is a part of the scale-value crate.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,22 +14,18 @@
 // limitations under the License.
 
 #[cfg(feature = "from_string")]
-mod from_string;
-#[cfg(feature = "from_string")]
 mod custom_parsers;
+#[cfg(feature = "from_string")]
+mod from_string;
 
 mod string_helpers;
 mod to_string;
 
 #[cfg(feature = "from_string")]
 pub use from_string::{
-    FromStrBuilder,
-    ParseError,
-    ParseErrorKind,
-    ParseBitSequenceError,
-    ParseCharError,
-    ParseComplexError,
-    ParseCustomError,
-    ParseNumberError,
-    ParseStringError,
+    FromStrBuilder, ParseBitSequenceError, ParseCharError, ParseComplexError, ParseCustomError,
+    ParseError, ParseErrorKind, ParseNumberError, ParseStringError,
 };
+
+#[cfg(feature = "from_string")]
+pub use custom_parsers::{parse_hex, parse_ss58, ParseHexError};

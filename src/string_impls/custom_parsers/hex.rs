@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Parity Technologies (UK) Ltd. (admin@parity.io)
+// Copyright (C) 2022-2023 Parity Technologies (UK) Ltd. (admin@parity.io)
 // This file is a part of the scale-value crate.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,7 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{ Value, stringify::{ ParseErrorKind, ParseError } };
+use crate::{
+    stringify::{ParseError, ParseErrorKind},
+    Value,
+};
 
 /// Attempt to parse a hex string into a [`Value<()>`] (or more specifically,
 /// an unnamed composite).
@@ -44,13 +47,15 @@ pub fn parse_hex(s: &mut &str) -> Option<Result<Value<()>, ParseError>> {
 
         // Break as soon as we hit some non-alphanumeric char.
         if !b.is_ascii_alphanumeric() {
-            break
+            break;
         }
 
         // 4 bit number from hex char
-        let hex_nibble= (b'a' ..= b'f').contains(b).then(|| b - b'a' + 10)
-            .or_else(|| (b'A' ..= b'F').contains(b).then(|| b - b'A' + 10))
-            .or_else(|| (b'0' ..= b'9').contains(b).then(|| b - b'0'));
+        let hex_nibble = (b'a'..=b'f')
+            .contains(b)
+            .then(|| b - b'a' + 10)
+            .or_else(|| (b'A'..=b'F').contains(b).then(|| b - b'A' + 10))
+            .or_else(|| (b'0'..=b'9').contains(b).then(|| b - b'0'));
 
         let Some(hex_nibble) = hex_nibble else {
             return Some(Err(ParseErrorKind::custom(ParseHexError::InvalidChar(*b as char)).at(idx)))
@@ -60,7 +65,7 @@ pub fn parse_hex(s: &mut &str) -> Option<Result<Value<()>, ParseError>> {
             None => {
                 // The first of 2 chars; keep hold of:
                 last_nibble = Some(hex_nibble)
-            },
+            }
             Some(n) => {
                 // The second; combine and push byte to output:
                 let byte = n * 16 + hex_nibble;
@@ -74,15 +79,15 @@ pub fn parse_hex(s: &mut &str) -> Option<Result<Value<()>, ParseError>> {
 
     // We have leftovers; wrong length!
     if last_nibble.is_some() {
-        return Some(Err(ParseErrorKind::custom(ParseHexError::WrongLength).between(0, idx)))
+        return Some(Err(ParseErrorKind::custom(ParseHexError::WrongLength).between(0, idx)));
     }
 
     // Consume the "used" up bytes and return our Value.
     //
-    // # Unsafety
+    // # Safety
     //
     // We have consumed only ASCII chars to get this far, so
-    // we know the bytes following make up a valid str.
+    // we know the bytes following them make up a valid str.
     *s = unsafe { std::str::from_utf8_unchecked(&bytes[idx..]) };
     Some(Ok(Value::unnamed_composite(composite_values)))
 }
@@ -93,7 +98,7 @@ pub enum ParseHexError {
     #[error("Invalid hex character: {0}")]
     InvalidChar(char),
     #[error("Hex string is the wrong length; should be an even length")]
-    WrongLength
+    WrongLength,
 }
 
 #[cfg(test)]
@@ -102,35 +107,21 @@ mod test {
 
     #[test]
     fn parses_same_as_hex_crate() {
-        let expects = [
-            "0x",
-            "0x00",
-            "0x000102030405060708090A0B",
-            "0xDEADBEEF",
-            "0x00BAB10C",
-        ];
+        let expects = ["0x", "0x00", "0x000102030405060708090A0B", "0xDEADBEEF", "0x00BAB10C"];
 
         for input in expects {
             let expected_hex = hex::decode(input.trim_start_matches("0x")).expect("valid hex");
             let cursor = &mut &*input;
             let hex = parse_hex(cursor).expect("valid hex expected").expect("no error expected");
 
-            assert_eq!(
-                hex,
-                Value::from_bytes(expected_hex),
-                "values should match"
-            );
+            assert_eq!(hex, Value::from_bytes(expected_hex), "values should match");
         }
     }
 
     #[test]
     fn consumes_parsed_hex() {
-        let expects = [
-            ("0x foo", " foo"),
-            ("0x00,bar", ",bar"),
-            ("0x123456-2", "-2"),
-            ("0xDEADBEEF ", " "),
-        ];
+        let expects =
+            [("0x foo", " foo"), ("0x00,bar", ",bar"), ("0x123456-2", "-2"), ("0xDEADBEEF ", " ")];
 
         for (input, expected_remaining) in expects {
             let cursor = &mut &*input;
@@ -142,16 +133,12 @@ mod test {
 
     #[test]
     fn err_wrong_length() {
-        let expects = [
-            "0x1",
-            "0x123",
-        ];
+        let expects = ["0x1", "0x123"];
 
         for input in expects {
             let cursor = &mut &*input;
-            let err = parse_hex(cursor)
-                .expect("some result expected")
-                .expect_err("an error is expected");
+            let err =
+                parse_hex(cursor).expect("some result expected").expect_err("an error is expected");
 
             assert_eq!(err.start_loc, 0);
             assert_eq!(err.end_loc, Some(input.len()));
@@ -168,17 +155,12 @@ mod test {
 
     #[test]
     fn err_invalid_char() {
-        let expects = [
-            ("0x12345x", 'x', 7),
-            ("0x123h4", 'h', 5),
-            ("0xG23h4", 'G', 2),
-        ];
+        let expects = [("0x12345x", 'x', 7), ("0x123h4", 'h', 5), ("0xG23h4", 'G', 2)];
 
         for (input, bad_char, pos) in expects {
             let cursor = &mut &*input;
-            let err = parse_hex(cursor)
-                .expect("some result expected")
-                .expect_err("an error is expected");
+            let err =
+                parse_hex(cursor).expect("some result expected").expect_err("an error is expected");
 
             assert_eq!(err.start_loc, pos);
             assert!(err.end_loc.is_none());
@@ -192,5 +174,4 @@ mod test {
             assert_eq!(input, *cursor);
         }
     }
-
 }
