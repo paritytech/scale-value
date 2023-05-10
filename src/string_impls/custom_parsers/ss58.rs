@@ -32,11 +32,27 @@ fn parse_ss58_bytes(s: &mut &str) -> Option<Vec<u8>> {
     // ss58 addresses are base58 encoded. Base58 is all alphanumeric chars
     // minus a few that look potentially similar. So, gather alphanumeric chars
     // first.
-    let end_idx = s.find(|c: char| !c.is_alphanumeric()).unwrap_or(s.len());
+    let end_idx = s.find(|c: char| !c.is_ascii_alphanumeric()).unwrap_or(s.len());
     let maybe_ss58 = &s[0..end_idx];
     let rest = &s[end_idx..];
 
     if maybe_ss58.is_empty() {
+        return None;
+    }
+
+    // Break early on obvious non-addresses that we want to parse elsewise, ie true, false or numbers.
+    // This is mostly an optimisation but also eliminates some potential weird edge cases.
+    if maybe_ss58 == "true"
+        || maybe_ss58 == "false"
+        || maybe_ss58.find(|c: char| c.is_ascii_alphabetic()).is_none()
+    {
+        return None;
+    }
+
+    // Before going any further, if this is a variant ident, a `{` or `(` will follow
+    // (eg `Foo { hi: 1 }` or `Foo (1)`. In this case, don't try to parse as an ss58
+    // address, since it would definitely be wrong.
+    if rest.trim_start().starts_with(|c| c == '(' || c == '{') {
         return None;
     }
 
@@ -129,6 +145,22 @@ mod test {
 
             assert_eq!(bytes, expected);
             assert_eq!(*cursor, expected_remaining);
+        }
+    }
+
+    #[test]
+    fn invalid_addresses_will_error() {
+        let invalids = [
+            // An otherwise valid address in a variant "ident" position will not parse:
+            "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY { hi: 1 }",
+            "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY     \t\n (1)",
+            // Invalid addresses will return None:
+            "Foo",
+            "",
+        ];
+
+        for invalid in invalids {
+            assert!(parse_ss58_bytes(&mut &*invalid).is_none());
         }
     }
 }
