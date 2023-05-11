@@ -44,14 +44,14 @@ fn parse_ss58_bytes(s: &mut &str) -> Option<Vec<u8>> {
     // This is mostly an optimisation but also eliminates some potential weird edge cases.
     if maybe_ss58 == "true"
         || maybe_ss58 == "false"
-        || maybe_ss58.find(|c: char| c.is_ascii_alphabetic()).is_none()
+        || maybe_ss58.chars().all(|c: char| c.is_ascii_digit())
     {
         return None;
     }
 
-    // Before going any further, if this is a variant ident, a `{` or `(` will follow
-    // (eg `Foo { hi: 1 }` or `Foo (1)`. In this case, don't try to parse as an ss58
-    // address, since it would definitely be wrong.
+    // If what we are parsing is a variant ident, a `{` or `(` will follow
+    // (eg `Foo { hi: 1 }` or `Foo (1)`). In this case, don't try to parse
+    // as an ss58 address, since it would definitely be wrong to do so.
     if rest.trim_start().starts_with(|c| c == '(' || c == '{') {
         return None;
     }
@@ -62,14 +62,10 @@ fn parse_ss58_bytes(s: &mut &str) -> Option<Vec<u8>> {
         return None
     };
 
-    if bytes.is_empty() {
-        return None;
-    }
-
     // decode length of address prefix.
-    let prefix_len = match bytes[0] {
-        0..=63 => 1,
-        64..=127 => 2,
+    let prefix_len = match bytes.get(0) {
+        Some(0..=63) => 1,
+        Some(64..=127) => 2,
         _ => return None,
     };
 

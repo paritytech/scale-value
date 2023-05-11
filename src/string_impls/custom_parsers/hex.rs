@@ -27,18 +27,11 @@ use crate::{
 /// - Returns `Some(value)` if parsing was successful. In this case, the string
 ///   reference given is wound forwards to consume what was parsed.
 pub fn parse_hex(s: &mut &str) -> Option<Result<Value<()>, ParseError>> {
+    if !s.starts_with("0x") {
+        return None;
+    }
+
     let bytes = s.as_bytes();
-
-    // Need at least 2 bytes for 0x
-    if bytes.len() < 2 {
-        return None;
-    }
-
-    // Look for leading "0x"; None if this obviously isn't hex.
-    if bytes[0] != b'0' || bytes[1] != b'x' {
-        return None;
-    }
-
     let mut composite_values = vec![];
 
     // find all valid hex chars after 0x:
@@ -55,20 +48,21 @@ pub fn parse_hex(s: &mut &str) -> Option<Result<Value<()>, ParseError>> {
             break;
         }
 
-        // 4 bit number from hex char
-        let hex_nibble = (b'a'..=b'f')
-            .contains(b)
-            .then(|| b - b'a' + 10)
-            .or_else(|| (b'A'..=b'F').contains(b).then(|| b - b'A' + 10))
-            .or_else(|| b.is_ascii_digit().then(|| b - b'0'));
-
-        let Some(hex_nibble) = hex_nibble else {
-            return Some(Err(ParseErrorKind::custom(ParseHexError::InvalidChar(*b as char)).at(idx)))
+        // Turn 4-bit hex char into nibble:
+        let hex_nibble = match *b {
+            b'A'..=b'F' => b - b'A' + 10,
+            b'a'..=b'f' => b - b'a' + 10,
+            b'0'..=b'9' => b - b'0',
+            b => {
+                return Some(Err(
+                    ParseErrorKind::custom(ParseHexError::InvalidChar(b as char)).at(idx)
+                ))
+            }
         };
 
         match last_nibble {
             None => {
-                // The first of 2 chars; keep hold of:
+                // The first of 2 chars that make a single byte; keep hold of:
                 last_nibble = Some(hex_nibble)
             }
             Some(n) => {
