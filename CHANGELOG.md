@@ -4,6 +4,21 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.8.0
+
+This release:
+- Bumps to using `scale-info` 2.5.0 and uses field rather than method accessors as introduced by that change.
+- Introduces `scale_value::stringify::from_str_custom()`, which allows you to construct a `Value` parser that can inject custom parsing logic while parsing strings into Values.
+- Adds two new custom parsers in a new `stringify::custom_parsers` module for parsing hex values and ss58 addresses. These can be used in conjunction with the above.
+- Fixes a small bug in stringifying so that field and enum idents are no longer quoted unless necessary; this will make the output prettier.
+
+There should be no breaking API changes.
+
+### Added
+
+- Add hex and ss58 custom parsers. ([#29](https://github.com/paritytech/scale-value/pull/29))
+- Improve stringifying and add support for custom parsers. ([#26](https://github.com/paritytech/scale-value/pull/26))
+
 ## 0.7.0
 
 The main change in this release is that it makes use of a new `scale-encode` crate and updated `scale-decode` crate for the SCALE encoding and decoding of Values.
