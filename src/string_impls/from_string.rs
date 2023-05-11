@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Parity Technologies (UK) Ltd. (admin@parity.io)
+// Copyright (C) 2022-2023 Parity Technologies (UK) Ltd. (admin@parity.io)
 // This file is a part of the scale-value crate.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -119,6 +119,7 @@ macro_rules! at_between {
 
 /// Details about the error that occurred.
 #[derive(Debug, thiserror::Error)]
+#[allow(missing_docs)]
 pub enum ParseErrorKind {
     #[error("Expected a value")]
     ExpectedValue,
@@ -133,21 +134,22 @@ pub enum ParseErrorKind {
     #[error("{0}")]
     BitSequence(#[from] ParseBitSequenceError),
     #[error("{0}")]
-    Custom(CustomError),
+    Custom(ParseCustomError),
 }
 at_between!(ParseErrorKind);
 
 impl ParseErrorKind {
     /// Construct a custom error.
-    pub fn custom<E: Into<CustomError>>(e: E) -> Self {
+    pub fn custom<E: Into<ParseCustomError>>(e: E) -> Self {
         ParseErrorKind::Custom(e.into())
     }
 }
 
 /// An arbitrary custom error.
-pub type CustomError = Box<dyn std::error::Error + Send + Sync + 'static>;
+pub type ParseCustomError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[allow(missing_docs)]
 pub enum ParseComplexError {
     #[error("The first character in a field name should be alphabetic")]
     InvalidStartingCharacterInIdent,
@@ -161,6 +163,7 @@ pub enum ParseComplexError {
 at_between!(ParseComplexError);
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[allow(missing_docs)]
 pub enum ParseCharError {
     #[error("Expected a single character")]
     ExpectedValidCharacter,
@@ -172,6 +175,7 @@ pub enum ParseCharError {
 at_between!(ParseCharError);
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[allow(missing_docs)]
 pub enum ParseStringError {
     #[error("Expected a closing quote to match the opening quote at position {0}")]
     ExpectedClosingQuoteToMatch(usize),
@@ -181,6 +185,7 @@ pub enum ParseStringError {
 at_between!(ParseStringError);
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[allow(missing_docs)]
 pub enum ParseNumberError {
     #[error("Expected one or more digits")]
     ExpectedDigit,
@@ -190,6 +195,7 @@ pub enum ParseNumberError {
 at_between!(ParseNumberError);
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[allow(missing_docs)]
 pub enum ParseBitSequenceError {
     #[error("Expected a closing bracket ('>') to match the opening one at position {0}")]
     ExpectedClosingBracketToMatch(usize),

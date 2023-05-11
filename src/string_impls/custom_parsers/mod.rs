@@ -13,21 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(feature = "from_string")]
-mod custom_parsers;
-#[cfg(feature = "from_string")]
-mod from_string;
-
-mod string_helpers;
-mod to_string;
-
-#[cfg(feature = "from_string")]
-pub use from_string::{
-    FromStrBuilder, ParseBitSequenceError, ParseCharError, ParseComplexError, ParseCustomError,
-    ParseError, ParseErrorKind, ParseNumberError, ParseStringError,
-};
+mod hex;
 
 #[cfg(feature = "parser-ss58")]
-pub use custom_parsers::parse_ss58;
-#[cfg(feature = "from_string")]
-pub use custom_parsers::{parse_hex, ParseHexError};
+mod ss58;
+
+pub use self::hex::{parse_hex, ParseHexError};
+
+#[cfg(feature = "parser-ss58")]
+pub use ss58::parse_ss58;

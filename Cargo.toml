@@ -14,16 +14,13 @@ keywords = ["parity", "scale", "encoding", "decoding"]
 include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE"]
 
 [features]
-default = ["serde", "from_string"]
+default = ["serde", "from_string", "parser-ss58"]
 # Enable support for parsing strings into Values.
-from_string = [
-    "dep:yap"
-]
+from_string = ["dep:yap"]
 # Enable serde support for serializing/deserializing Values.
-serde = [
-    "dep:serde",
-    "scale-bits/serde",
-]
+serde = ["dep:serde", "scale-bits/serde"]
+# Provide an ss58 address parser
+parser-ss58 = ["dep:base58", "dep:blake2", "from_string"]
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "full"] }
@@ -36,6 +33,9 @@ scale-encode = { version = "0.1.0", default-features = false, features = ["bits"
 scale-bits = "0.3.0"
 either = "1.6.1"
 yap = { version = "0.10.0", optional = true }
+base58 = { version = "0.2.0", optional = true }
+blake2 = { version = "0.10.6", optional = true, default_features = false }
 
 [dev-dependencies]
+hex = "0.4.3"
 serde_json = "1.0.64"
