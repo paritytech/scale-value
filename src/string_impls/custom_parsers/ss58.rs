@@ -63,7 +63,7 @@ fn parse_ss58_bytes(s: &mut &str) -> Option<Vec<u8>> {
     };
 
     // decode length of address prefix.
-    let prefix_len = match bytes.get(0) {
+    let prefix_len = match bytes.first() {
         Some(0..=63) => 1,
         Some(64..=127) => 2,
         _ => return None,
