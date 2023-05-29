@@ -105,6 +105,11 @@ fn encode_composite<T>(
         // a non-composite type or more than 1 entry. This is the best candidate we have for a sequence.
         TypeDef::Sequence(seq) => {
             let seq_ty = seq.type_param.id;
+
+            if let Some(result) = maybe_encode_nested_sequences(seq_ty, value, types, out) {
+                return result;
+            }
+
             let value = find_sequence_candidate(value);
 
             // sequences start with compact encoded length:
@@ -128,6 +133,11 @@ fn encode_composite<T>(
         // if the length doesn't align.
         TypeDef::Array(array) => {
             let arr_ty = array.type_param.id;
+
+            if let Some(result) = maybe_encode_nested_sequences(arr_ty, value, types, out) {
+                return result;
+            }
+
             let value = find_sequence_candidate(value);
 
             if value.len() != array.len as usize {
@@ -161,6 +171,51 @@ fn encode_composite<T>(
                 })),
             }
         }
+    }
+}
+
+// Check if the sequence type is tuple or composite to determine if this is nested inside a sequence.
+// Encode nested tuples/composite inside sequences like: `Vec<(u8, u16)>`, otherwise returns None.
+//
+// The meaning of a sequence is `TypeDef::Sequence` or `TypeDef::Array`. And this function is
+// supposed to be called only from those 2 code paths.
+fn maybe_encode_nested_sequences<T>(
+    id: u32,
+    value: &Composite<T>,
+    types: &PortableRegistry,
+    out: &mut Vec<u8>,
+) -> Option<Result<(), Error>> {
+    let Some(seq_ty) = types.resolve(id) else {
+        return Some(Err(Error::new(ErrorKind::TypeNotFound(id))));
+    };
+
+    match &seq_ty.type_def {
+        TypeDef::Tuple(_) | TypeDef::Composite(_) => {
+            // Inspect the values as is, because `find_sequence_candidate` will recurse.
+            let mut values = value.values();
+
+            // Encode the length of the sequence first.
+            Compact(values.len() as u32).encode_to(out);
+            while let Some(value) = values.next() {
+                match value {
+                    Value { value: ValueDef::Composite(inner_composite), .. } => {
+                        if let Err(err) = encode_composite(inner_composite, id, types, out) {
+                            return Some(Err(err));
+                        }
+                    }
+                    // Note: this should be checked by definition of `seq_ty.type_def`, return an error nonetheless.
+                    _ => {
+                        return Some(Err(Error::new(ErrorKind::WrongShape {
+                            actual: Kind::Tuple,
+                            expected: id,
+                        })));
+                    }
+                };
+            }
+
+            Some(Ok(()))
+        }
+        _ => None,
     }
 }
 
@@ -401,6 +456,17 @@ mod test {
             ],
         );
         assert_can_encode_to_type(unnamed_value, Foo::Unnamed(123, vec![true, false, true]));
+    }
+
+    #[test]
+    fn can_encode_vec_tuples() {
+        // Presume we have a type: Vec<(u8, u16)>.
+        let vec_tuple = Value::unnamed_composite(vec![Value::unnamed_composite(vec![
+            Value::u128(20u8.into()),
+            Value::u128(30u16.into()),
+        ])]);
+
+        assert_can_encode_to_type(vec_tuple, vec![(20u8, 30u16)]);
     }
 
     #[test]
