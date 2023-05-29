@@ -192,11 +192,11 @@ fn maybe_encode_nested_sequences<T>(
     match &seq_ty.type_def {
         TypeDef::Tuple(_) | TypeDef::Composite(_) => {
             // Inspect the values as is, because `find_sequence_candidate` will recurse.
-            let mut values = value.values();
+            let values = value.values();
 
             // Encode the length of the sequence first.
             Compact(values.len() as u32).encode_to(out);
-            while let Some(value) = values.next() {
+            for value in values {
                 match value {
                     Value { value: ValueDef::Composite(inner_composite), .. } => {
                         if let Err(err) = encode_composite(inner_composite, id, types, out) {
