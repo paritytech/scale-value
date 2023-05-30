@@ -81,87 +81,131 @@ impl<T> EncodeAsFields for Composite<T> {
 // sequences/arrays for instance.
 fn encode_composite<T>(
     value: &Composite<T>,
-    type_id: u32,
+    mut type_id: u32,
     types: &PortableRegistry,
     out: &mut Vec<u8>,
 ) -> Result<(), Error> {
-    let type_id = find_single_entry_with_same_repr(type_id, types);
-    let ty = types.resolve(type_id).ok_or_else(|| Error::new(ErrorKind::TypeNotFound(type_id)))?;
-
-    match &ty.type_def {
-        // Our scale_encode Composite helper can encode to these types without issue:
-        TypeDef::Tuple(_) | TypeDef::Composite(_) => match value {
-            Composite::Named(vals) => {
-                let keyvals =
-                    vals.iter().map(|(key, val)| (Some(&**key), val as &dyn EncodeAsType));
-                EncodeComposite(keyvals).encode_as_type_to(type_id, types, out)
-            }
-            Composite::Unnamed(vals) => {
-                let vals = vals.iter().map(|val| (None, val as &dyn EncodeAsType));
-                EncodeComposite(vals).encode_as_type_to(type_id, types, out)
-            }
-        },
-        // For sequence types, let's skip our Value until we hit a Composite type containing
-        // a non-composite type or more than 1 entry. This is the best candidate we have for a sequence.
-        TypeDef::Sequence(seq) => {
-            let seq_ty = seq.type_param.id;
-            let value = find_sequence_candidate(value);
-
-            // sequences start with compact encoded length:
-            Compact(value.len() as u32).encode_to(out);
-            match value {
-                Composite::Named(named_vals) => {
-                    for (name, val) in named_vals {
-                        val.encode_as_type_to(seq_ty, types, out)
-                            .map_err(|e| e.at_field(name.to_string()))?;
-                    }
+    // Encode our composite Value as-is (pretty much; we will try to
+    // unwrap the Value only if we need primitives).
+    fn do_encode_composite<T>(
+        value: &Composite<T>,
+        type_id: u32,
+        types: &PortableRegistry,
+        out: &mut Vec<u8>,
+    ) -> Result<(), Error> {
+        let ty =
+            types.resolve(type_id).ok_or_else(|| Error::new(ErrorKind::TypeNotFound(type_id)))?;
+        match &ty.type_def {
+            TypeDef::Tuple(_) | TypeDef::Composite(_) => match value {
+                Composite::Named(vals) => {
+                    let keyvals =
+                        vals.iter().map(|(key, val)| (Some(&**key), val as &dyn EncodeAsType));
+                    EncodeComposite(keyvals).encode_as_type_to(type_id, types, out)
                 }
                 Composite::Unnamed(vals) => {
-                    for (idx, val) in vals.iter().enumerate() {
-                        val.encode_as_type_to(seq_ty, types, out).map_err(|e| e.at_idx(idx))?;
+                    let vals = vals.iter().map(|val| (None, val as &dyn EncodeAsType));
+                    EncodeComposite(vals).encode_as_type_to(type_id, types, out)
+                }
+            },
+            TypeDef::Sequence(seq) => {
+                // sequences start with compact encoded length:
+                Compact(value.len() as u32).encode_to(out);
+                match value {
+                    Composite::Named(named_vals) => {
+                        for (name, val) in named_vals {
+                            val.encode_as_type_to(seq.type_param.id, types, out)
+                                .map_err(|e| e.at_field(name.to_string()))?;
+                        }
+                    }
+                    Composite::Unnamed(vals) => {
+                        for (idx, val) in vals.iter().enumerate() {
+                            val.encode_as_type_to(seq.type_param.id, types, out)
+                                .map_err(|e| e.at_idx(idx))?;
+                        }
                     }
                 }
+                Ok(())
             }
-            Ok(())
-        }
-        // For arrays we can dig into our composite type much like for sequences, but bail
-        // if the length doesn't align.
-        TypeDef::Array(array) => {
-            let arr_ty = array.type_param.id;
-            let value = find_sequence_candidate(value);
+            TypeDef::Array(array) => {
+                let arr_ty = array.type_param.id;
+                if value.len() != array.len as usize {
+                    return Err(Error::new(ErrorKind::WrongLength {
+                        actual_len: value.len(),
+                        expected_len: array.len as usize,
+                    }));
+                }
 
-            if value.len() != array.len as usize {
-                return Err(Error::new(ErrorKind::WrongLength {
-                    actual_len: value.len(),
-                    expected_len: array.len as usize,
-                }));
+                for (idx, val) in value.values().enumerate() {
+                    val.encode_as_type_to(arr_ty, types, out).map_err(|e| e.at_idx(idx))?;
+                }
+                Ok(())
             }
-
-            for (idx, val) in value.values().enumerate() {
-                val.encode_as_type_to(arr_ty, types, out).map_err(|e| e.at_idx(idx))?;
+            TypeDef::BitSequence(seq) => {
+                encode_vals_to_bitsequence(value.values(), seq, types, out)
             }
-            Ok(())
-        }
-        // Similar to sequence types, we want to find a sequence of values and then try to encode
-        // them as a bit_sequence.
-        TypeDef::BitSequence(seq) => {
-            let value = find_sequence_candidate(value);
-            encode_vals_to_bitsequence(value.values(), seq, types, out)
-        }
-        // For other types, skip our value past a 1-value composite and try again, else error.
-        _ => {
-            let mut values = value.values();
-            match (values.next(), values.next()) {
-                // Exactly one value:
-                (Some(value), None) => value.encode_as_type_to(type_id, types, out),
-                // Some other number of values:
-                _ => Err(Error::new(ErrorKind::WrongShape {
-                    actual: Kind::Tuple,
-                    expected: type_id,
-                })),
+            // For other types, skip our value past a 1-value composite and try again, else error.
+            _ => {
+                let mut values = value.values();
+                match (values.next(), values.next()) {
+                    // Exactly one value:
+                    (Some(value), None) => value.encode_as_type_to(type_id, types, out),
+                    // Some other number of values:
+                    _ => Err(Error::new(ErrorKind::WrongShape {
+                        actual: Kind::Tuple,
+                        expected: type_id,
+                    })),
+                }
             }
         }
     }
+
+    // First, try and encode everything as-is, only writing to the output
+    // byte if the encoding is actually successful. This means that if the
+    // Value provided matches the structure of the TypeInfo exactly, things
+    // should always work.
+    let original_error = {
+        let mut temp_out = Vec::new();
+        match do_encode_composite(value, type_id, types, &mut temp_out) {
+            Ok(()) => {
+                out.extend_from_slice(&temp_out);
+                return Ok(());
+            }
+            Err(e) => e,
+        }
+    };
+
+    // Next, unwrap any newtype wrappers from our TypeInfo and try again. If we
+    // can unwrap, then try to encode our Value to this immediately (this will work
+    // if the Value provided already ignored all newtype wrappers). If we have nothing
+    // to unwrap then ignore this extra encode attempt.
+    {
+        let inner_type_id = find_single_entry_with_same_repr(type_id, types);
+        if inner_type_id != type_id {
+            let mut temp_out = Vec::new();
+            if let Ok(()) = do_encode_composite(value, inner_type_id, types, &mut temp_out) {
+                out.extend_from_slice(&temp_out);
+                return Ok(());
+            }
+            type_id = inner_type_id;
+        }
+    }
+
+    // Now, start peeling layers off our Value type in case some newtype wrappers
+    // were provided. We do this one layer at a time because it's difficult or
+    // impossible to know how to line values up with TypeInfo, so we can't just
+    // strip lots of layers from the Value straight away. We continue to ignore
+    // any errors here and will always return the original_error if we can't encode.
+    // Everything past the original attempt is just trying to be flexible, anyway.
+    while let Some(value) = get_only_value_from_composite(value) {
+        let mut temp_out = Vec::new();
+        if let Ok(()) = value.encode_as_type_to(type_id, types, &mut temp_out) {
+            out.extend_from_slice(&temp_out);
+            return Ok(());
+        }
+    }
+
+    // return the original error we got back if none of the above is succcessful.
+    Err(original_error)
 }
 
 // skip into the target type past any newtype wrapper like things:
@@ -176,21 +220,19 @@ fn find_single_entry_with_same_repr(type_id: u32, types: &PortableRegistry) -> u
         TypeDef::Composite(composite) if composite.fields.len() == 1 => {
             find_single_entry_with_same_repr(composite.fields[0].ty.id, types)
         }
+        TypeDef::Array(arr) if arr.len == 1 => {
+            find_single_entry_with_same_repr(arr.type_param.id, types)
+        }
         _ => type_id,
     }
 }
 
-// dig into a composite type and find a composite that is a candidate
-// for being encoded into a sequence.
-fn find_sequence_candidate<T>(value: &'_ Composite<T>) -> &'_ Composite<T> {
+// if the composite type has exactly one value, return that Value, else return None.
+fn get_only_value_from_composite<T>(value: &'_ Composite<T>) -> Option<&'_ Value<T>> {
     let mut values = value.values();
     match (values.next(), values.next()) {
-        // A single composite value is found inside:
-        (Some(Value { value: ValueDef::Composite(inner_composite), .. }), None) => {
-            find_sequence_candidate(inner_composite)
-        }
-        // Anything else? Just return the value passed in:
-        _ => value,
+        (Some(value), None) => Some(value),
+        _ => None,
     }
 }
 
@@ -401,6 +443,17 @@ mod test {
             ],
         );
         assert_can_encode_to_type(unnamed_value, Foo::Unnamed(123, vec![true, false, true]));
+    }
+
+    #[test]
+    fn can_encode_vec_tuples() {
+        // Presume we have a type: Vec<(u8, u16)>.
+        let vec_tuple = Value::unnamed_composite(vec![Value::unnamed_composite(vec![
+            Value::u128(20u8.into()),
+            Value::u128(30u16.into()),
+        ])]);
+
+        assert_can_encode_to_type(vec_tuple, vec![(20u8, 30u16)]);
     }
 
     #[test]
