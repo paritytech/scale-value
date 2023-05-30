@@ -4,6 +4,11 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.8.1
+
+This patch release:
+- Changes how composite `Value`'s are encoded to improve the likelihood that values will encode correctly. ([#32](https://github.com/paritytech/scale-value/pull/32)) .
+
 ## 0.8.0
 
 This release:
