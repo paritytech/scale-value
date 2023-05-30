@@ -41,9 +41,9 @@ impl<T> EncodeAsType for Value<T> {
 }
 
 impl<T> EncodeAsFields for Value<T> {
-    fn encode_as_fields_to(
+    fn encode_as_fields_to<'a, I: scale_encode::FieldIter<'a>>(
         &self,
-        fields: &[scale_encode::PortableField],
+        fields: I,
         types: &PortableRegistry,
         out: &mut Vec<u8>,
     ) -> Result<(), Error> {
@@ -55,9 +55,9 @@ impl<T> EncodeAsFields for Value<T> {
 }
 
 impl<T> EncodeAsFields for Composite<T> {
-    fn encode_as_fields_to(
+    fn encode_as_fields_to<'a, I: scale_encode::FieldIter<'a>>(
         &self,
-        fields: &[scale_encode::PortableField],
+        fields: I,
         types: &PortableRegistry,
         out: &mut Vec<u8>,
     ) -> Result<(), Error> {
