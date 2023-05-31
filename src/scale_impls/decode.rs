@@ -496,14 +496,14 @@ mod test {
 
     #[test]
     fn decode_composite_fields() {
-        use scale_decode::DecodeAsFields;
         use codec::Encode;
+        use scale_decode::DecodeAsFields;
 
         #[derive(Encode, scale_decode::DecodeAsType, scale_info::TypeInfo)]
         struct Foo {
             a: String,
             b: bool,
-            c: u16
+            c: u16,
         }
 
         // Get the fields we want to decode:
@@ -511,9 +511,8 @@ mod test {
         let scale_info::TypeDef::Composite(c) = &types.resolve(id).unwrap().type_def else {
             panic!("Couldn't get fields");
         };
-        let mut fields = c.fields
-            .iter()
-            .map(|f| scale_decode::Field::new(f.ty.id, f.name.as_deref()));
+        let mut fields =
+            c.fields.iter().map(|f| scale_decode::Field::new(f.ty.id, f.name.as_deref()));
 
         // get some bytes to decode from:
         let foo = Foo { a: "Hello".to_owned(), b: true, c: 123 };
@@ -524,10 +523,13 @@ mod test {
         let out = Composite::decode_as_fields(foo_bytes_cursor, &mut fields, &types)
             .expect("can decode as fields")
             .map_context(|_| ());
-        assert_eq!(out, Composite::named([
-            ("a", Value::string("Hello")),
-            ("b", Value::bool(true)),
-            ("c", Value::u128(123))
-        ]));
+        assert_eq!(
+            out,
+            Composite::named([
+                ("a", Value::string("Hello")),
+                ("b", Value::bool(true)),
+                ("c", Value::u128(123))
+            ])
+        );
     }
 }

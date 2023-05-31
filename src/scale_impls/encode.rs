@@ -18,7 +18,7 @@ use codec::{Compact, Encode};
 use scale_bits::Bits;
 use scale_encode::error::ErrorKind;
 use scale_encode::{error::Kind, EncodeAsFields, EncodeAsType, Error};
-use scale_encode::{Composite as EncodeComposite, Variant as EncodeVariant, FieldIter};
+use scale_encode::{Composite as EncodeComposite, FieldIter, Variant as EncodeVariant};
 use scale_info::form::PortableForm;
 use scale_info::{PortableRegistry, TypeDef, TypeDefBitSequence};
 
