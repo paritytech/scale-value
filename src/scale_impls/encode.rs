@@ -18,7 +18,7 @@ use codec::{Compact, Encode};
 use scale_bits::Bits;
 use scale_encode::error::ErrorKind;
 use scale_encode::{error::Kind, EncodeAsFields, EncodeAsType, Error};
-use scale_encode::{Composite as EncodeComposite, Variant as EncodeVariant};
+use scale_encode::{Composite as EncodeComposite, Variant as EncodeVariant, FieldIter};
 use scale_info::form::PortableForm;
 use scale_info::{PortableRegistry, TypeDef, TypeDefBitSequence};
 
@@ -41,9 +41,9 @@ impl<T> EncodeAsType for Value<T> {
 }
 
 impl<T> EncodeAsFields for Value<T> {
-    fn encode_as_fields_to<'a, I: scale_encode::FieldIter<'a>>(
+    fn encode_as_fields_to(
         &self,
-        fields: I,
+        fields: &mut dyn FieldIter<'_>,
         types: &PortableRegistry,
         out: &mut Vec<u8>,
     ) -> Result<(), Error> {
@@ -55,9 +55,9 @@ impl<T> EncodeAsFields for Value<T> {
 }
 
 impl<T> EncodeAsFields for Composite<T> {
-    fn encode_as_fields_to<'a, I: scale_encode::FieldIter<'a>>(
+    fn encode_as_fields_to(
         &self,
-        fields: I,
+        fields: &mut dyn FieldIter<'_>,
         types: &PortableRegistry,
         out: &mut Vec<u8>,
     ) -> Result<(), Error> {
