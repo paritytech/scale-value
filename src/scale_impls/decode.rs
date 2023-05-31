@@ -531,5 +531,6 @@ mod test {
                 ("c", Value::u128(123))
             ])
         );
+        assert_eq!(foo_bytes_cursor.len(), 0, "all bytes should have been consumed");
     }
 }
