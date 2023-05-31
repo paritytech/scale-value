@@ -15,6 +15,7 @@
 
 use super::TypeId;
 use crate::value::{Composite, Primitive, Value, ValueDef, Variant};
+use scale_decode::FieldIter;
 use scale_info::{form::PortableForm, Path, PortableRegistry};
 
 // This is emitted if something goes wrong decoding into a Value.
@@ -45,9 +46,9 @@ macro_rules! to_unnamed_composite {
 
 // We can't implement this on `Value<TypeId>` because we have no TypeId to assign to the value.
 impl scale_decode::DecodeAsFields for Composite<TypeId> {
-    fn decode_as_fields<'info, I: scale_decode::FieldIter<'info>>(
+    fn decode_as_fields<'info>(
         input: &mut &[u8],
-        fields: I,
+        fields: &mut dyn FieldIter<'info>,
         types: &'info PortableRegistry,
     ) -> Result<Self, scale_decode::Error> {
         // Build a Composite type to pass to a one-off visitor:
@@ -183,9 +184,9 @@ impl scale_decode::visitor::Visitor for DecodeValueVisitor {
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         to_unnamed_composite!(value, type_id)
     }
-    fn visit_tuple<'scale, 'info, I: scale_decode::FieldIter<'info>>(
+    fn visit_tuple<'scale, 'info>(
         self,
-        value: &mut scale_decode::visitor::types::Tuple<'scale, 'info, I>,
+        value: &mut scale_decode::visitor::types::Tuple<'scale, 'info>,
         type_id: scale_decode::visitor::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         to_unnamed_composite!(value, type_id)
@@ -212,9 +213,9 @@ impl scale_decode::visitor::Visitor for DecodeValueVisitor {
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         Ok(Value::string(value.as_str()?).map_context(|_| type_id.0))
     }
-    fn visit_variant<'scale, 'info, I: scale_decode::FieldIter<'info>>(
+    fn visit_variant<'scale, 'info>(
         self,
-        value: &mut scale_decode::visitor::types::Variant<'scale, 'info, I>,
+        value: &mut scale_decode::visitor::types::Variant<'scale, 'info>,
         type_id: scale_decode::visitor::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         let values = visit_composite(value.fields())?;
@@ -223,9 +224,9 @@ impl scale_decode::visitor::Visitor for DecodeValueVisitor {
             context: type_id.0,
         })
     }
-    fn visit_composite<'scale, 'info, I: scale_decode::FieldIter<'info>>(
+    fn visit_composite<'scale, 'info>(
         self,
-        value: &mut scale_decode::visitor::types::Composite<'scale, 'info, I>,
+        value: &mut scale_decode::visitor::types::Composite<'scale, 'info>,
         type_id: scale_decode::visitor::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         Ok(Value { value: ValueDef::Composite(visit_composite(value)?), context: type_id.0 })
@@ -233,8 +234,8 @@ impl scale_decode::visitor::Visitor for DecodeValueVisitor {
 }
 
 /// Extract a named/unnamed Composite type out of scale_decode's Composite.
-fn visit_composite<'info, I: scale_decode::FieldIter<'info>>(
-    value: &mut scale_decode::visitor::types::Composite<'_, 'info, I>,
+fn visit_composite(
+    value: &mut scale_decode::visitor::types::Composite<'_, '_>,
 ) -> Result<Composite<TypeId>, DecodeError> {
     let len = value.remaining();
     // if no fields, we'll always assume unnamed.
@@ -491,5 +492,45 @@ mod test {
 
         // scale-decode already tests this more thoroughly:
         encode_decode_check(bits![0, 1, 1, 0, 1, 0], Value::bit_sequence(bits![0, 1, 1, 0, 1, 0]));
+    }
+
+    #[test]
+    fn decode_composite_fields() {
+        use codec::Encode;
+        use scale_decode::DecodeAsFields;
+
+        #[derive(Encode, scale_decode::DecodeAsType, scale_info::TypeInfo)]
+        struct Foo {
+            a: String,
+            b: bool,
+            c: u16,
+        }
+
+        // Get the fields we want to decode:
+        let (id, types) = make_type::<Foo>();
+        let scale_info::TypeDef::Composite(c) = &types.resolve(id).unwrap().type_def else {
+            panic!("Couldn't get fields");
+        };
+        let mut fields =
+            c.fields.iter().map(|f| scale_decode::Field::new(f.ty.id, f.name.as_deref()));
+
+        // get some bytes to decode from:
+        let foo = Foo { a: "Hello".to_owned(), b: true, c: 123 };
+        let foo_bytes = foo.encode();
+        let foo_bytes_cursor = &mut &*foo_bytes;
+
+        // Decode and check that things line up:
+        let out = Composite::decode_as_fields(foo_bytes_cursor, &mut fields, &types)
+            .expect("can decode as fields")
+            .map_context(|_| ());
+        assert_eq!(
+            out,
+            Composite::named([
+                ("a", Value::string("Hello")),
+                ("b", Value::bool(true)),
+                ("c", Value::u128(123))
+            ])
+        );
+        assert_eq!(foo_bytes_cursor.len(), 0, "all bytes should have been consumed");
     }
 }
