@@ -16,7 +16,7 @@
 #![allow(clippy::enum_variant_names)]
 
 use super::string_helpers;
-use crate::value::{BitSequence, Composite, Primitive, Value, Variant};
+use crate::value_type::{BitSequence, Composite, Primitive, Value, Variant};
 use std::num::ParseIntError;
 use yap::{types::StrTokens, IntoTokens, TokenLocation, Tokens};
 

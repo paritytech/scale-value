@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::value::{Composite, Primitive, Value, ValueDef, Variant};
+use crate::value_type::{Composite, Primitive, Value, ValueDef, Variant};
 use codec::{Compact, Encode};
 use scale_bits::Bits;
 use scale_encode::error::ErrorKind;

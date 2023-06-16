@@ -14,7 +14,7 @@
 // limitations under the License.
 
 use super::string_helpers;
-use crate::value::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
+use crate::value_type::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
 use std::fmt::{Display, Write};
 
 impl<T> Display for Value<T> {

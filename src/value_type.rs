@@ -455,10 +455,10 @@ impl<T> From<Primitive> for ValueDef<T> {
 }
 
 macro_rules! impl_primitive_type {
-    ($($variant:ident($ty:ty),)*) => {$(
+    ($($variant:ident($ty:ty as $castty:ty),)*) => {$(
         impl From<$ty> for Primitive {
             fn from(val: $ty) -> Self {
-                Primitive::$variant(val)
+                Primitive::$variant(val as $castty)
             }
         }
 
@@ -476,4 +476,91 @@ macro_rules! impl_primitive_type {
     )*}
 }
 
-impl_primitive_type!(Bool(bool), Char(char), String(String), U128(u128), I128(i128),);
+impl_primitive_type!(
+    Bool(bool as bool),
+    Char(char as char),
+    String(String as String),
+    U128(u128 as u128),
+    U128(u64 as u128),
+    U128(usize as u128),
+    U128(u32 as u128),
+    U128(u16 as u128),
+    U128(u8 as u128),
+    I128(i128 as i128),
+    I128(i64 as i128),
+    I128(isize as i128),
+    I128(i32 as i128),
+    I128(i16 as i128),
+    I128(i8 as i128),
+);
+
+// note regarding impl From<&str>:
+// a nicer generic `impl<K: Into<String>> From<K>` verson is not possible because it conflicts with the From<Bits> implementation above.
+
+impl From<&str> for Primitive {
+    fn from(val: &str) -> Self {
+        Primitive::String(val.to_string())
+    }
+}
+
+impl<T> From<&str> for ValueDef<T> {
+    fn from(val: &str) -> Self {
+        ValueDef::Primitive(val.into())
+    }
+}
+
+impl From<&str> for Value<()> {
+    fn from(val: &str) -> Self {
+        Value::without_context(val.into())
+    }
+}
+
+#[cfg(test)]
+#[macro_use]
+mod test {
+    use crate::{value, Value};
+
+    ///
+    #[test]
+    fn macro_tests() {
+        // primitives:
+        assert_eq!(value!(1), Value::from(1));
+        assert_eq!(value!(-122193223i64), Value::from(-122193223i64));
+        assert_eq!(value!(89usize), Value::from(89usize));
+        assert_eq!(value!(false), Value::from(false));
+        assert_eq!(value!(true), Value::from(true));
+        assert_eq!(value!('h'), Value::from('h'));
+        assert_eq!(value!("Hello"), Value::from("Hello"));
+        assert_eq!(value!("Hello".to_string()), Value::from("Hello"));
+        let s = "Hello".to_string();
+        assert_eq!(value!(s), Value::from("Hello"));
+
+        // unnamed composites:
+        let unnamed_composite =
+            Value::unnamed_composite([Value::from(1), Value::from("nice"), Value::from('t')]);
+
+        assert_eq!(value!((1, "nice", 't')), unnamed_composite);
+        assert_eq!(value!((1, "nice", 't',)), unnamed_composite);
+        assert_eq!(value!([1, "nice", 't']), unnamed_composite);
+
+        let empty_composite = Value::unnamed_composite([]);
+        assert_eq!(value!(()), empty_composite);
+        assert_eq!(value!([]), empty_composite);
+
+        // named composites:
+        let named_composite =
+            Value::named_composite([("num", Value::from(3)), ("item", Value::from("tea"))]);
+        assert_eq!(value!({num: 3, item: "tea"}), named_composite);
+        assert_eq!(value!({num: 3, item: "tea",}), named_composite);
+        // variants:
+        let variant_no_fields = Value::variant("v1", crate::Composite::Unnamed(vec![]));
+        assert_eq!(value!(v1()), variant_no_fields);
+        let named_variant = Value::variant(
+            "V2",
+            crate::Composite::named([("num", Value::from(3)), ("item", Value::from("tea"))]),
+        );
+        assert_eq!(value!(V2 { num: 3, item: "tea" }), named_variant);
+        // wild combination, just check if compiles:
+        let _ = value!({ unnamed: unnamed_composite, vals: (v1{name: "berry", age: 34}, named_variant), named: named_composite, });
+    }
+}
