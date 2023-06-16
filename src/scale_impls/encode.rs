@@ -331,8 +331,11 @@ fn encode_bitsequence(
 
 #[cfg(test)]
 mod test {
+    use crate::value;
+
     use super::*;
     use codec::{Compact, Encode};
+    use serde_json::value;
 
     /// Given a type definition, return the PortableType and PortableRegistry
     /// that our decode functions expect.
@@ -421,37 +424,19 @@ mod test {
             Unnamed(u64, Vec<bool>),
         }
 
-        let named_value = Value::named_variant(
-            "Named",
-            [
-                // Deliverately a different order; order shouldn't matter:
-                ("foo", Value::bool(true)),
-                ("hello", Value::string("world")),
-            ],
-        );
+        let named_value = value!(Named { foo: true, hello: "world" });
+
         assert_can_encode_to_type(named_value, Foo::Named { hello: "world".into(), foo: true });
 
-        let unnamed_value = Value::unnamed_variant(
-            "Unnamed",
-            [
-                Value::u128(123),
-                Value::unnamed_composite(vec![
-                    Value::bool(true),
-                    Value::bool(false),
-                    Value::bool(true),
-                ]),
-            ],
-        );
+        let unnamed_value = value!(Unnamed(123u64, (true, false, true)));
+
         assert_can_encode_to_type(unnamed_value, Foo::Unnamed(123, vec![true, false, true]));
     }
 
     #[test]
     fn can_encode_vec_tuples() {
         // Presume we have a type: Vec<(u8, u16)>.
-        let vec_tuple = Value::unnamed_composite(vec![Value::unnamed_composite(vec![
-            Value::u128(20u8.into()),
-            Value::u128(30u16.into()),
-        ])]);
+        let vec_tuple = value!(((20u8, 30u16)));
 
         assert_can_encode_to_type(vec_tuple, vec![(20u8, 30u16)]);
     }
@@ -464,24 +449,20 @@ mod test {
             foo: bool,
         }
 
-        let named_value = Value::named_composite([
-            // Deliverately a different order; order shouldn't matter:
-            ("foo", Value::bool(true)),
-            ("hello", Value::string("world")),
-        ]);
+        let named_value = value!({foo: true, hello: "world"});
+
         assert_can_encode_to_type(named_value, Foo { hello: "world".into(), foo: true });
     }
 
     #[test]
     fn can_encode_tuples_from_named_composite() {
-        let named_value =
-            Value::named_composite([("hello", Value::string("world")), ("foo", Value::bool(true))]);
+        let named_value = value!({hello: "world", foo: true});
         assert_can_encode_to_type(named_value, ("world", true));
     }
 
     #[test]
     fn can_encode_tuples_from_unnamed_composite() {
-        let unnamed_value = Value::unnamed_composite([Value::string("world"), Value::bool(true)]);
+        let unnamed_value = value!(("world", true));
         assert_can_encode_to_type(unnamed_value, ("world", true));
     }
 
@@ -496,7 +477,7 @@ mod test {
         // This is useful because things like transaction calls are often named composites, but
         // we just want to be able to provide the correct values as simply as possible without
         // necessarily knowing the names.
-        let unnamed_value = Value::unnamed_composite([Value::string("world"), Value::bool(true)]);
+        let unnamed_value = value!(("world", true));
         assert_can_encode_to_type(unnamed_value, Foo { hello: "world".to_string(), foo: true });
     }
 
@@ -512,40 +493,13 @@ mod test {
             bits![0, 1, 1, 0, 0, 1],
         );
         // a single value should still encode OK:
-        assert_can_encode_to_type(Value::unnamed_composite(vec![Value::bool(false)]), bits![0]);
+        assert_can_encode_to_type(value!((false)), bits![0]);
         assert_can_encode_to_type(
-            Value::unnamed_composite(vec![
-                Value::bool(false),
-                Value::bool(true),
-                Value::bool(true),
-                Value::bool(false),
-                Value::bool(false),
-                Value::bool(true),
-            ]),
+            value!((false, true, true, false, false, true)),
             bits![0, 1, 1, 0, 0, 1],
         );
-        assert_can_encode_to_type(
-            Value::unnamed_composite(vec![
-                Value::u128(0),
-                Value::u128(1),
-                Value::u128(1),
-                Value::u128(0),
-                Value::u128(0),
-                Value::u128(1),
-            ]),
-            bits![0, 1, 1, 0, 0, 1],
-        );
-        assert_can_encode_to_type(
-            Value::unnamed_composite(vec![
-                Value::i128(0),
-                Value::i128(1),
-                Value::i128(1),
-                Value::i128(0),
-                Value::i128(0),
-                Value::i128(1),
-            ]),
-            bits![0, 1, 1, 0, 0, 1],
-        );
+        assert_can_encode_to_type(value!((0u8, 1u8, 1u8, 0u8, 0u8, 1u8)), bits![0, 1, 1, 0, 0, 1]);
+        assert_can_encode_to_type(value!((0, 1, 1, 0, 0, 1)), bits![0, 1, 1, 0, 0, 1]);
     }
 
     #[test]
@@ -556,14 +510,8 @@ mod test {
         assert_can_encode_to_type(Value::u128(123), Compact(123u64));
 
         // As a special case, as long as ultimately we have a primitive value, we can compact encode it:
-        assert_can_encode_to_type(Value::unnamed_composite([Value::u128(123)]), Compact(123u64));
-        assert_can_encode_to_type(
-            Value::unnamed_composite([Value::named_composite([(
-                "foo".to_string(),
-                Value::u128(123),
-            )])]),
-            Compact(123u64),
-        );
+        assert_can_encode_to_type(value!((123)), Compact(123u64));
+        assert_can_encode_to_type(value!(({foo: 123u64})), Compact(123u64));
     }
 
     #[test]
@@ -579,10 +527,7 @@ mod test {
         #[derive(Encode, scale_info::TypeInfo)]
         struct Bar(Foo);
         assert_can_encode_to_type(Value::u128(32), Bar(Foo { inner: 32 }));
-        assert_can_encode_to_type(
-            Value::unnamed_composite([Value::u128(32)]),
-            Bar(Foo { inner: 32 }),
-        );
+        assert_can_encode_to_type(value!((32u8)), Bar(Foo { inner: 32 }));
 
         // Encoding a Composite to a Composite(Composite) shape is fine too:
         #[derive(Encode, scale_info::TypeInfo)]

@@ -264,6 +264,8 @@ fn visit_composite(
 #[cfg(test)]
 mod test {
 
+    use crate::value;
+
     use super::*;
     use codec::{Compact, Encode};
 
@@ -402,10 +404,7 @@ mod test {
 
     #[test]
     fn decode_sequence_array_tuple_types() {
-        encode_decode_check(
-            vec![1i32, 2, 3],
-            Value::unnamed_composite(vec![Value::i128(1), Value::i128(2), Value::i128(3)]),
-        );
+        encode_decode_check(vec![1i32, 2, 3], value!((1, 2, 3)));
         encode_decode_check(
             [1i32, 2, 3], // compile-time length known
             Value::unnamed_composite(vec![Value::i128(1), Value::i128(2), Value::i128(3)]),
@@ -430,13 +429,7 @@ mod test {
         );
         encode_decode_check(
             MyEnum::Bar { hi: "hello".to_string(), other: 123 },
-            Value::named_variant(
-                "Bar",
-                vec![
-                    ("hi".to_string(), Value::string("hello".to_string())),
-                    ("other".to_string(), Value::u128(123)),
-                ],
-            ),
+            value!(Bar { hi: "hello", other: 123u32 }),
         );
     }
 
@@ -454,22 +447,11 @@ mod test {
 
         encode_decode_check(
             Unnamed(true, "James".into(), vec![1, 2, 3]),
-            Value::unnamed_composite(vec![
-                Value::bool(true),
-                Value::string("James".to_string()),
-                Value::unnamed_composite(vec![Value::u128(1), Value::u128(2), Value::u128(3)]),
-            ]),
+            value!((true, "James", (1u8, 2u8, 3u8))),
         );
         encode_decode_check(
             Named { is_valid: true, name: "James".into(), bytes: vec![1, 2, 3] },
-            Value::named_composite(vec![
-                ("is_valid", Value::bool(true)),
-                ("name", Value::string("James".to_string())),
-                (
-                    "bytes",
-                    Value::unnamed_composite(vec![Value::u128(1), Value::u128(2), Value::u128(3)]),
-                ),
-            ]),
+            value!({is_valid: true, name: "James", bytes: (1u8, 2u8, 3u8)}),
         );
     }
 

@@ -133,6 +133,8 @@ impl<T> Serialize for Variant<T> {
 
 #[cfg(test)]
 mod test {
+    use crate::value;
+
     use super::*;
     use serde_json::json;
 
@@ -152,34 +154,24 @@ mod test {
     #[test]
     fn serialize_composites() {
         assert_value(
-            Value::named_composite([
-                ("a", Value::bool(true)),
-                ("b", Value::string("hello")),
-                ("c", Value::char('c')),
-            ]),
+            value!({
+                a: true,
+                b: "hello",
+                c: 'c'
+            }),
             json!({
                 "a": true,
                 "b": "hello",
                 "c": 'c'
             }),
         );
-        assert_value(
-            Value::unnamed_composite([Value::bool(true), Value::string("hello"), Value::char('c')]),
-            json!([true, "hello", 'c']),
-        )
+        assert_value(value!([true, "hello", 'c']), json!([true, "hello", 'c']))
     }
 
     #[test]
     fn serialize_variants() {
         assert_value(
-            Value::variant(
-                "Foo",
-                Composite::Named(vec![
-                    ("a".into(), Value::bool(true)),
-                    ("b".into(), Value::string("hello")),
-                    ("c".into(), Value::char('c')),
-                ]),
-            ),
+            value!(Foo { a: true, b: "hello", c: 'c' }),
             json!({
                 "name": "Foo",
                 "values": {
@@ -190,14 +182,7 @@ mod test {
             }),
         );
         assert_value(
-            Value::variant(
-                "Bar",
-                Composite::Unnamed(vec![
-                    Value::bool(true),
-                    Value::string("hello"),
-                    Value::char('c'),
-                ]),
-            ),
+            value!(Bar(true, "hello", 'c')),
             json!({
                 "name": "Bar",
                 "values": [

@@ -160,23 +160,14 @@ enum LocationInner<'a> {
 
 #[cfg(test)]
 mod test {
+    use crate::value;
+
     use super::*;
 
     // This is basically the doc example with a little extra.
     #[test]
     fn nested_accessing() {
-        let val = Value::named_composite([(
-            "hello",
-            Value::unnamed_composite([
-                Value::u128(1),
-                Value::bool(true),
-                Value::named_composite([
-                    ("wibble", Value::bool(false)),
-                    ("foo", Value::named_composite([("bar", Value::u128(123))])),
-                ]),
-            ]),
-        )]);
-
+        let val = value!({hello: (1u32, true, { wibble: false, foo: {bar: 123u32}})});
         assert_eq!(val.at("hello").at(0), Some(&Value::u128(1)));
         assert_eq!(val.at("hello").at(1), Some(&Value::bool(true)));
         assert_eq!(val.at("hello").at(2).at("wibble"), Some(&Value::bool(false)));
@@ -196,30 +187,25 @@ mod test {
 
     #[test]
     fn accessing_variants() {
-        let val = Value::named_variant(
-            "TheVariant",
-            [("foo", Value::u128(12345)), ("bar", Value::char('c'))],
-        );
+        let val = value!(TheVariant { foo: 12345u32, bar: 'c' });
 
         assert_eq!(val.at("foo").unwrap().as_u128().unwrap(), 12345);
         assert_eq!(val.at("bar").unwrap().as_char().unwrap(), 'c');
 
-        let val = Value::unnamed_variant("TheVariant", [Value::u128(12345), Value::char('c')]);
+        let val = value!(TheVariant(12345u32, 'c'));
 
         assert_eq!(val.at(0).unwrap().as_u128().unwrap(), 12345);
         assert_eq!(val.at(1).unwrap().as_char().unwrap(), 'c');
 
         // We can use `at()` on the variant directly, too:
 
-        let val = Variant::named_fields(
-            "TheVariant",
-            [("foo", Value::u128(12345)), ("bar", Value::char('c'))],
-        );
+        let val =
+            Variant::named_fields("TheVariant", [("foo", value!(12345u32)), ("bar", value!('c'))]);
 
         assert_eq!(val.at("foo").unwrap().as_u128().unwrap(), 12345);
         assert_eq!(val.at("bar").unwrap().as_char().unwrap(), 'c');
 
-        let val = Variant::unnamed_fields("TheVariant", [Value::u128(12345), Value::char('c')]);
+        let val = Variant::unnamed_fields("TheVariant", [value!(12345u32), value!('c')]);
 
         assert_eq!(val.at(0).unwrap().as_u128().unwrap(), 12345);
         assert_eq!(val.at(1).unwrap().as_char().unwrap(), 'c');
@@ -230,12 +216,12 @@ mod test {
         // We already test accessing composite Values. This also checks that `at` works on
         // the Composite type, too..
 
-        let val = Composite::named([("foo", Value::u128(12345)), ("bar", Value::char('c'))]);
+        let val = Composite::named([("foo", value!(12345u32)), ("bar", value!('c'))]);
 
         assert_eq!(val.at("foo").unwrap().as_u128().unwrap(), 12345);
         assert_eq!(val.at("bar").unwrap().as_char().unwrap(), 'c');
 
-        let val = Composite::unnamed([Value::u128(12345), Value::char('c')]);
+        let val = Composite::unnamed([value!(12345u32), value!('c')]);
 
         assert_eq!(val.at(0).unwrap().as_u128().unwrap(), 12345);
         assert_eq!(val.at(1).unwrap().as_char().unwrap(), 'c');

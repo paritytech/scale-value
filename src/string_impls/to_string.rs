@@ -159,6 +159,8 @@ fn is_ident(s: &str) -> bool {
 
 #[cfg(test)]
 mod test {
+    use crate::value;
+
     use super::*;
 
     #[test]
@@ -168,7 +170,7 @@ mod test {
             (Value::bool(false), "false"),
             (Value::char('a'), "'a'"),
             (Value::u128(123), "123"),
-            (Value::unnamed_composite([Value::bool(true), Value::string("hi")]), r#"(true, "hi")"#),
+            (value!((true, "hi")), r#"(true, "hi")"#),
             (
                 Value::named_composite([
                     ("hi there", Value::bool(true)),
@@ -176,23 +178,7 @@ mod test {
                 ]),
                 r#"{ "hi there": true, other: "hi" }"#,
             ),
-            (
-                Value::named_variant(
-                    "Foo",
-                    [
-                        (
-                            "ns",
-                            Value::unnamed_composite([
-                                Value::u128(1),
-                                Value::u128(2),
-                                Value::u128(3),
-                            ]),
-                        ),
-                        ("other", Value::char('a')),
-                    ],
-                ),
-                "Foo { ns: (1, 2, 3), other: 'a' }",
-            ),
+            (value!(Foo { ns: (1u8, 2u8, 3u8), other: 'a' }), "Foo { ns: (1, 2, 3), other: 'a' }"),
         ];
 
         for (value, expected_str) in expected {
@@ -293,10 +279,7 @@ mod test {
                     ("a \"weird\" name", Value::string("Woop!")),
                 ],
             ));
-            assert_from_to(Value::unnamed_variant(
-                "MyVariant",
-                [Value::u128(12345), Value::bool(true), Value::string("Woop!")],
-            ));
+            assert_from_to(value!(MyVariant(12345u32, true, "Woop!")));
         }
 
         #[test]

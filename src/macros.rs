@@ -53,24 +53,7 @@ macro_rules! value_internal {
     // done
     (@unnamed $fields:ident ()) => {};
 
-    // Insert the current entry followed by trailing comma.
-    (@unnamed $fields:ident ($value:expr) , $($rest:tt)*) => {
-        $fields.push($value);
-        // continue with rest of tokens, inserting them into the fields vec:
-        value_internal!(@unnamed $fields ($($rest)*));
-    };
 
-    // Current entry followed by unexpected token.
-    // There needs to be a comma, which would match the previous matcher or no further tokens at all matching the next matcher
-     (@unnamed $fields:ident ($value:expr) $unexpected:tt $($rest:tt)*) => {
-        let token = core::stringify!($unexpected);
-        compile_error!("unexpected token after expression: {}", token);
-    };
-
-    // Insert the last entry without trailing comma
-    (@unnamed $fields:ident ($value:expr)) => {
-        $fields.push(value_internal!($value));
-    };
 
     // Next value is an unnamed composite with [..] syntax
     (@unnamed $fields:ident ([$($array:tt)*] $($rest:tt)*)) => {
@@ -95,6 +78,25 @@ macro_rules! value_internal {
     // Next value is a named variant
     (@unnamed $fields:ident ($variant:ident {$($map:tt)*} $($rest:tt)*)) => {
         value_internal!(@unnamed $fields (value_internal!($variant {$($map)*})) $($rest)*);
+    };
+
+    // Insert the current entry followed by trailing comma.
+    (@unnamed $fields:ident ($value:expr) , $($rest:tt)*) => {
+        $fields.push($value);
+        // continue with rest of tokens, inserting them into the fields vec:
+        value_internal!(@unnamed $fields ($($rest)*));
+    };
+
+    // Current entry followed by unexpected token.
+    // There needs to be a comma, which would match the previous matcher or no further tokens at all matching the next matcher
+     (@unnamed $fields:ident ($value:expr) $unexpected:tt $($rest:tt)*) => {
+        let token = core::stringify!($unexpected);
+        compile_error!("unexpected token after expression: {}", token);
+    };
+
+    // Insert the last entry without trailing comma
+    (@unnamed $fields:ident ($value:expr)) => {
+        $fields.push(value_internal!($value));
     };
 
     // Next value is an expression followed by comma
@@ -245,7 +247,7 @@ macro_rules! value_internal {
     // unnamed composites with (..) syntax e.g. (1,"hello",3)
     (( $($tt:tt)* )) => {
         {
-            let mut fields = Vec::<Value>::new();
+            let mut fields = Vec::<$crate::Value>::new();
             value_internal!(@unnamed fields ($($tt)+));
             $crate::Value::unnamed_composite(fields)
         }
@@ -274,4 +276,54 @@ macro_rules! value_internal {
     ($val:expr) => {
         $crate::Value::from($val)
     };
+}
+
+#[cfg(test)]
+#[macro_use]
+mod test {
+    use crate::{value, Value};
+
+    ///
+    #[test]
+    fn macro_tests() {
+        // primitives:
+        assert_eq!(value!(1), Value::from(1));
+        assert_eq!(value!(-122193223i64), Value::from(-122193223i64));
+        assert_eq!(value!(89usize), Value::from(89usize));
+        assert_eq!(value!(false), Value::from(false));
+        assert_eq!(value!(true), Value::from(true));
+        assert_eq!(value!('h'), Value::from('h'));
+        assert_eq!(value!("Hello"), Value::from("Hello"));
+        assert_eq!(value!("Hello".to_string()), Value::from("Hello"));
+        let s = "Hello".to_string();
+        assert_eq!(value!(s), Value::from("Hello"));
+
+        // unnamed composites:
+        let unnamed_composite =
+            Value::unnamed_composite([Value::from(1), Value::from("nice"), Value::from('t')]);
+
+        assert_eq!(value!((1, "nice", 't')), unnamed_composite);
+        assert_eq!(value!((1, "nice", 't',)), unnamed_composite);
+        assert_eq!(value!([1, "nice", 't']), unnamed_composite);
+
+        let empty_composite = Value::unnamed_composite([]);
+        assert_eq!(value!(()), empty_composite);
+        assert_eq!(value!([]), empty_composite);
+
+        // named composites:
+        let named_composite =
+            Value::named_composite([("num", Value::from(3)), ("item", Value::from("tea"))]);
+        assert_eq!(value!({num: 3, item: "tea"}), named_composite);
+        assert_eq!(value!({num: 3, item: "tea",}), named_composite);
+        // variants:
+        let variant_no_fields = Value::variant("v1", crate::Composite::Unnamed(vec![]));
+        assert_eq!(value!(v1()), variant_no_fields);
+        let named_variant = Value::variant(
+            "V2",
+            crate::Composite::named([("num", Value::from(3)), ("item", Value::from("tea"))]),
+        );
+        assert_eq!(value!(V2 { num: 3, item: "tea" }), named_variant);
+        // wild combination, just check if compiles:
+        let _ = value!({ unnamed: unnamed_composite, vals: (v1{name: "berry", age: 34}, named_variant), named: named_composite, });
+    }
 }

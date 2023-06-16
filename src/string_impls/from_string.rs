@@ -593,6 +593,8 @@ fn transpose_err<T, E>(r: Result<T, Option<E>>) -> Option<Result<T, E>> {
 
 #[cfg(test)]
 mod test {
+    use crate::value;
+
     use super::*;
 
     // Wrap our error type to impl PartialEq on it for tests,
@@ -690,14 +692,10 @@ mod test {
     fn parse_unnamed_composites() {
         assert_eq!(
             from("(  true, 1234 ,\t\n\t \"Hello!\" )"),
-            Ok(Value::unnamed_composite(vec![
-                Value::bool(true),
-                Value::u128(1234),
-                Value::string("Hello!")
-            ]))
+            Ok(value!((true, 1234u32, "Hello!")))
         );
-        assert_eq!(from("()"), Ok(Value::unnamed_composite([])));
-        assert_eq!(from("(\n\n\t\t\n)"), Ok(Value::unnamed_composite([])));
+        assert_eq!(from("()"), Ok(value!(())));
+        assert_eq!(from("(\n\n\t\t\n)"), Ok(value!(())));
     }
 
     #[test]
@@ -740,16 +738,13 @@ mod test {
 
         assert_eq!(
             from("Foo (  true, 1234 ,\t\n\t \"Hello!\" )"),
-            Ok(Value::unnamed_variant(
-                "Foo",
-                vec![Value::bool(true), Value::u128(1234), Value::string("Hello!")]
-            ))
+            Ok(value!(Foo(true, 1234u32, "Hello!")))
         );
 
-        assert_eq!(from("Foo()"), Ok(Value::unnamed_variant("Foo", [])));
-        assert_eq!(from("Foo{}"), Ok(Value::named_variant::<_, String, _>("Foo", [])));
-        assert_eq!(from("Foo( \t)"), Ok(Value::unnamed_variant("Foo", [])));
-        assert_eq!(from("Foo{  }"), Ok(Value::named_variant::<_, String, _>("Foo", [])));
+        assert_eq!(from("Foo()"), Ok(value!(Foo())));
+        assert_eq!(from("Foo{}"), Ok(value!(Foo {})));
+        assert_eq!(from("Foo( \t)"), Ok(value!(Foo())));
+        assert_eq!(from("Foo{  }"), Ok(value!(Foo {})));
 
         // Parsing special "v" strings:
         assert_eq!(
@@ -805,17 +800,7 @@ mod test {
 
         let expected = [
             // Hex can be parsed as a part of values now!
-            (
-                "(1, 0x1234, true)",
-                (
-                    Ok(Value::unnamed_composite([
-                        Value::u128(1),
-                        Value::string("1234"),
-                        Value::bool(true),
-                    ])),
-                    "",
-                ),
-            ),
+            ("(1, 0x1234, true)", (Ok(value!((1u8, "1234", true))), "")),
             // Invalid hex emits the expected custom error:
             (
                 "0x12345zzz",

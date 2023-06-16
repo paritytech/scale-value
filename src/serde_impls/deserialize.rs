@@ -383,6 +383,8 @@ mod test {
 
     use serde_json::json;
 
+    use crate::value;
+
     use super::{super::DeserializerError, *};
 
     /// Does a value deserialize to itself?
@@ -461,25 +463,10 @@ mod test {
 
     #[test]
     fn deserialize_composites_isomorphic() {
-        assert_value_isomorphic(Value::unnamed_composite(vec![
-            Value::u128(123),
-            Value::bool(true),
-        ]));
-        assert_value_isomorphic(Value::named_composite::<String, _>(vec![]));
-        assert_value_isomorphic(Value::named_composite(vec![
-            ("a", Value::u128(123)),
-            ("b", Value::bool(true)),
-        ]));
-        assert_value_isomorphic(Value::named_composite(vec![
-            ("a", Value::u128(123)),
-            (
-                "b",
-                Value::named_composite(vec![
-                    ("c", Value::u128(123)),
-                    ("d", Value::string("hello")),
-                ]),
-            ),
-        ]));
+        assert_value_isomorphic(value!((123u8, true)));
+        assert_value_isomorphic(value!({}));
+        assert_value_isomorphic(value!({a: 123u8, b: true}));
+        assert_value_isomorphic(value!({a: 123u8, b: { c: 123u8, d: "hello"}}));
 
         // unwrapped:
 
@@ -491,13 +478,7 @@ mod test {
         ]));
         assert_value_isomorphic(Composite::named(vec![
             ("a", Value::u128(123)),
-            (
-                "b",
-                Value::named_composite(vec![
-                    ("c", Value::u128(123)),
-                    ("d", Value::string("hello")),
-                ]),
-            ),
+            ("b", value!({ c: 123u8, d: "hello"})),
         ]));
     }
 
@@ -552,15 +533,7 @@ mod test {
 
         let de: SeqDeserializer<_, DeserializerError> = vec![1u8, 2, 3, 4].into_deserializer();
 
-        assert_value_to_value(
-            de.clone(),
-            Value::unnamed_composite(vec![
-                Value::u128(1),
-                Value::u128(2),
-                Value::u128(3),
-                Value::u128(4),
-            ]),
-        );
+        assert_value_to_value(de.clone(), value!((1u8, 2u8, 3u8, 4u8)));
         assert_value_to_value(
             de,
             Composite::Unnamed(vec![
@@ -611,14 +584,7 @@ mod test {
     fn partially_deserialize_value() {
         let value = Value::named_composite(vec![
             ("a", Value::u128(123)),
-            (
-                "b",
-                Value::named_composite(vec![
-                    ("c", Value::u128(123)),
-                    ("d", Value::string("hello")),
-                    ("e", Value::named_composite::<String, _>([])),
-                ]),
-            ),
+            ("b", value!({c: 123u8, d: "hello", e: {}})),
         ]);
 
         #[derive(Deserialize, Debug, PartialEq)]
@@ -640,11 +606,7 @@ mod test {
             partial,
             Partial {
                 a: Value::u128(123),
-                b: PartialB {
-                    c: 123,
-                    d: "hello".into(),
-                    e: Value::named_composite::<String, _>([])
-                }
+                b: PartialB { c: 123, d: "hello".into(), e: value!({}) }
             }
         )
     }
