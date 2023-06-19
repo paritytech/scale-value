@@ -335,7 +335,6 @@ mod test {
 
     use super::*;
     use codec::{Compact, Encode};
-    use serde_json::value;
 
     /// Given a type definition, return the PortableType and PortableRegistry
     /// that our decode functions expect.

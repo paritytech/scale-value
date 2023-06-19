@@ -416,7 +416,7 @@ impl SerializeStructVariant for NamedCompositeSerializer {
 #[cfg(test)]
 mod test {
     use super::ValueSerializer;
-    use crate::{value, Composite, Value};
+    use crate::{value, Value};
     use serde::{Deserialize, Serialize};
     use std::fmt::Debug;
 

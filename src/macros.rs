@@ -31,180 +31,185 @@ macro_rules! value {
     };
 }
 
-/// There are 3 modes in which value_internal! operates:
+/// All patterns can be grouped into 4 main patterns:
 ///
-/// I. value_internal!(@unnamed $fields...):
-/// - This fills a given `mut $fields : Vec<scale_value::Value>` variable with values.
-/// - does not return anything.
+/// ### `value_internal!(@unnamed [ELEMENTS] (REST))`
 ///
-/// II. value_internal!(@named $fields...):
-/// - This fills a given `mut $fields : Vec<(String,scale_value::Value)>` variable with keys and values.
-/// - does not return anything.
+/// checks `REST` for certain patterns and if a suitable element pattern is found,
+/// the element is added to the comma seperated `ELEMENTS` list. When `REST` is empty,
+/// we collect all `ELEMENTS` into a Vec of values.
 ///
-/// III. value_internal!(...):
-/// - returns a `scale_value::Value`
+/// ### `value_internal!(@named [KEYVALUEPAIRS] (PARTIALKEY) (REST))`
+///
+/// goes over the REST tokens, to build up the PARTIALKEY until it is a proper KEY.
+/// This happens as soon as a colon `:` token is encountered, then we switch to the next pattern:
+///
+/// ### `value_internal!(@named [KEYVALUEPAIRS] [KEY] (REST))`
+///
+/// The square brackets now indicate that the key is fully formed. Now REST is scanned for the next
+/// `VALUE`. Together with the `KEY`, they are added as a key value pair tuple into the KEYVALUEPAIRS list.
+/// At that point we switch back to the partial key pattern above, e.g. `value_internal!(@named [KEYVALUEPAIRS] () (REST))`
+/// now with a new empty partial key that has to be filled.
+/// When `REST` is empty, we collect all `KEYVALUEPAIRS` into a Vec of key-value tuples.
+///
+/// ### `value_internal!(BASEPATTERN)`
+///
+/// These patterns check if the input represents a composite or variant type or can be made into a valid `$crate::Value`.
 #[macro_export(local_inner_macros)]
 #[doc(hidden)]
 macro_rules! value_internal {
+
     ////////////////////////////////////////////////////////////////////////////
     // collecting unnamed fields
     ////////////////////////////////////////////////////////////////////////////
 
     // done
-    (@unnamed $fields:ident ()) => {};
-
-
+    (@unnamed [$($e:expr, )*] ()) => { vec_wrapper![$($e, )*] };
 
     // Next value is an unnamed composite with [..] syntax
-    (@unnamed $fields:ident ([$($array:tt)*] $($rest:tt)*)) => {
-        value_internal!(@unnamed $fields (value_internal!([$($array)*])) $($rest)*);
+    (@unnamed [$($e:expr, )*] ([$($array:tt)*] $($rest:tt)*)) => {
+        value_internal!(@unnamed [$($e, )*] (value_internal!([$($array)*])) $($rest)*)
     };
 
     // Next value is an unnamed composite with (..) syntax
-    (@unnamed $fields:ident (($($array:tt)*) $($rest:tt)*)) => {
-        value_internal!(@unnamed $fields (value_internal!(($($array)*))) $($rest)*);
+    (@unnamed [$($e:expr, )*] (($($array:tt)*) $($rest:tt)*)) => {
+        value_internal!(@unnamed [$($e, )*] (value_internal!(($($array)*))) $($rest)*)
     };
 
     // Next value is an unnamed variant
-    (@unnamed $fields:ident ($variant:ident ($($array:tt)*) $($rest:tt)*)) => {
-        value_internal!(@unnamed $fields (value_internal!($variant ($($array)*))) $($rest)*);
+    (@unnamed [$($e:expr, )*] ($variant:ident ($($array:tt)*) $($rest:tt)*)) => {
+        value_internal!(@unnamed [$($e, )*] (value_internal!($variant ($($array)*))) $($rest)*)
     };
 
     // Next value is a named composite
-    (@unnamed $fields:ident ({$($map:tt)*} $($rest:tt)*)) => {
-        value_internal!(@unnamed $fields (value_internal!({$($map)*})) $($rest)*);
+    (@unnamed [$($e:expr, )*] ({$($map:tt)*} $($rest:tt)*)) => {
+        value_internal!(@unnamed [$($e, )*] (value_internal!({$($map)*})) $($rest)*)
     };
 
     // Next value is a named variant
-    (@unnamed $fields:ident ($variant:ident {$($map:tt)*} $($rest:tt)*)) => {
-        value_internal!(@unnamed $fields (value_internal!($variant {$($map)*})) $($rest)*);
+    (@unnamed [$($e:expr, )*] ($variant:ident {$($map:tt)*} $($rest:tt)*)) => {
+        value_internal!(@unnamed [$($e, )*] (value_internal!($variant {$($map)*})) $($rest)*)
     };
 
-    // Insert the current entry followed by trailing comma.
-    (@unnamed $fields:ident ($value:expr) , $($rest:tt)*) => {
-        $fields.push($value);
-        // continue with rest of tokens, inserting them into the fields vec:
-        value_internal!(@unnamed $fields ($($rest)*));
+    // Insert the current entry followed by trailing comma
+    (@unnamed [$($e:expr, )*] ($value:expr) , $($rest:tt)*) => {
+        value_internal!(@unnamed [$($e, )* $value , ] ($($rest)*))
     };
 
     // Current entry followed by unexpected token.
     // There needs to be a comma, which would match the previous matcher or no further tokens at all matching the next matcher
-     (@unnamed $fields:ident ($value:expr) $unexpected:tt $($rest:tt)*) => {
+     (@unnamed [$($e:expr, )*] ($value:expr) $unexpected:tt $($rest:tt)*) => {
         let token = core::stringify!($unexpected);
         compile_error!("unexpected token after expression: {}", token);
     };
 
     // Insert the last entry without trailing comma
-    (@unnamed $fields:ident ($value:expr)) => {
-        $fields.push(value_internal!($value));
+    (@unnamed [$($e:expr, )*] ($value:expr)) => {
+        vec_wrapper![ $($e, )* value_internal!($value) ]
     };
 
     // Next value is an expression followed by comma
-    (@unnamed $fields:ident ($value:expr , $($rest:tt)*)) => {
-        value_internal!(@unnamed $fields (value_internal!($value)) , $($rest)*);
+    (@unnamed [$($e:expr, )*] ($value:expr , $($rest:tt)*)) => {
+        value_internal!(@unnamed [$($e, )*] (value_internal!($value)) , $($rest)*)
     };
 
     // Last value is an expression with no trailing comma
-    (@unnamed $fields:ident ($value:expr)) => {
-        value_internal!(@unnamed $fields (value_internal!($value)));
+    (@unnamed [$($e:expr, )*] ($value:expr)) => {
+        value_internal!(@unnamed [$($e, )*] (value_internal!($value)))
     };
 
     ////////////////////////////////////////////////////////////////////////////
     // collecting named fields
-    //   note on key collection:
-    //     if key completely constructed: @named $fields:ident [$($key:tt)+] ...
-    //     if still constructing key:     @named $fields:ident ($($key:tt)+) ...
     ////////////////////////////////////////////////////////////////////////////
 
     // done
-    (@named $fields:ident () ()) => {};
+    (@named [$(($k:expr, $v:expr), )*] () ()) => { vec_wrapper![ $(($k, $v), )* ] };
 
     // Insert the current entry followed by trailing comma.
-    (@named $fields:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {
-        let field_name = core::stringify!($($key)+).to_string();
-        $fields.push((field_name, $value));
-        // continue with rest of tokens, inserting them into the fields vec:
-        value_internal!(@named $fields () ($($rest)*));
+    (@named [$(($k:expr, $v:expr), )*] [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {
+        {
+            let field_name = core::stringify!($($key)+).to_string();
+            value_internal!(@named [$(($k, $v), )* (field_name, $value), ] () ($($rest)*))
+        }
     };
 
     // Current entry followed by unexpected token.
     // There needs to be a comma, which would match the previous matcher or no further tokens at all matching the next matcher
-    (@named $fields:ident [$($key:tt)+] ($value:expr) $unexpected:tt $($rest:tt)*) => {
+    (@named [$(($k:expr, $v:expr), )*] [$($key:tt)+] ($value:expr) $unexpected:tt $($rest:tt)*) => {
         let token = core::stringify!($unexpected);
         compile_error!("unexpected token after expression: {}", token);
     };
 
     // Insert the last entry without trailing comma.
-    (@named $fields:ident [$($key:tt)+] ($value:expr)) => {
-        let field_name = core::stringify!($($key)+).to_string();
-        $fields.push((field_name, $value));
+    (@named [$(($k:expr, $v:expr), )*] [$($key:tt)+] ($value:expr)) => {
+        {
+            let field_name = core::stringify!($($key)+).to_string();
+            vec_wrapper![ $(($k, $v), )* (field_name, $value) ]
+        }
     };
 
     // Next value is an unnamed composite with [..] syntax
-     (@named $fields:ident ($($key:tt)+) (: [$($array:tt)*] $($rest:tt)*)) => {
-        value_internal!(@named $fields [$($key)+] (value_internal!([$($array)*])) $($rest)*);
+     (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: [$($array:tt)*] $($rest:tt)*)) => {
+        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!([$($array)*])) $($rest)*)
     };
 
     // Next value is an unnamed composite with (..) syntax
-    (@named $fields:ident ($($key:tt)+) (: ($($array:tt)*) $($rest:tt)*)) => {
-        value_internal!(@named $fields [$($key)+] (value_internal!(($($array)*))) $($rest)*);
+    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: ($($array:tt)*) $($rest:tt)*)) => {
+        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!(($($array)*))) $($rest)*)
     };
 
     // Next value is an unnamed variant
-    (@named $fields:ident ($($key:tt)+) (: $variant:ident ($($array:tt)*) $($rest:tt)*)) => {
-        value_internal!(@named $fields [$($key)+] (value_internal!($variant ($($array)*))) $($rest)*);
+    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: $variant:ident ($($array:tt)*) $($rest:tt)*)) => {
+        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!($variant ($($array)*))) $($rest)*)
     };
 
     // Next value is a named composite
-    (@named $fields:ident ($($key:tt)+) (: {$($map:tt)*} $($rest:tt)*)) => {
-        value_internal!(@named $fields [$($key)+] (value_internal!({$($map)*})) $($rest)*);
+    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: {$($map:tt)*} $($rest:tt)*)) => {
+        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!({$($map)*})) $($rest)*)
     };
 
     // Next value is a named variant
-    (@named $fields:ident ($($key:tt)+) (: $variant:ident {$($map:tt)*} $($rest:tt)*)) => {
-        value_internal!(@named $fields [$($key)+] (value_internal!($variant {$($map)*})) $($rest)*);
+    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: $variant:ident {$($map:tt)*} $($rest:tt)*)) => {
+        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!($variant {$($map)*})) $($rest)*)
     };
 
     // // Next value is an expression followed by comma
-    (@named $fields:ident ($($key:tt)+) (: $value:expr , $($rest:tt)*)) => {
-        value_internal!(@named $fields [$($key)+] (value_internal!($value)) , $($rest)*);
+    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: $value:expr , $($rest:tt)*)) => {
+        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!($value)) , $($rest)*)
     };
 
-
     // Last value is an expression with no trailing comma
-    (@named $fields:ident ($($key:tt)+) (: $value:expr)) => {
-        value_internal!(@named $fields [$($key)+] (value_internal!($value)));
+    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: $value:expr)) => {
+        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!($value)))
     };
 
     // Eror pattern: Missing value for last entry
-    (@named $fields:ident ($($key:tt)+) (:)) => {
+    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (:)) => {
         compile_error!("missing value for last entry");
     };
 
     // Eror pattern: Missing colon and value for last entry
-    (@named $fields:ident ($($key:tt)+) ()) => {
+    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) ()) => {
         compile_error!("missing colon and value for last entry");
     };
 
     // Eror pattern: colon as first token
-    (@named $fields:ident () (: $($rest:tt)*)) => {
+    (@named [$(($k:expr, $v:expr), )*] () (: $($rest:tt)*)) => {
         compile_error!("colon in wrong position");
     };
 
     // Eror pattern: comma inside key
-    (@named $fields:ident ($($key:tt)*) (, $($rest:tt)*)) => {
+    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)*) (, $($rest:tt)*)) => {
         compile_error!("comma in key of named composite");
     };
 
-
-    // todo! explain this
-    (@named $fields:ident () (($key:expr) : $($rest:tt)*)) => {
-        value_internal!(@named $fields ($key) (: $($rest)*));
+    (@named [$(($k:expr, $v:expr), )*] () (($key:expr) : $($rest:tt)*)) => {
+        value_internal!(@named [$(($k, $v), )*] ($key) (: $($rest)*))
     };
 
     // add a token into the current key.
-    (@named $fields:ident ($($key:tt)*) ($tt:tt $($rest:tt)*)) => {
-        value_internal!(@named $fields ($($key)* $tt) ($($rest)*));
+    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)*) ($tt:tt $($rest:tt)*)) => {
+        value_internal!(@named [$(($k, $v), )*] ($($key)* $tt) ($($rest)*))
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -228,8 +233,7 @@ macro_rules! value_internal {
     // named composites e.g. { age: 1, nice: false }
     ({ $($tt:tt)* }) => {
         {
-            let mut fields = Vec::<(String, $crate::Value)>::new();
-            value_internal!(@named fields () ($($tt)*));
+            let fields: Vec::<(String, $crate::Value)> = value_internal!(@named [] () ($($tt)*));
             $crate::Value::named_composite(fields)
         }
     };
@@ -238,8 +242,7 @@ macro_rules! value_internal {
     ($variant:ident { $($tt:tt)* }) => {
         {
             let variant_name = core::stringify!($variant).to_string();
-            let mut fields = Vec::<(String, $crate::Value)>::new();
-            value_internal!(@named fields () ($($tt)*));
+            let fields: Vec::<(String, $crate::Value)> = value_internal!(@named [] () ($($tt)*));
             $crate::Value::named_variant(variant_name,fields)
         }
     };
@@ -247,8 +250,7 @@ macro_rules! value_internal {
     // unnamed composites with (..) syntax e.g. (1,"hello",3)
     (( $($tt:tt)* )) => {
         {
-            let mut fields = Vec::<$crate::Value>::new();
-            value_internal!(@unnamed fields ($($tt)+));
+            let fields = value_internal!(@unnamed [] ($($tt)*));
             $crate::Value::unnamed_composite(fields)
         }
     };
@@ -256,8 +258,7 @@ macro_rules! value_internal {
     // unnamed composites with [..] syntax e.g. [1,"hello",3]
     ([ $($tt:tt)* ]) => {
         {
-            let mut fields = Vec::<$crate::Value>::new();
-            value_internal!(@unnamed fields ($($tt)*));
+            let fields = value_internal!(@unnamed [] ($($tt)*));
             $crate::Value::unnamed_composite(fields)
         }
     };
@@ -266,8 +267,7 @@ macro_rules! value_internal {
     ($variant:ident ( $($tt:tt)* )) => {
         {
             let variant_name = core::stringify!($variant).to_string();
-            let mut fields = Vec::<$crate::Value>::new();
-            value_internal!(@unnamed fields ($($tt)*));
+            let fields = value_internal!(@unnamed [] ($($tt)*));
             $crate::Value::unnamed_variant(variant_name,fields)
         }
     };
@@ -275,6 +275,16 @@ macro_rules! value_internal {
     // any other expressions
     ($val:expr) => {
         $crate::Value::from($val)
+    };
+}
+
+// The json_internal macro above cannot invoke vec directly because it uses
+// local_inner_macros. A vec invocation there would resolve to $crate::vec.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! vec_wrapper {
+    ($($content:tt)*) => {
+        vec![$($content)*]
     };
 }
 
@@ -304,7 +314,7 @@ mod test {
 
         assert_eq!(value!((1, "nice", 't')), unnamed_composite);
         assert_eq!(value!((1, "nice", 't',)), unnamed_composite);
-        assert_eq!(value!([1, "nice", 't']), unnamed_composite);
+        assert_eq!(value!([1, "nice", 't',]), unnamed_composite);
 
         let empty_composite = Value::unnamed_composite([]);
         assert_eq!(value!(()), empty_composite);
@@ -314,7 +324,7 @@ mod test {
         let named_composite =
             Value::named_composite([("num", Value::from(3)), ("item", Value::from("tea"))]);
         assert_eq!(value!({num: 3, item: "tea"}), named_composite);
-        assert_eq!(value!({num: 3, item: "tea",}), named_composite);
+        assert_eq!(value!({num: 3, item: "tea", }), named_composite);
         // variants:
         let variant_no_fields = Value::variant("v1", crate::Composite::Unnamed(vec![]));
         assert_eq!(value!(v1()), variant_no_fields);
@@ -324,6 +334,6 @@ mod test {
         );
         assert_eq!(value!(V2 { num: 3, item: "tea" }), named_variant);
         // wild combination, just check if compiles:
-        let _ = value!({ unnamed: unnamed_composite, vals: (v1{name: "berry", age: 34}, named_variant), named: named_composite, });
+        let _ = value!({ unnamed: unnamed_composite, vals: (v1{name: "berry", age: 34}, named_variant), named: named_composite });
     }
 }
