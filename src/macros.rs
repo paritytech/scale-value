@@ -9,7 +9,7 @@
 ///     name: "localhost",
 ///     address: V4(127, 0, 0, 1),
 ///     payload: {
-///         bytes: [255,3,4,9],
+///         bytes: (255, 3, 4, 9),
 ///         method: ("Post", 3000),
 ///     },
 /// });
@@ -23,7 +23,6 @@
 /// let val = value!(POST { data: data_value });
 /// ```
 /// Trailing commas are optional.
-/// Unnamed composites can be represented by either round or square brackets: `(1,2,3)` or `[1,2,3]`
 #[macro_export(local_inner_macros)]
 macro_rules! value {
     ($($tt:tt)*) => {
@@ -63,15 +62,10 @@ macro_rules! value_internal {
     // collecting unnamed fields
     ////////////////////////////////////////////////////////////////////////////
 
-    // done
+    // done, put all the fields in a vec
     (@unnamed [$($e:expr, )*] ()) => { vec_wrapper![$($e, )*] };
 
-    // Next value is an unnamed composite with [..] syntax
-    (@unnamed [$($e:expr, )*] ([$($array:tt)*] $($rest:tt)*)) => {
-        value_internal!(@unnamed [$($e, )*] (value_internal!([$($array)*])) $($rest)*)
-    };
-
-    // Next value is an unnamed composite with (..) syntax
+    // Next value is an unnamed composite
     (@unnamed [$($e:expr, )*] (($($array:tt)*) $($rest:tt)*)) => {
         value_internal!(@unnamed [$($e, )*] (value_internal!(($($array)*))) $($rest)*)
     };
@@ -122,7 +116,7 @@ macro_rules! value_internal {
     // collecting named fields
     ////////////////////////////////////////////////////////////////////////////
 
-    // done
+    // done, put all the key value pairs in a vec
     (@named [$(($k:expr, $v:expr), )*] () ()) => { vec_wrapper![ $(($k, $v), )* ] };
 
     // Insert the current entry followed by trailing comma.
@@ -148,12 +142,7 @@ macro_rules! value_internal {
         }
     };
 
-    // Next value is an unnamed composite with [..] syntax
-     (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: [$($array:tt)*] $($rest:tt)*)) => {
-        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!([$($array)*])) $($rest)*)
-    };
-
-    // Next value is an unnamed composite with (..) syntax
+    // Next value is an unnamed composite
     (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: ($($array:tt)*) $($rest:tt)*)) => {
         value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!(($($array)*))) $($rest)*)
     };
@@ -218,9 +207,6 @@ macro_rules! value_internal {
 
     // empty composites:
     () => {
-        $crate::Value::unnamed_composite(Vec::<$crate::Value>::new())
-    };
-    ([]) => {
         $crate::Value::unnamed_composite(Vec::<$crate::Value>::new())
     };
     (()) => {
@@ -314,11 +300,9 @@ mod test {
 
         assert_eq!(value!((1, "nice", 't')), unnamed_composite);
         assert_eq!(value!((1, "nice", 't',)), unnamed_composite);
-        assert_eq!(value!([1, "nice", 't',]), unnamed_composite);
 
         let empty_composite = Value::unnamed_composite([]);
         assert_eq!(value!(()), empty_composite);
-        assert_eq!(value!([]), empty_composite);
 
         // named composites:
         let named_composite =
