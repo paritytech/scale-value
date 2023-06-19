@@ -23,7 +23,7 @@
 /// let val = value!(POST { data: data_value });
 /// ```
 /// Trailing commas are optional.
-/// Unnamed composites can be represented by either round or square brackets: (1,2,3) or [1,2,3]
+/// Unnamed composites can be represented by either round or square brackets: `(1,2,3)` or `[1,2,3]`
 #[macro_export(local_inner_macros)]
 macro_rules! value {
     ($($tt:tt)*) => {
