@@ -120,65 +120,65 @@ macro_rules! value_internal {
     (@named [$(($k:expr, $v:expr), )*] () ()) => { vec_wrapper![ $(($k, $v), )* ] };
 
     // Insert the current entry followed by trailing comma.
-    (@named [$(($k:expr, $v:expr), )*] [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {
+    (@named [$(($k:expr, $v:expr), )*] [$key:expr] ($value:expr) , $($rest:tt)*) => {
         {
-            let field_name = core::stringify!($($key)+).to_string();
+            let field_name = literal_aware_stringify!($key);
             value_internal!(@named [$(($k, $v), )* (field_name, $value), ] () ($($rest)*))
         }
     };
 
     // Current entry followed by unexpected token.
     // There needs to be a comma, which would match the previous matcher or no further tokens at all matching the next matcher
-    (@named [$(($k:expr, $v:expr), )*] [$($key:tt)+] ($value:expr) $unexpected:tt $($rest:tt)*) => {
+    (@named [$(($k:expr, $v:expr), )*] [$key:expr] ($value:expr) $unexpected:tt $($rest:tt)*) => {
         let token = core::stringify!($unexpected);
         compile_error!("unexpected token after expression: {}", token);
     };
 
     // Insert the last entry without trailing comma.
-    (@named [$(($k:expr, $v:expr), )*] [$($key:tt)+] ($value:expr)) => {
+    (@named [$(($k:expr, $v:expr), )*] [$key:expr] ($value:expr)) => {
         {
-            let field_name = core::stringify!($($key)+).to_string();
+            let field_name = literal_aware_stringify!($key);
             vec_wrapper![ $(($k, $v), )* (field_name, $value) ]
         }
     };
 
     // Next value is an unnamed composite
-    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: ($($array:tt)*) $($rest:tt)*)) => {
-        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!(($($array)*))) $($rest)*)
+    (@named [$(($k:expr, $v:expr), )*] ($key:expr) (: ($($array:tt)*) $($rest:tt)*)) => {
+        value_internal!(@named [$(($k, $v), )*] [$key] (value_internal!(($($array)*))) $($rest)*)
     };
 
     // Next value is an unnamed variant
-    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: $variant:ident ($($array:tt)*) $($rest:tt)*)) => {
-        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!($variant ($($array)*))) $($rest)*)
+    (@named [$(($k:expr, $v:expr), )*] ($key:expr) (: $variant:ident ($($array:tt)*) $($rest:tt)*)) => {
+        value_internal!(@named [$(($k, $v), )*] [$key] (value_internal!($variant ($($array)*))) $($rest)*)
     };
 
     // Next value is a named composite
-    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: {$($map:tt)*} $($rest:tt)*)) => {
-        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!({$($map)*})) $($rest)*)
+    (@named [$(($k:expr, $v:expr), )*] ($key:expr) (: {$($map:tt)*} $($rest:tt)*)) => {
+        value_internal!(@named [$(($k, $v), )*] [$key] (value_internal!({$($map)*})) $($rest)*)
     };
 
     // Next value is a named variant
-    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: $variant:ident {$($map:tt)*} $($rest:tt)*)) => {
-        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!($variant {$($map)*})) $($rest)*)
+    (@named [$(($k:expr, $v:expr), )*] ($key:expr) (: $variant:ident {$($map:tt)*} $($rest:tt)*)) => {
+        value_internal!(@named [$(($k, $v), )*] [$key] (value_internal!($variant {$($map)*})) $($rest)*)
     };
 
     // // Next value is an expression followed by comma
-    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: $value:expr , $($rest:tt)*)) => {
-        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!($value)) , $($rest)*)
+    (@named [$(($k:expr, $v:expr), )*] ($key:expr) (: $value:expr , $($rest:tt)*)) => {
+        value_internal!(@named [$(($k, $v), )*] [$key] (value_internal!($value)) , $($rest)*)
     };
 
     // Last value is an expression with no trailing comma
-    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (: $value:expr)) => {
-        value_internal!(@named [$(($k, $v), )*] [$($key)+] (value_internal!($value)))
+    (@named [$(($k:expr, $v:expr), )*] ($key:expr) (: $value:expr)) => {
+        value_internal!(@named [$(($k, $v), )*] [$key] (value_internal!($value)))
     };
 
     // Eror pattern: Missing value for last entry
-    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) (:)) => {
+    (@named [$(($k:expr, $v:expr), )*] ($key:expr) (:)) => {
         compile_error!("missing value for last entry");
     };
 
     // Eror pattern: Missing colon and value for last entry
-    (@named [$(($k:expr, $v:expr), )*] ($($key:tt)+) ()) => {
+    (@named [$(($k:expr, $v:expr), )*] ($key:expr) ()) => {
         compile_error!("missing colon and value for last entry");
     };
 
@@ -227,7 +227,7 @@ macro_rules! value_internal {
     // named variants e.g. v1 { age: 1, nice: false }
     ($variant:ident { $($tt:tt)* }) => {
         {
-            let variant_name = core::stringify!($variant).to_string();
+            let variant_name = literal_aware_stringify!($variant);
             let fields: Vec::<(String, $crate::Value)> = value_internal!(@named [] () ($($tt)*));
             $crate::Value::named_variant(variant_name,fields)
         }
@@ -252,7 +252,7 @@ macro_rules! value_internal {
     // unnamed variants e.g. v1 (1,2,3,4)
     ($variant:ident ( $($tt:tt)* )) => {
         {
-            let variant_name = core::stringify!($variant).to_string();
+            let variant_name = literal_aware_stringify!($variant);
             let fields = value_internal!(@unnamed [] ($($tt)*));
             $crate::Value::unnamed_variant(variant_name,fields)
         }
@@ -271,6 +271,19 @@ macro_rules! value_internal {
 macro_rules! vec_wrapper {
     ($($content:tt)*) => {
         vec![$($content)*]
+    };
+}
+
+/// Just using core::stringify!($key).to_string() on a $key that is a string literal
+/// causes doubled quotes to appear. This macro fixes that.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! literal_aware_stringify {
+    ($tt:literal) => {
+        $tt.to_string();
+    };
+    ($($tt:tt)*) => {
+        core::stringify!($($tt)*).to_string()
     };
 }
 
