@@ -107,11 +107,6 @@ macro_rules! value_internal {
         value_internal!(@unnamed [$($e, )*] (value_internal!($value)) , $($rest)*)
     };
 
-    // Last value is an expression with no trailing comma
-    (@unnamed [$($e:expr, )*] ($value:expr)) => {
-        value_internal!(@unnamed [$($e, )*] (value_internal!($value)))
-    };
-
     ////////////////////////////////////////////////////////////////////////////
     // collecting named fields
     ////////////////////////////////////////////////////////////////////////////
@@ -241,14 +236,6 @@ macro_rules! value_internal {
         }
     };
 
-    // unnamed composites with [..] syntax e.g. [1,"hello",3]
-    ([ $($tt:tt)* ]) => {
-        {
-            let fields = value_internal!(@unnamed [] ($($tt)*));
-            $crate::Value::unnamed_composite(fields)
-        }
-    };
-
     // unnamed variants e.g. v1 (1,2,3,4)
     ($variant:ident ( $($tt:tt)* )) => {
         {
@@ -280,7 +267,7 @@ macro_rules! vec_wrapper {
 #[doc(hidden)]
 macro_rules! literal_aware_stringify {
     ($tt:literal) => {
-        $tt.to_string();
+        $tt.to_string()
     };
     ($($tt:tt)*) => {
         core::stringify!($($tt)*).to_string()

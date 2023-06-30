@@ -165,7 +165,7 @@ mod test {
                 "c": 'c'
             }),
         );
-        assert_value(value!([true, "hello", 'c']), json!([true, "hello", 'c']))
+        assert_value(value!((true, "hello", 'c')), json!([true, "hello", 'c']))
     }
 
     #[test]
