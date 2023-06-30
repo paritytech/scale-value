@@ -172,22 +172,22 @@ macro_rules! value_internal {
         value_internal!(@named [$(($k, $v), )*] [$key] (value_internal!($value)))
     };
 
-    // Eror pattern: Missing value for last entry
+    // Error pattern: Missing value for last entry
     (@named [$(($k:expr, $v:expr), )*] ($key:expr) (:)) => {
         compile_error!("missing value for last entry");
     };
 
-    // Eror pattern: Missing colon and value for last entry
+    // Error pattern: Missing colon and value for last entry
     (@named [$(($k:expr, $v:expr), )*] ($key:expr) ()) => {
         compile_error!("missing colon and value for last entry");
     };
 
-    // Eror pattern: colon as first token
+    // Error pattern: colon as first token
     (@named [$(($k:expr, $v:expr), )*] () (: $($rest:tt)*)) => {
         compile_error!("colon in wrong position");
     };
 
-    // Eror pattern: comma inside key
+    // Error pattern: comma inside key
     (@named [$(($k:expr, $v:expr), )*] ($($key:tt)*) (, $($rest:tt)*)) => {
         compile_error!("comma in key of named composite");
     };
@@ -292,7 +292,6 @@ macro_rules! literal_aware_stringify {
 mod test {
     use crate::{value, Value};
 
-    ///
     #[test]
     fn macro_tests() {
         // primitives:
