@@ -264,7 +264,7 @@ macro_rules! value_internal {
     };
 }
 
-// The json_internal macro above cannot invoke vec directly because it uses
+// The value_internal macro above cannot invoke vec directly because it uses
 // local_inner_macros. A vec invocation there would resolve to $crate::vec.
 #[macro_export]
 #[doc(hidden)]
@@ -329,6 +329,9 @@ mod test {
             crate::Composite::named([("num", Value::from(3)), ("item", Value::from("tea"))]),
         );
         assert_eq!(value!(V2 { num: 3, item: "tea" }), named_variant);
+        // string literal as key:
+        let value = value!({ "string key": 123 });
+        assert_eq!(value, Value::named_composite([("string key", Value::from(123))]));
         // wild combination, just check if compiles:
         let _ = value!({ unnamed: unnamed_composite, vals: (v1{name: "berry", age: 34}, named_variant), named: named_composite });
     }

@@ -494,8 +494,8 @@ impl_primitive_type!(
     I128(i8 as i128),
 );
 
-// note regarding impl From<&str>:
-// a nicer generic `impl<K: Into<String>> From<K>` verson is not possible because it conflicts with the From<Bits> implementation above.
+// note regarding impl From<AsRef<str>>:
+// a nicer generic `impl<K: Into<String>> From<K>` or `impl<K: AsRef<str>> From<K>` verson is not possible because it conflicts with the From<Bits> implementation above.
 
 impl From<&str> for Primitive {
     fn from(val: &str) -> Self {
