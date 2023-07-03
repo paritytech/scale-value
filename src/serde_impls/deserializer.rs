@@ -801,6 +801,8 @@ impl<'de> IntoDeserializer<'de, DeserializerError> for Primitive {
 
 #[cfg(test)]
 mod test {
+    use crate::value;
+
     use super::*;
     use serde::Deserialize;
 
@@ -1182,7 +1184,8 @@ mod test {
 
     #[test]
     fn de_into_unit_variants() {
-        let val = Value::variant("Foo", Composite::Named(vec![]));
+        let val = value!(Foo {});
+
         let unwrapped_val = Variant::<()> { name: "Foo".into(), values: Composite::Named(vec![]) };
 
         #[derive(Deserialize, Debug, PartialEq)]

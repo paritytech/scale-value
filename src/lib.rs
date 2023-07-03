@@ -31,17 +31,18 @@ of JSON data).
 #![deny(missing_docs)]
 
 mod at;
+mod macros;
 mod scale_impls;
 #[cfg(feature = "serde")]
 mod serde_impls;
 mod string_impls;
-mod value;
+mod value_type;
 
 // Traits to allow indexing into values.
 pub use at::{At, Location};
 
 // The value definition.
-pub use value::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
+pub use value_type::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
 
 /// Serializing and deserializing a [`crate::Value`] into/from other types via serde.
 #[cfg(feature = "serde")]

@@ -142,6 +142,12 @@ jobs:
           command: test
           args: --doc --workspace
 
+      - name: Cargo test examples
+        uses: actions-rs/cargo@v1.0.3
+        with:
+          command: test
+          args: --examples --workspace
+
   clippy:
     name: Cargo clippy
     runs-on: ubuntu-latest

@@ -455,10 +455,10 @@ impl<T> From<Primitive> for ValueDef<T> {
 }
 
 macro_rules! impl_primitive_type {
-    ($($variant:ident($ty:ty),)*) => {$(
+    ($($variant:ident($ty:ty as $castty:ty),)*) => {$(
         impl From<$ty> for Primitive {
             fn from(val: $ty) -> Self {
-                Primitive::$variant(val)
+                Primitive::$variant(val as $castty)
             }
         }
 
@@ -476,4 +476,41 @@ macro_rules! impl_primitive_type {
     )*}
 }
 
-impl_primitive_type!(Bool(bool), Char(char), String(String), U128(u128), I128(i128),);
+impl_primitive_type!(
+    Bool(bool as bool),
+    Char(char as char),
+    String(String as String),
+    U128(u128 as u128),
+    U128(u64 as u128),
+    U128(usize as u128),
+    U128(u32 as u128),
+    U128(u16 as u128),
+    U128(u8 as u128),
+    I128(i128 as i128),
+    I128(i64 as i128),
+    I128(isize as i128),
+    I128(i32 as i128),
+    I128(i16 as i128),
+    I128(i8 as i128),
+);
+
+// note regarding impl From<AsRef<str>>:
+// a nicer generic `impl<K: Into<String>> From<K>` or `impl<K: AsRef<str>> From<K>` verson is not possible because it conflicts with the From<Bits> implementation above.
+
+impl From<&str> for Primitive {
+    fn from(val: &str) -> Self {
+        Primitive::String(val.to_string())
+    }
+}
+
+impl<T> From<&str> for ValueDef<T> {
+    fn from(val: &str) -> Self {
+        ValueDef::Primitive(val.into())
+    }
+}
+
+impl From<&str> for Value<()> {
+    fn from(val: &str) -> Self {
+        Value::without_context(val.into())
+    }
+}
