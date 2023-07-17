@@ -18,7 +18,7 @@
 // those back in where needed. This should _not_ expose anything that's
 // not a part of the `std` prelude already; import such things as needed
 // from `core` or `alloc`.
-pub use prelude::*;
+pub use prelude_contents::*;
 
 // To mirror the rust prelude, use top level
 // crates to avoid needing `::` prefix everywhere, and
@@ -59,14 +59,14 @@ macro_rules! shared_imports {
 use shared_imports;
 
 #[cfg(feature = "std")]
-mod prelude {
+mod prelude_contents {
     pub use ::std::prelude::rust_2021::*;
 
     super::shared_imports!();
 }
 
 #[cfg(not(feature = "std"))]
-mod prelude {
+mod prelude_contents {
     pub use ::core::prelude::rust_2021::*;
 
     pub use ::alloc::borrow::ToOwned;
