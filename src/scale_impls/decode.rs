@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::prelude::*;
 use super::TypeId;
+use crate::prelude::*;
 use crate::value_type::{Composite, Primitive, Value, ValueDef, Variant};
 use scale_decode::FieldIter;
 use scale_info::{form::PortableForm, Path, PortableRegistry};

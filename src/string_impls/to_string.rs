@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::prelude::*;
 use super::string_helpers;
+use crate::prelude::*;
 use crate::value_type::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
 use core::fmt::{Display, Write};
 
@@ -211,8 +211,8 @@ mod test {
         }
     }
 
-    // These tests stringify and then parse from string, so need "from_string" feature.
-    #[cfg(feature = "from_string")]
+    // These tests stringify and then parse from string, so need "from-string" feature.
+    #[cfg(feature = "from-string")]
     mod from_to {
         use super::*;
 

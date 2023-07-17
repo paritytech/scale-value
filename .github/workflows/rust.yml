@@ -148,6 +148,12 @@ jobs:
           command: test
           args: --examples --workspace
 
+      - name: Run tests with no_std in conjunction with other features
+        run: |
+          cargo test --no-default-features --features from-string
+          cargo test --no-default-features --features parser-ss58
+          cargo test --no-default-features --features serde
+
   clippy:
     name: Cargo clippy
     runs-on: ubuntu-latest
@@ -195,13 +201,5 @@ jobs:
         with:
           command: check
           # The aarch64-unknown-none doesn't support `std`, so this
-          # will fail if the crate is not no_std compatible.
-          args: --target aarch64-unknown-none
-
-      - name: Test no_std build
-        uses: actions-rs/cargo@v1.0.3
-        with:
-          command: test
-          # The aarch64-unknown-none doesn't support `std`, so this
-          # will fail if the crate is not no_std compatible.
-          args: --target aarch64-unknown-none
+          # will fail if the crate is not fully no_std compatible.
+          args: --target aarch64-unknown-none --no-default-features --features serde,from-string,parser-ss58

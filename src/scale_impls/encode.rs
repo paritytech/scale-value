@@ -15,7 +15,6 @@
 
 use crate::prelude::*;
 use crate::value_type::{Composite, Primitive, Value, ValueDef, Variant};
-use crate::error::{ StrError, StringError };
 use codec::{Compact, Encode};
 use scale_bits::Bits;
 use scale_encode::error::ErrorKind;
@@ -51,7 +50,9 @@ impl<T> EncodeAsFields for Value<T> {
     ) -> Result<(), Error> {
         match &self.value {
             ValueDef::Composite(composite) => composite.encode_as_fields_to(fields, types, out),
-            _ => Err(Error::custom(StrError("Cannot encode non-composite Value shape into fields"))),
+            _ => Err(Error::custom(custom_error::StrError(
+                "Cannot encode non-composite Value shape into fields",
+            ))),
         }
     }
 }
@@ -246,7 +247,9 @@ fn encode_vals_to_bitsequence<'a, T: 'a>(
     types: &PortableRegistry,
     out: &mut Vec<u8>,
 ) -> Result<(), Error> {
-    let format = scale_bits::Format::from_metadata(bits, types).map_err(|e| Error::custom(StringError::new(e)))?;
+    use custom_error::{StrError, StringError};
+    let format = scale_bits::Format::from_metadata(bits, types)
+        .map_err(|e| Error::custom(StringError::new(e)))?;
     let mut bools = Vec::with_capacity(vals.len());
     for (idx, value) in vals.enumerate() {
         if let Some(v) = value.as_bool() {
@@ -329,6 +332,46 @@ fn encode_bitsequence(
     bytes: &mut Vec<u8>,
 ) -> Result<(), Error> {
     value.encode_as_type_to(type_id, types, bytes)
+}
+
+/// This small module just exposes a couple of error types which make it possible to
+/// use [`scale_encode::Error::custom`] in `std` or `no_std` envs, which we need above.
+mod custom_error {
+    use super::*;
+
+    /// An error from an underlying `&'static str`.
+    #[derive(derive_more::Display, derive_more::From, Debug, Copy, Clone, PartialEq)]
+    pub struct StrError(pub &'static str);
+
+    #[cfg(feature = "std")]
+    impl ::std::error::Error for StrError {}
+
+    #[cfg(not(feature = "std"))]
+    impl From<StrError> for Box<dyn ::core::fmt::Debug + Send + Sync + 'static> {
+        fn from(value: StrError) -> Self {
+            Box::new(value)
+        }
+    }
+
+    /// An error which can be generated form anything implementing `Display`.
+    #[derive(derive_more::Display, derive_more::From, Debug, Clone, PartialEq)]
+    pub struct StringError(pub String);
+
+    #[cfg(feature = "std")]
+    impl ::std::error::Error for StringError {}
+
+    #[cfg(not(feature = "std"))]
+    impl From<StringError> for Box<dyn ::core::fmt::Debug + Send + Sync + 'static> {
+        fn from(value: StringError) -> Self {
+            Box::new(value)
+        }
+    }
+
+    impl StringError {
+        pub fn new<T: core::fmt::Display>(value: T) -> Self {
+            StringError(value.to_string())
+        }
+    }
 }
 
 #[cfg(test)]

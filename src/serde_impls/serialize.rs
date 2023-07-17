@@ -19,8 +19,8 @@
 //! converstion between our [`Value`] type and the types supported by the
 //! serde data model that we're serializing things into.
 
-use crate::prelude::*;
 use super::bitvec_helpers;
+use crate::prelude::*;
 use crate::{Composite, Primitive, Value, ValueDef, Variant};
 use serde::{
     ser::{SerializeMap, SerializeSeq},

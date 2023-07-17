@@ -22,14 +22,14 @@
 //! it's up to the visitor to do its best to accept what it's handed, or reject it if it's simply
 //! not going to work out.
 
-use crate::prelude::*;
 use super::bitvec_helpers;
+use crate::prelude::*;
 use crate::{Composite, Primitive, Value, ValueDef, Variant};
+use ::alloc::{borrow::Cow, fmt::Display};
 use serde::{
     de::{self, EnumAccess, IntoDeserializer, VariantAccess},
     forward_to_deserialize_any, ser, Deserialize, Deserializer,
 };
-use ::alloc::{borrow::Cow, fmt::Display};
 
 /// An opaque error to describe in human terms what went wrong.
 /// Many internal serialization/deserialization errors are relayed

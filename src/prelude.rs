@@ -26,20 +26,20 @@ pub use prelude::*;
 // part of the prelude.
 macro_rules! shared_imports {
     () => {
-        pub use ::scale_bits;
-        pub use ::scale_encode;
-        pub use ::scale_decode;
-        pub use ::scale_info;
-        pub use ::frame_metadata;
         pub use ::codec;
-        pub use ::either;
-        pub use ::derive_more;
         pub use ::core;
+        pub use ::derive_more;
+        pub use ::either;
+        pub use ::frame_metadata;
+        pub use ::scale_bits;
+        pub use ::scale_decode;
+        pub use ::scale_encode;
+        pub use ::scale_info;
 
         #[cfg(feature = "serde")]
         pub use ::serde;
 
-        #[cfg(feature = "from_string")]
+        #[cfg(feature = "from-string")]
         pub use ::yap;
 
         #[cfg(feature = "parser-ss58")]
@@ -52,19 +52,9 @@ macro_rules! shared_imports {
         #[cfg(test)]
         pub use ::serde_json;
 
-        pub use ::alloc::{
-            vec,
-            format,
-            boxed::Box,
-        };
-        pub use ::core::{
-            stringify,
-            assert_eq,
-            panic,
-            matches,
-            write
-        };
-    }
+        pub use ::alloc::{boxed::Box, format, vec};
+        pub use ::core::{assert_eq, matches, panic, stringify, write};
+    };
 }
 use shared_imports;
 
@@ -79,9 +69,9 @@ mod prelude {
 mod prelude {
     pub use ::core::prelude::rust_2021::*;
 
-    pub use ::alloc::string::{ String, ToString };
-    pub use ::alloc::vec::Vec;
     pub use ::alloc::borrow::ToOwned;
+    pub use ::alloc::string::{String, ToString};
+    pub use ::alloc::vec::Vec;
 
     super::shared_imports!();
 }

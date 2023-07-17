@@ -36,7 +36,9 @@ pub enum SerializerError {
     Custom(String),
     /// SCALE does not support floating point values, and so we'll hit this error if we try to
     /// encode any floats.
-    #[display(fmt = "Floats do not have a SCALE compatible representation, and so cannot be serialized to Values")]
+    #[display(
+        fmt = "Floats do not have a SCALE compatible representation, and so cannot be serialized to Values"
+    )]
     CannotSerializeFloats,
     /// SCALE encoding is only designed to map from statically known structs to bytes. We use field names
     /// to figure out this mapping between named composite types and structs, so we don't support encoding
@@ -420,8 +422,8 @@ impl SerializeStructVariant for NamedCompositeSerializer {
 mod test {
     use super::*;
     use crate::{value, Value};
-    use serde::{Deserialize, Serialize};
     use core::fmt::Debug;
+    use serde::{Deserialize, Serialize};
 
     // Make sure that things can serialize and deserialize back losslessly.
     fn assert_ser_de<T: Serialize + Deserialize<'static> + Debug + PartialEq>(val: T) {

@@ -27,15 +27,15 @@
 //! only part of our input into a struct, say, and leave the rest as [`Value`] types until we know what
 //! to do with them.
 
-use crate::prelude::*;
 use super::bitvec_helpers;
+use crate::prelude::*;
 use crate::{Composite, Primitive, Value, ValueDef, Variant};
+use core::convert::TryInto;
 use serde::{
     self,
     de::{Error, Visitor},
     Deserialize, Deserializer,
 };
-use core::convert::TryInto;
 
 impl<'de> Deserialize<'de> for Value<()> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -557,8 +557,8 @@ mod test {
 
     #[test]
     fn map_to_value() {
-        use serde::de::{value::MapDeserializer, IntoDeserializer};
         use ::alloc::collections::BTreeMap;
+        use serde::de::{value::MapDeserializer, IntoDeserializer};
 
         let map = {
             let mut map = BTreeMap::<&'static str, i32>::new();

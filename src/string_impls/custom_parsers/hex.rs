@@ -150,8 +150,7 @@ mod test {
                 panic!("expected custom error")
             };
 
-            let concrete_err: Box<ParseHexError> = err.downcast().unwrap();
-            assert_eq!(&*concrete_err, &ParseHexError::WrongLength);
+            assert_eq!(err, ParseHexError::WrongLength.to_string());
             assert_eq!(input, *cursor);
         }
     }
@@ -172,8 +171,7 @@ mod test {
                 panic!("expected custom error")
             };
 
-            let concrete_err: Box<ParseHexError> = err.downcast().unwrap();
-            assert_eq!(&*concrete_err, &ParseHexError::InvalidChar(bad_char));
+            assert_eq!(err, ParseHexError::InvalidChar(bad_char).to_string());
             assert_eq!(input, *cursor);
         }
     }

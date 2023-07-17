@@ -39,7 +39,6 @@ extern crate alloc;
 #[doc(hidden)]
 pub mod prelude;
 
-mod error;
 mod at;
 mod macros;
 mod scale_impls;
@@ -232,16 +231,16 @@ pub mod scale {
 pub mod stringify {
     use crate::prelude::*;
 
-    #[cfg(feature = "from_string")]
+    #[cfg(feature = "from-string")]
     pub use crate::string_impls::{
-        FromStrBuilder, ParseBitSequenceError, ParseCharError, ParseComplexError, ParseCustomError,
-        ParseError, ParseErrorKind, ParseNumberError, ParseStringError,
+        FromStrBuilder, ParseBitSequenceError, ParseCharError, ParseComplexError, ParseError,
+        ParseErrorKind, ParseNumberError, ParseStringError,
     };
 
     /// This module provides custom parsers that work alongside [`crate::stringify::from_str_custom`]
     /// and extend the syntax to support parsing common formats into [`crate::Value`]'s. See
     /// [`crate::stringify::from_str_custom`] for a usage example.
-    #[cfg(feature = "from_string")]
+    #[cfg(feature = "from-string")]
     pub mod custom_parsers {
         #[cfg(feature = "parser-ss58")]
         pub use crate::string_impls::parse_ss58;
@@ -310,7 +309,7 @@ pub mod stringify {
     ///     Value::bit_sequence(scale_bits::Bits::from_iter([false, true, false, true]))
     /// );
     /// ```
-    #[cfg(feature = "from_string")]
+    #[cfg(feature = "from-string")]
     pub fn from_str(s: &str) -> (Result<crate::Value<()>, ParseError>, &str) {
         crate::string_impls::FromStrBuilder::new().parse(s)
     }
@@ -371,7 +370,7 @@ pub mod stringify {
     ///     ])
     /// )
     /// ```
-    #[cfg(feature = "from_string")]
+    #[cfg(feature = "from-string")]
     pub fn from_str_custom() -> FromStrBuilder {
         crate::string_impls::FromStrBuilder::new()
     }
