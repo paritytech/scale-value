@@ -217,19 +217,19 @@ macro_rules! value_internal {
 
     // empty composites:
     () => {
-        $crate::Value::unnamed_composite($crate::prelude::Vec::<$crate::Value>::new())
+        $crate::Value::unnamed_composite(Vec::<$crate::Value>::new())
     };
     (()) => {
-        $crate::Value::unnamed_composite($crate::prelude::Vec::<$crate::Value>::new())
+        $crate::Value::unnamed_composite(Vec::<$crate::Value>::new())
     };
     ({}) => {
-        $crate::Value::named_composite($crate::prelude::Vec::<($crate::prelude::String, $crate::Value)>::new())
+        $crate::Value::named_composite(Vec::<(String, $crate::Value)>::new())
     };
 
     // named composites e.g. { age: 1, nice: false }
     ({ $($tt:tt)* }) => {
         {
-            let fields: $crate::prelude::Vec::<($crate::prelude::String, $crate::Value)> = value_internal!(@named [] () ($($tt)*));
+            let fields: Vec::<(String, $crate::Value)> = value_internal!(@named [] () ($($tt)*));
             $crate::Value::named_composite(fields)
         }
     };
@@ -238,7 +238,7 @@ macro_rules! value_internal {
     ($variant:ident { $($tt:tt)* }) => {
         {
             let variant_name = literal_aware_stringify!($variant);
-            let fields: $crate::prelude::Vec::<($crate::prelude::String, $crate::Value)> = value_internal!(@named [] () ($($tt)*));
+            let fields: Vec::<(String, $crate::Value)> = value_internal!(@named [] () ($($tt)*));
             $crate::Value::named_variant(variant_name,fields)
         }
     };
@@ -272,7 +272,7 @@ macro_rules! value_internal {
 #[doc(hidden)]
 macro_rules! vec_wrapper {
     ($($content:tt)*) => {
-        $crate::prelude::vec![$($content)*]
+        vec![$($content)*]
     };
 }
 
@@ -285,7 +285,7 @@ macro_rules! literal_aware_stringify {
         $tt.to_string()
     };
     ($($tt:tt)*) => {
-        $crate::prelude::stringify!($($tt)*).to_string()
+        stringify!($($tt)*).to_string()
     };
 }
 

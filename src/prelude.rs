@@ -20,58 +20,20 @@
 // from `core` or `alloc`.
 pub use prelude_contents::*;
 
-// To mirror the rust prelude, use top level
-// crates to avoid needing `::` prefix everywhere, and
-// import any macros we use that would otherwise be a
-// part of the prelude.
-macro_rules! shared_imports {
-    () => {
-        pub use ::codec;
-        pub use ::core;
-        pub use ::derive_more;
-        pub use ::either;
-        pub use ::frame_metadata;
-        pub use ::scale_bits;
-        pub use ::scale_decode;
-        pub use ::scale_encode;
-        pub use ::scale_info;
-
-        #[cfg(feature = "serde")]
-        pub use ::serde;
-
-        #[cfg(feature = "from-string")]
-        pub use ::yap;
-
-        #[cfg(feature = "parser-ss58")]
-        pub use ::base58;
-        #[cfg(feature = "parser-ss58")]
-        pub use ::blake2;
-
-        #[cfg(test)]
-        pub use ::hex;
-        #[cfg(test)]
-        pub use ::serde_json;
-
-        pub use ::alloc::{boxed::Box, format, vec};
-        pub use ::core::{assert_eq, matches, panic, stringify, write};
-    };
-}
-use shared_imports;
-
 #[cfg(feature = "std")]
 mod prelude_contents {
     pub use ::std::prelude::rust_2021::*;
-
-    super::shared_imports!();
 }
 
 #[cfg(not(feature = "std"))]
 mod prelude_contents {
     pub use ::core::prelude::rust_2021::*;
 
+    // The core prelude doesn't include things from
+    // `alloc` by default, so add the ones we need that
+    // are otherwose exposed via the std prelude.
     pub use ::alloc::borrow::ToOwned;
     pub use ::alloc::string::{String, ToString};
     pub use ::alloc::vec::Vec;
-
-    super::shared_imports!();
+    pub use ::alloc::{boxed::Box, format, vec};
 }

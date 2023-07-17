@@ -30,7 +30,6 @@ of JSON data).
 */
 #![deny(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
-#![no_implicit_prelude]
 
 extern crate alloc;
 
