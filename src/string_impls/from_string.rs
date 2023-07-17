@@ -78,7 +78,7 @@ pub struct ParseError {
 }
 
 #[cfg(feature = "std")]
-impl ::std::error::Error for ParseError {}
+impl std::error::Error for ParseError {}
 
 impl ParseError {
     /// Construct a new `ParseError` for tokens at the given location.

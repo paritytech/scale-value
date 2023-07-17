@@ -98,7 +98,7 @@ pub mod serde {
     /// let foo2: Foo = scale_value::serde::from_value(value2).unwrap();
     /// assert_eq!(foo2, Foo::B(123, true));
     /// ```
-    pub fn from_value<'de, Ctx, T: ::serde::Deserialize<'de>>(
+    pub fn from_value<'de, Ctx, T: serde::Deserialize<'de>>(
         value: crate::Value<Ctx>,
     ) -> Result<T, DeserializerError> {
         T::deserialize(value)
@@ -143,7 +143,7 @@ pub mod serde {
     ///     ("name", Value::string("James")),
     /// ]));
     /// ```
-    pub fn to_value<T: ::serde::Serialize>(ty: T) -> Result<crate::Value<()>, SerializerError> {
+    pub fn to_value<T: serde::Serialize>(ty: T) -> Result<crate::Value<()>, SerializerError> {
         ty.serialize(ValueSerializer)
     }
 }

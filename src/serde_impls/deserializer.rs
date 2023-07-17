@@ -39,7 +39,7 @@ use serde::{
 pub struct DeserializerError(Cow<'static, str>);
 
 #[cfg(feature = "std")]
-impl ::std::error::Error for DeserializerError {}
+impl std::error::Error for DeserializerError {}
 
 impl DeserializerError {
     fn from_string<S: Into<String>>(s: S) -> DeserializerError {

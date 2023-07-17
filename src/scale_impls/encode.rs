@@ -344,10 +344,10 @@ mod custom_error {
     pub struct StrError(pub &'static str);
 
     #[cfg(feature = "std")]
-    impl ::std::error::Error for StrError {}
+    impl std::error::Error for StrError {}
 
     #[cfg(not(feature = "std"))]
-    impl From<StrError> for Box<dyn ::core::fmt::Debug + Send + Sync + 'static> {
+    impl From<StrError> for Box<dyn core::fmt::Debug + Send + Sync + 'static> {
         fn from(value: StrError) -> Self {
             Box::new(value)
         }
@@ -358,10 +358,10 @@ mod custom_error {
     pub struct StringError(pub String);
 
     #[cfg(feature = "std")]
-    impl ::std::error::Error for StringError {}
+    impl std::error::Error for StringError {}
 
     #[cfg(not(feature = "std"))]
-    impl From<StringError> for Box<dyn ::core::fmt::Debug + Send + Sync + 'static> {
+    impl From<StringError> for Box<dyn core::fmt::Debug + Send + Sync + 'static> {
         fn from(value: StringError) -> Self {
             Box::new(value)
         }

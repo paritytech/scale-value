@@ -48,7 +48,7 @@ pub enum SerializerError {
 }
 
 #[cfg(feature = "std")]
-impl ::std::error::Error for SerializerError {}
+impl std::error::Error for SerializerError {}
 
 impl serde::ser::Error for SerializerError {
     fn custom<T>(msg: T) -> Self

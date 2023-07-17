@@ -102,7 +102,7 @@ pub enum ParseHexError {
 }
 
 #[cfg(feature = "std")]
-impl ::std::error::Error for ParseHexError {}
+impl std::error::Error for ParseHexError {}
 
 #[cfg(test)]
 mod test {
