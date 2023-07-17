@@ -606,39 +606,6 @@ mod test {
 
     use super::*;
 
-    // // Wrap our error type to impl PartialEq on it for tests,
-    // // which we otherwise don't want to have to implement in
-    // // production code.
-    // #[derive(Debug)]
-    // pub struct E(ParseError);
-
-    // impl From<ParseError> for E {
-    //     fn from(value: ParseError) -> Self {
-    //         E(value)
-    //     }
-    // }
-    // impl PartialEq for E {
-    //     fn eq(&self, other: &Self) -> bool {
-    //         let (a, b) = (&self.0, &other.0);
-
-    //         // locations should match in tests.
-    //         if (a.start_loc, a.end_loc) != (b.start_loc, b.end_loc) {
-    //             return false;
-    //         }
-
-    //         // error kinds should match; only bother to impl the ones we want to compare for tests.
-    //         match (&a.err, &b.err) {
-    //             (ParseErrorKind::String(a), ParseErrorKind::String(b)) => a == b,
-    //             (ParseErrorKind::Char(a), ParseErrorKind::Char(b)) => a == b,
-    //             (ParseErrorKind::Number(a), ParseErrorKind::Number(b)) => a == b,
-    //             (ParseErrorKind::Custom(a), ParseErrorKind::Custom(b)) => a == b
-    //             _ => {
-    //                 panic!("PartialEq not implemented for these variants yet.")
-    //             }
-    //         }
-    //     }
-    // }
-
     fn from(s: &str) -> Result<Value<()>, ParseError> {
         let (res, remaining) = FromStrBuilder::new().parse(s);
         match res {
