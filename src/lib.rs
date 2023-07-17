@@ -33,11 +33,7 @@ of JSON data).
 
 extern crate alloc;
 
-// Needs to be exposed for macro to work, but hide it
-// because it's not a part of the public interface.
-#[doc(hidden)]
-pub mod prelude;
-
+mod prelude;
 mod at;
 mod macros;
 mod scale_impls;
