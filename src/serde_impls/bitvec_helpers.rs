@@ -22,6 +22,7 @@
 //! it's up to the visitor to do its best to accept what it's handed, or reject it if it's simply
 //! not going to work out.
 
+use crate::prelude::*;
 use super::deserializer::DeserializerError;
 use crate::{BitSequence, Composite, ValueDef};
 use serde::{
@@ -57,7 +58,7 @@ pub struct MapOrBitSeqVisitor;
 impl<'de> Visitor<'de> for MapOrBitSeqVisitor {
     type Value = ValueDef<()>;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
         formatter.write_str(
             "a map-like type that can be decoded into a Value::BitSequence or Value::Composite",
         )

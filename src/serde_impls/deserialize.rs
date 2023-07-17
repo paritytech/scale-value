@@ -27,6 +27,7 @@
 //! only part of our input into a struct, say, and leave the rest as [`Value`] types until we know what
 //! to do with them.
 
+use crate::prelude::*;
 use super::bitvec_helpers;
 use crate::{Composite, Primitive, Value, ValueDef, Variant};
 use serde::{
@@ -34,7 +35,7 @@ use serde::{
     de::{Error, Visitor},
     Deserialize, Deserializer,
 };
-use std::convert::TryInto;
+use core::convert::TryInto;
 
 impl<'de> Deserialize<'de> for Value<()> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -98,7 +99,7 @@ macro_rules! visit_prim {
 impl<'de> Visitor<'de> for PrimitiveVisitor {
     type Value = Primitive;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
         formatter.write_str("a type that can be decoded into a Primitive value")
     }
 
@@ -160,7 +161,7 @@ struct CompositeVisitor;
 impl<'de> Visitor<'de> for CompositeVisitor {
     type Value = Composite<()>;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
         formatter.write_str("a type that can be decoded into a Composite value")
     }
 
@@ -214,7 +215,7 @@ struct VariantVisitor;
 impl<'de> Visitor<'de> for VariantVisitor {
     type Value = Variant<()>;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
         formatter.write_str("a type that can be decoded into an enum Variant")
     }
 
@@ -306,7 +307,7 @@ macro_rules! delegate_visitor_fn {
 impl<'de> Visitor<'de> for ValueDefVisitor {
     type Value = ValueDef<()>;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
         formatter.write_str("a type that can be decoded into a Value")
     }
 
@@ -380,17 +381,17 @@ impl<'de> Visitor<'de> for ValueDefVisitor {
 
 #[cfg(test)]
 mod test {
-
+    use super::*;
     use serde_json::json;
 
     use crate::value;
 
-    use super::{super::DeserializerError, *};
+    use super::super::DeserializerError;
 
     /// Does a value deserialize to itself?
     fn assert_value_isomorphic<
         'de,
-        V: Deserializer<'de> + Deserialize<'de> + PartialEq + std::fmt::Debug + Clone,
+        V: Deserializer<'de> + Deserialize<'de> + PartialEq + core::fmt::Debug + Clone,
     >(
         val: V,
     ) {
@@ -401,7 +402,7 @@ mod test {
     fn assert_value_to_value<'de, V1, V2>(a: V1, b: V2)
     where
         V1: Deserializer<'de>,
-        V2: Deserialize<'de> + PartialEq + std::fmt::Debug + Clone,
+        V2: Deserialize<'de> + PartialEq + core::fmt::Debug + Clone,
     {
         let new_val = V2::deserialize(a).expect("Can deserialize");
         assert_eq!(b, new_val);
@@ -557,10 +558,10 @@ mod test {
     #[test]
     fn map_to_value() {
         use serde::de::{value::MapDeserializer, IntoDeserializer};
-        use std::collections::HashMap;
+        use ::alloc::collections::BTreeMap;
 
         let map = {
-            let mut map = HashMap::<&'static str, i32>::new();
+            let mut map = BTreeMap::<&'static str, i32>::new();
             map.insert("a", 1i32);
             map.insert("b", 2i32);
             map.insert("c", 3i32);

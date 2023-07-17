@@ -1,0 +1,9 @@
+[package]
+name = "test-no-std"
+description = "Testing no_std build of scale-value"
+readme = "README.md"
+version = "0.0.0"
+publish = false
+
+[dependencies]
+scale-value = { path = "../../", default-features = false, features = [] }

@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::prelude::*;
+
 /// Return the escape code for a given char, or None
 /// if there is no escape code for it.
 pub fn to_escape_code(c: char) -> Option<char> {

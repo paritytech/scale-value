@@ -15,9 +15,10 @@
 
 #![allow(clippy::enum_variant_names)]
 
+use crate::prelude::*;
 use super::string_helpers;
 use crate::value_type::{BitSequence, Composite, Primitive, Value, Variant};
-use std::num::ParseIntError;
+use core::num::ParseIntError;
 use yap::{types::StrTokens, IntoTokens, TokenLocation, Tokens};
 
 /// A struct which will try to parse a string into a [`Value`].
@@ -65,7 +66,7 @@ impl FromStrBuilder {
 }
 
 /// An error parsing the provided string into a Value
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub struct ParseError {
     /// Byte offset into the provided string that the error begins.
     pub start_loc: usize,
@@ -75,6 +76,9 @@ pub struct ParseError {
     /// Details about the error that occurred.
     pub err: ParseErrorKind,
 }
+
+#[cfg(feature = "std")]
+impl ::std::error::Error for ParseError {}
 
 impl ParseError {
     /// Construct a new `ParseError` for tokens at the given location.
@@ -87,8 +91,8 @@ impl ParseError {
     }
 }
 
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         if let Some(end_loc) = self.end_loc {
             write!(f, "Error from char {} to {}: {}", self.start_loc, end_loc, self.err)
         } else {
@@ -118,22 +122,21 @@ macro_rules! at_between {
 }
 
 /// Details about the error that occurred.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, derive_more::Display, derive_more::From)]
 #[allow(missing_docs)]
 pub enum ParseErrorKind {
-    #[error("Expected a value")]
+    #[display(fmt = "Expected a value")]
     ExpectedValue,
-    #[error("{0}")]
-    Complex(#[from] ParseComplexError),
-    #[error("{0}")]
-    Char(#[from] ParseCharError),
-    #[error("{0}")]
-    String(#[from] ParseStringError),
-    #[error("{0}")]
-    Number(#[from] ParseNumberError),
-    #[error("{0}")]
-    BitSequence(#[from] ParseBitSequenceError),
-    #[error("{0}")]
+    #[from]
+    Complex(ParseComplexError),
+    #[from]
+    Char(ParseCharError),
+    #[from]
+    String(ParseStringError),
+    #[from]
+    Number(ParseNumberError),
+    #[from]
+    BitSequence(ParseBitSequenceError),
     Custom(ParseCustomError),
 }
 at_between!(ParseErrorKind);
@@ -146,60 +149,63 @@ impl ParseErrorKind {
 }
 
 /// An arbitrary custom error.
-pub type ParseCustomError = Box<dyn std::error::Error + Send + Sync + 'static>;
+#[cfg(feature = "std")]
+pub type ParseCustomError = Box<dyn ::std::error::Error + Send + Sync + 'static>;
+#[cfg(not(feature = "std"))]
+pub type ParseCustomError = Box<dyn ::std::fmt::Debug + Send + Sync + 'static>;
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseComplexError {
-    #[error("The first character in a field name should be alphabetic")]
+    #[display(fmt = "The first character in a field name should be alphabetic")]
     InvalidStartingCharacterInIdent,
-    #[error("Field name is not valid (it should begin with an alphabetical char and then consist only of alphanumeric chars)")]
+    #[display(fmt = "Field name is not valid (it should begin with an alphabetical char and then consist only of alphanumeric chars)")]
     InvalidFieldName,
-    #[error("Missing field separator; expected {0}")]
+    #[display(fmt = "Missing field separator; expected {_0}")]
     MissingFieldSeparator(char),
-    #[error("Missing closing '{0}'")]
+    #[display(fmt = "Missing closing '{_0}'")]
     ExpectedCloserToMatch(char, usize),
 }
 at_between!(ParseComplexError);
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseCharError {
-    #[error("Expected a single character")]
+    #[display(fmt = "Expected a single character")]
     ExpectedValidCharacter,
-    #[error("Expected an escape code to follow the '\\'")]
+    #[display(fmt = "Expected an escape code to follow the '\\'")]
     ExpectedValidEscapeCode,
-    #[error("Expected a closing quote to match the opening quote at position {0}")]
+    #[display(fmt = "Expected a closing quote to match the opening quote at position {_0}")]
     ExpectedClosingQuoteToMatch(usize),
 }
 at_between!(ParseCharError);
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseStringError {
-    #[error("Expected a closing quote to match the opening quote at position {0}")]
+    #[display(fmt = "Expected a closing quote to match the opening quote at position {_0}")]
     ExpectedClosingQuoteToMatch(usize),
-    #[error("Expected an escape code to follow the '\\'")]
+    #[display(fmt = "Expected an escape code to follow the '\\'")]
     ExpectedValidEscapeCode,
 }
 at_between!(ParseStringError);
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseNumberError {
-    #[error("Expected one or more digits")]
+    #[display(fmt = "Expected one or more digits")]
     ExpectedDigit,
-    #[error("Failed to parse digits into an integer: {0}")]
+    #[display(fmt = "Failed to parse digits into an integer: {_0}")]
     ParsingFailed(ParseIntError),
 }
 at_between!(ParseNumberError);
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseBitSequenceError {
-    #[error("Expected a closing bracket ('>') to match the opening one at position {0}")]
+    #[display(fmt = "Expected a closing bracket ('>') to match the opening one at position {_0}")]
     ExpectedClosingBracketToMatch(usize),
-    #[error("Invalid character; expecting a 0 or 1")]
+    #[display(fmt = "Invalid character; expecting a 0 or 1")]
     InvalidCharacter,
 }
 at_between!(ParseBitSequenceError);

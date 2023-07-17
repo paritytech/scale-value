@@ -1,3 +1,18 @@
+// Copyright (C) 2022-2023 Parity Technologies (UK) Ltd. (admin@parity.io)
+// This file is a part of the scale-value crate.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 /// Construct a `scale_value::Value`
 ///
 ///
@@ -202,19 +217,19 @@ macro_rules! value_internal {
 
     // empty composites:
     () => {
-        $crate::Value::unnamed_composite(Vec::<$crate::Value>::new())
+        $crate::Value::unnamed_composite($crate::prelude::Vec::<$crate::Value>::new())
     };
     (()) => {
-        $crate::Value::unnamed_composite(Vec::<$crate::Value>::new())
+        $crate::Value::unnamed_composite($crate::prelude::Vec::<$crate::Value>::new())
     };
     ({}) => {
-        $crate::Value::named_composite(Vec::<(String, $crate::Value)>::new())
+        $crate::Value::named_composite($crate::prelude::Vec::<($crate::prelude::String, $crate::Value)>::new())
     };
 
     // named composites e.g. { age: 1, nice: false }
     ({ $($tt:tt)* }) => {
         {
-            let fields: Vec::<(String, $crate::Value)> = value_internal!(@named [] () ($($tt)*));
+            let fields: $crate::prelude::Vec::<($crate::prelude::String, $crate::Value)> = value_internal!(@named [] () ($($tt)*));
             $crate::Value::named_composite(fields)
         }
     };
@@ -223,7 +238,7 @@ macro_rules! value_internal {
     ($variant:ident { $($tt:tt)* }) => {
         {
             let variant_name = literal_aware_stringify!($variant);
-            let fields: Vec::<(String, $crate::Value)> = value_internal!(@named [] () ($($tt)*));
+            let fields: $crate::prelude::Vec::<($crate::prelude::String, $crate::Value)> = value_internal!(@named [] () ($($tt)*));
             $crate::Value::named_variant(variant_name,fields)
         }
     };
@@ -257,7 +272,7 @@ macro_rules! value_internal {
 #[doc(hidden)]
 macro_rules! vec_wrapper {
     ($($content:tt)*) => {
-        vec![$($content)*]
+        $crate::prelude::vec![$($content)*]
     };
 }
 
@@ -270,13 +285,14 @@ macro_rules! literal_aware_stringify {
         $tt.to_string()
     };
     ($($tt:tt)*) => {
-        core::stringify!($($tt)*).to_string()
+        $crate::prelude::stringify!($($tt)*).to_string()
     };
 }
 
 #[cfg(test)]
 #[macro_use]
 mod test {
+    use crate::prelude::*;
     use crate::{value, Value};
 
     #[test]

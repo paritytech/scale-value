@@ -22,21 +22,24 @@
 //! it's up to the visitor to do its best to accept what it's handed, or reject it if it's simply
 //! not going to work out.
 
+use crate::prelude::*;
 use super::bitvec_helpers;
 use crate::{Composite, Primitive, Value, ValueDef, Variant};
 use serde::{
     de::{self, EnumAccess, IntoDeserializer, VariantAccess},
     forward_to_deserialize_any, ser, Deserialize, Deserializer,
 };
-use std::{borrow::Cow, fmt::Display};
+use ::alloc::{borrow::Cow, fmt::Display};
 
 /// An opaque error to describe in human terms what went wrong.
 /// Many internal serialization/deserialization errors are relayed
 /// to this in string form, and so we use basic strings for custom
 /// errors as well for simplicity.
-#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
-#[error("{0}")]
+#[derive(derive_more::Display, Debug, Clone, PartialEq, Eq)]
 pub struct DeserializerError(Cow<'static, str>);
+
+#[cfg(feature = "std")]
+impl ::std::error::Error for DeserializerError {}
 
 impl DeserializerError {
     fn from_string<S: Into<String>>(s: S) -> DeserializerError {
@@ -957,7 +960,7 @@ mod test {
 
     #[test]
     fn de_into_map() {
-        use std::collections::HashMap;
+        use ::alloc::collections::BTreeMap;
 
         let val = ValueDef::Composite(Composite::Named(vec![
             ("a".into(), Value::u128(1)),
@@ -965,7 +968,7 @@ mod test {
             ("c".into(), Value::u128(3)),
         ]));
         assert_eq!(
-            <HashMap<String, u8>>::deserialize(val),
+            <BTreeMap<String, u8>>::deserialize(val),
             Ok(vec![("a".into(), 1), ("b".into(), 2), ("c".into(), 3)].into_iter().collect())
         );
 
@@ -974,7 +977,7 @@ mod test {
             Value::u128(2),
             Value::u128(3),
         ]));
-        <HashMap<String, u8>>::deserialize(val).expect_err("no names; can't be map");
+        <BTreeMap<String, u8>>::deserialize(val).expect_err("no names; can't be map");
     }
 
     #[test]

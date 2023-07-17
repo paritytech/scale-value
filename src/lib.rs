@@ -29,6 +29,15 @@ of JSON data).
 - Accessed ergonomically via the [`At`] trait.
 */
 #![deny(missing_docs)]
+#![cfg_attr(not(feature = "std"), no_std)]
+#![no_implicit_prelude]
+
+extern crate alloc;
+
+// Needs to be exposed for macro to work, but hide it
+// because it's not a part of the public interface.
+#[doc(hidden)]
+pub mod prelude;
 
 mod at;
 mod macros;
@@ -47,6 +56,7 @@ pub use value_type::{BitSequence, Composite, Primitive, Value, ValueDef, Variant
 /// Serializing and deserializing a [`crate::Value`] into/from other types via serde.
 #[cfg(feature = "serde")]
 pub mod serde {
+    use crate::prelude::*;
     pub use crate::serde_impls::{DeserializerError, SerializerError, ValueSerializer};
 
     /// Attempt to convert a [`crate::Value`] into another type via serde.
@@ -93,7 +103,7 @@ pub mod serde {
     /// let foo2: Foo = scale_value::serde::from_value(value2).unwrap();
     /// assert_eq!(foo2, Foo::B(123, true));
     /// ```
-    pub fn from_value<'de, Ctx, T: serde::Deserialize<'de>>(
+    pub fn from_value<'de, Ctx, T: ::serde::Deserialize<'de>>(
         value: crate::Value<Ctx>,
     ) -> Result<T, DeserializerError> {
         T::deserialize(value)
@@ -138,7 +148,7 @@ pub mod serde {
     ///     ("name", Value::string("James")),
     /// ]));
     /// ```
-    pub fn to_value<T: serde::Serialize>(ty: T) -> Result<crate::Value<()>, SerializerError> {
+    pub fn to_value<T: ::serde::Serialize>(ty: T) -> Result<crate::Value<()>, SerializerError> {
         ty.serialize(ValueSerializer)
     }
 }
@@ -186,8 +196,10 @@ pub mod serde {
 /// assert_eq!(value, new_value.remove_context());
 /// ```
 pub mod scale {
-    pub use crate::scale_impls::{DecodeError, TypeId};
+    use crate::prelude::*;
     use scale_encode::EncodeAsType;
+
+    pub use crate::scale_impls::{DecodeError, TypeId};
     pub use scale_encode::Error as EncodeError;
     pub use scale_info::PortableRegistry;
 
@@ -217,6 +229,8 @@ pub mod scale {
 
 /// Converting a [`crate::Value`] to or from strings.
 pub mod stringify {
+    use crate::prelude::*;
+
     #[cfg(feature = "from_string")]
     pub use crate::string_impls::{
         FromStrBuilder, ParseBitSequenceError, ParseCharError, ParseComplexError, ParseCustomError,

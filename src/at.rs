@@ -18,6 +18,7 @@
 // (`serde_json::Value` uses a statically initialised value to give back a ref
 // to in these cases, but we have a generic `Ctx` and can't do that ourselves).
 
+use crate::prelude::*;
 use super::{Composite, Value, ValueDef, Variant};
 
 /// This trait allows indexing into [`Value`]s (and options of [`Value`]s)

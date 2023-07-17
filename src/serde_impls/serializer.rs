@@ -16,6 +16,7 @@
 //! This [`Serializer`] impl allows types implementing `Serialize` to be converted
 //! into [`Value`]s.
 
+use crate::prelude::*;
 use crate::{Composite, Primitive, Value, ValueDef};
 use serde::{
     ser::{
@@ -29,26 +30,28 @@ use serde::{
 pub struct ValueSerializer;
 
 /// An error that can occur when attempting to serialize a type into a [`Value`].
-#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
+#[derive(derive_more::Display, Debug, Clone, PartialEq, Eq)]
 pub enum SerializerError {
     /// Some custom error string.
-    #[error("{0}")]
     Custom(String),
     /// SCALE does not support floating point values, and so we'll hit this error if we try to
     /// encode any floats.
-    #[error("Floats do not have a SCALE compatible representation, and so cannot be serialized to Values")]
+    #[display(fmt = "Floats do not have a SCALE compatible representation, and so cannot be serialized to Values")]
     CannotSerializeFloats,
     /// SCALE encoding is only designed to map from statically known structs to bytes. We use field names
     /// to figure out this mapping between named composite types and structs, so we don't support encoding
     /// maps with non-string keys into [`Value`]s.
-    #[error("Map keys must be strings or string-like")]
+    #[display(fmt = "Map keys must be strings or string-like")]
     MapKeyMustBeStringlike,
 }
+
+#[cfg(feature = "std")]
+impl ::std::error::Error for SerializerError {}
 
 impl serde::ser::Error for SerializerError {
     fn custom<T>(msg: T) -> Self
     where
-        T: std::fmt::Display,
+        T: core::fmt::Display,
     {
         SerializerError::Custom(msg.to_string())
     }
@@ -415,10 +418,10 @@ impl SerializeStructVariant for NamedCompositeSerializer {
 
 #[cfg(test)]
 mod test {
-    use super::ValueSerializer;
+    use super::*;
     use crate::{value, Value};
     use serde::{Deserialize, Serialize};
-    use std::fmt::Debug;
+    use core::fmt::Debug;
 
     // Make sure that things can serialize and deserialize back losslessly.
     fn assert_ser_de<T: Serialize + Deserialize<'static> + Debug + PartialEq>(val: T) {
@@ -523,10 +526,10 @@ mod test {
 
     #[test]
     fn ser_de_maps() {
-        use std::collections::HashMap;
+        use ::alloc::collections::BTreeMap;
 
         let m = {
-            let mut m = HashMap::new();
+            let mut m = BTreeMap::new();
             m.insert("a".to_string(), 1u8);
             m.insert("b".to_string(), 2u8);
             m.insert("c".to_string(), 3u8);
@@ -536,7 +539,7 @@ mod test {
 
         // chars as keys are fine, too:
         let m = {
-            let mut m = HashMap::new();
+            let mut m = BTreeMap::new();
             m.insert('a', 1u8);
             m.insert('b', 2u8);
             m.insert('c', 3u8);
