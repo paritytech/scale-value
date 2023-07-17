@@ -20,7 +20,7 @@ of JSON data).
 
 [`Value`]'s can be:
 
-- Encoded and decoded from SCALE bytes via [`scale_encode::EncodeAsType`] and [`scale_decode::DecodeAsType`]
+- Encoded and decoded from SCALE bytes via [`::scale_encode::EncodeAsType`] and [`::scale_decode::DecodeAsType`]
   traits (or by calling [`crate::scale::decode_as_type`] and [`crate::scale::encode_as_type`]).
 - Parsed to and from strings by calling [`crate::stringify::from_str`] and [`crate::stringify::to_string`]).
   Parsing from strings requires the `from_string` feature to be enabled.
@@ -320,6 +320,12 @@ pub mod stringify {
     /// # Example
     ///
     /// ```rust
+    /// # // Example only runs when parser-ss58 feature is enabled:
+    /// # #[cfg(not(feature = "parser-ss58"))]
+    /// # fn main() {}
+    /// # #[cfg(feature = "parser-ss58")]
+    /// # fn main() {
+    /// #
     /// use scale_value::Value;
     /// use scale_value::stringify::custom_parsers;
     ///
@@ -328,6 +334,7 @@ pub mod stringify {
     ///         // You can write your own custom parser, but for
     ///         // this example, we just use some provided ones.
     ///         .add_custom_parser(custom_parsers::parse_hex)
+    ///         // Requires the parser-ss58 feature:
     ///         .add_custom_parser(custom_parsers::parse_ss58)
     ///         .parse(str)
     ///         .0
@@ -369,6 +376,8 @@ pub mod stringify {
     ///         ("address", Value::unnamed_composite(addr))
     ///     ])
     /// )
+    /// #
+    /// # }
     /// ```
     #[cfg(feature = "from-string")]
     pub fn from_str_custom() -> FromStrBuilder {
