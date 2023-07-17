@@ -557,7 +557,7 @@ mod test {
 
     #[test]
     fn map_to_value() {
-        use ::alloc::collections::BTreeMap;
+        use alloc::collections::BTreeMap;
         use serde::de::{value::MapDeserializer, IntoDeserializer};
 
         let map = {

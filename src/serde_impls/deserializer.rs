@@ -25,7 +25,7 @@
 use super::bitvec_helpers;
 use crate::prelude::*;
 use crate::{Composite, Primitive, Value, ValueDef, Variant};
-use ::alloc::{borrow::Cow, fmt::Display};
+use alloc::{borrow::Cow, fmt::Display};
 use serde::{
     de::{self, EnumAccess, IntoDeserializer, VariantAccess},
     forward_to_deserialize_any, ser, Deserialize, Deserializer,
@@ -960,7 +960,7 @@ mod test {
 
     #[test]
     fn de_into_map() {
-        use ::alloc::collections::BTreeMap;
+        use alloc::collections::BTreeMap;
 
         let val = ValueDef::Composite(Composite::Named(vec![
             ("a".into(), Value::u128(1)),

@@ -528,7 +528,7 @@ mod test {
 
     #[test]
     fn ser_de_maps() {
-        use ::alloc::collections::BTreeMap;
+        use alloc::collections::BTreeMap;
 
         let m = {
             let mut m = BTreeMap::new();

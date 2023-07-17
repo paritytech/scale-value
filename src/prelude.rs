@@ -22,18 +22,18 @@ pub use prelude_contents::*;
 
 #[cfg(feature = "std")]
 mod prelude_contents {
-    pub use ::std::prelude::rust_2021::*;
+    pub use std::prelude::rust_2021::*;
 }
 
 #[cfg(not(feature = "std"))]
 mod prelude_contents {
-    pub use ::core::prelude::rust_2021::*;
+    pub use core::prelude::rust_2021::*;
 
     // The core prelude doesn't include things from
     // `alloc` by default, so add the ones we need that
     // are otherwose exposed via the std prelude.
-    pub use ::alloc::borrow::ToOwned;
-    pub use ::alloc::string::{String, ToString};
-    pub use ::alloc::vec::Vec;
-    pub use ::alloc::{boxed::Box, format, vec};
+    pub use alloc::borrow::ToOwned;
+    pub use alloc::string::{String, ToString};
+    pub use alloc::vec::Vec;
+    pub use alloc::{boxed::Box, format, vec};
 }
