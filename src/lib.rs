@@ -33,9 +33,9 @@ of JSON data).
 
 extern crate alloc;
 
-mod prelude;
 mod at;
 mod macros;
+mod prelude;
 mod scale_impls;
 #[cfg(feature = "serde")]
 mod serde_impls;
