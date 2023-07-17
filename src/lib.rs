@@ -39,6 +39,7 @@ extern crate alloc;
 #[doc(hidden)]
 pub mod prelude;
 
+mod error;
 mod at;
 mod macros;
 mod scale_impls;

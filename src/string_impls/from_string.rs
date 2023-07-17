@@ -142,17 +142,30 @@ pub enum ParseErrorKind {
 at_between!(ParseErrorKind);
 
 impl ParseErrorKind {
-    /// Construct a custom error.
+    /// Construct a custom error from any type that implements
+    /// [`ParseCustomError`].
+    ///
+    /// Note: without the `std` feature flag, this type definition
+    /// changes a little. [`ParseErrorKind::custom_str`] is an
+    /// alternative whose API is identical on std and no_std.
     pub fn custom<E: Into<ParseCustomError>>(e: E) -> Self {
         ParseErrorKind::Custom(e.into())
     }
+
+    /// Construct a custom error from a static string.
+    pub fn custom_str(msg: &'static str) -> Self {
+        ParseErrorKind::Custom(Box::new(CustomStrError(msg)))
+    }
 }
 
-/// An arbitrary custom error.
+#[derive(derive_more::Display, derive_more::From, Debug, Copy, Clone, PartialEq)]
+pub struct CustomStrError(&'static str);
+
 #[cfg(feature = "std")]
-pub type ParseCustomError = Box<dyn ::std::error::Error + Send + Sync + 'static>;
-#[cfg(not(feature = "std"))]
-pub type ParseCustomError = Box<dyn ::std::fmt::Debug + Send + Sync + 'static>;
+impl ::std::error::Error for CustomStrError {}
+
+/// An arbitrary custom error.
+pub type ParseCustomError = crate::error::BoxedError;
 
 #[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
@@ -791,7 +804,7 @@ mod test {
 
                 // Return an error if is _looks_ like hex but something isn't right about it.
                 if num_hex_chars % 2 != 0 {
-                    let e = ParseErrorKind::custom("Wrong number hex")
+                    let e = ParseErrorKind::custom_str("Wrong number hex")
                         .between(from.offset(), toks.offset());
                     return Some(Err(e));
                 }
@@ -810,12 +823,12 @@ mod test {
             // Invalid hex emits the expected custom error:
             (
                 "0x12345zzz",
-                (Err(ParseErrorKind::custom("Wrong number hex").between(2, 7)), "0x12345zzz"),
+                (Err(ParseErrorKind::custom_str("Wrong number hex").between(2, 7)), "0x12345zzz"),
             ),
             // Custom error locations are relative to the entire string:
             (
                 "(true, 0x12345)",
-                (Err(ParseErrorKind::custom("Wrong number hex").between(9, 14)), ", 0x12345)"),
+                (Err(ParseErrorKind::custom_str("Wrong number hex").between(9, 14)), ", 0x12345)"),
             ),
         ];
 

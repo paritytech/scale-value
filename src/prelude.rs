@@ -15,7 +15,9 @@
 
 // Expose a consistent prelude, whether std or no-std (this is needed
 // because no-std prelude doesn't contain `alloc` things), so we add
-// those back in where needed.
+// those back in where needed. This should _not_ expose anything that's
+// not a part of the `std` prelude already; import such things as needed
+// from `core` or `alloc`.
 pub use prelude::*;
 
 // To mirror the rust prelude, use top level
@@ -28,15 +30,22 @@ macro_rules! shared_imports {
         pub use ::scale_encode;
         pub use ::scale_decode;
         pub use ::scale_info;
-        pub use ::serde;
         pub use ::frame_metadata;
         pub use ::codec;
         pub use ::either;
-        pub use ::yap;
-        pub use ::base58;
-        pub use ::blake2;
         pub use ::derive_more;
         pub use ::core;
+
+        #[cfg(feature = "serde")]
+        pub use ::serde;
+
+        #[cfg(feature = "from_string")]
+        pub use ::yap;
+
+        #[cfg(feature = "parser-ss58")]
+        pub use ::base58;
+        #[cfg(feature = "parser-ss58")]
+        pub use ::blake2;
 
         #[cfg(test)]
         pub use ::hex;
@@ -45,7 +54,8 @@ macro_rules! shared_imports {
 
         pub use ::alloc::{
             vec,
-            format
+            format,
+            boxed::Box,
         };
         pub use ::core::{
             stringify,
@@ -71,6 +81,7 @@ mod prelude {
 
     pub use ::alloc::string::{ String, ToString };
     pub use ::alloc::vec::Vec;
+    pub use ::alloc::borrow::ToOwned;
 
     super::shared_imports!();
 }

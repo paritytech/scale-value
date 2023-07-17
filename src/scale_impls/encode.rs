@@ -15,6 +15,7 @@
 
 use crate::prelude::*;
 use crate::value_type::{Composite, Primitive, Value, ValueDef, Variant};
+use crate::error::{ StrError, StringError };
 use codec::{Compact, Encode};
 use scale_bits::Bits;
 use scale_encode::error::ErrorKind;
@@ -50,7 +51,7 @@ impl<T> EncodeAsFields for Value<T> {
     ) -> Result<(), Error> {
         match &self.value {
             ValueDef::Composite(composite) => composite.encode_as_fields_to(fields, types, out),
-            _ => Err(Error::custom("Cannot encode non-composite Value shape into fields")),
+            _ => Err(Error::custom(StrError("Cannot encode non-composite Value shape into fields"))),
         }
     }
 }
@@ -245,7 +246,7 @@ fn encode_vals_to_bitsequence<'a, T: 'a>(
     types: &PortableRegistry,
     out: &mut Vec<u8>,
 ) -> Result<(), Error> {
-    let format = scale_bits::Format::from_metadata(bits, types).map_err(Error::custom)?;
+    let format = scale_bits::Format::from_metadata(bits, types).map_err(|e| Error::custom(StringError::new(e)))?;
     let mut bools = Vec::with_capacity(vals.len());
     for (idx, value) in vals.enumerate() {
         if let Some(v) = value.as_bool() {
@@ -256,9 +257,9 @@ fn encode_vals_to_bitsequence<'a, T: 'a>(
             if v == 0 || v == 1 {
                 bools.push(v == 1)
             } else {
-                return Err(Error::custom(
+                return Err(Error::custom(StrError(
                     "Cannot encode non-boolean/0/1 value into a bit sequence entry",
-                )
+                ))
                 .at_idx(idx));
             }
         } else if let Some(v) = value.as_i128() {
@@ -266,16 +267,16 @@ fn encode_vals_to_bitsequence<'a, T: 'a>(
             if v == 0 || v == 1 {
                 bools.push(v == 1)
             } else {
-                return Err(Error::custom(
+                return Err(Error::custom(StrError(
                     "Cannot encode non-boolean/0/1 value into a bit sequence entry",
-                )
+                ))
                 .at_idx(idx));
             }
         } else {
             // anything else is an error.
-            return Err(Error::custom(
+            return Err(Error::custom(StrError(
                 "Cannot encode non-boolean/0/1 value into a bit sequence entry",
-            )
+            ))
             .at_idx(idx));
         }
     }
