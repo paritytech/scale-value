@@ -14,17 +14,18 @@
 // limitations under the License.
 
 use super::string_helpers;
+use crate::prelude::*;
 use crate::value_type::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
-use std::fmt::{Display, Write};
+use core::fmt::{Display, Write};
 
 impl<T> Display for Value<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.value.fmt(f)
     }
 }
 
 impl<T> Display for ValueDef<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ValueDef::Composite(c) => c.fmt(f),
             ValueDef::Variant(v) => v.fmt(f),
@@ -35,7 +36,7 @@ impl<T> Display for ValueDef<T> {
 }
 
 impl<T> Display for Composite<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Composite::Named(vals) => {
                 f.write_str("{ ")?;
@@ -69,7 +70,7 @@ impl<T> Display for Composite<T> {
 }
 
 impl<T> Display for Variant<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         if is_ident(&self.name) {
             f.write_str(&self.name)?;
         } else {
@@ -86,7 +87,7 @@ impl<T> Display for Variant<T> {
 }
 
 impl Display for Primitive {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Primitive::Bool(true) => f.write_str("true"),
             Primitive::Bool(false) => f.write_str("false"),
@@ -96,12 +97,12 @@ impl Display for Primitive {
             Primitive::String(s) => fmt_string(s, f),
             // We don't currently have a sane way to parse into these or
             // format out of them:
-            Primitive::U256(_) | Primitive::I256(_) => Err(std::fmt::Error),
+            Primitive::U256(_) | Primitive::I256(_) => Err(core::fmt::Error),
         }
     }
 }
 
-fn fmt_string(s: &str, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+fn fmt_string(s: &str, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     f.write_char('"')?;
     for char in s.chars() {
         match string_helpers::to_escape_code(char) {
@@ -115,7 +116,7 @@ fn fmt_string(s: &str, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.write_char('"')
 }
 
-fn fmt_char(c: char, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+fn fmt_char(c: char, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     f.write_char('\'')?;
     match string_helpers::to_escape_code(c) {
         Some(escaped) => {
@@ -127,7 +128,7 @@ fn fmt_char(c: char, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.write_char('\'')
 }
 
-fn fmt_bitsequence(b: &BitSequence, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+fn fmt_bitsequence(b: &BitSequence, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     f.write_char('<')?;
     for bit in b.iter() {
         match bit {
@@ -210,12 +211,12 @@ mod test {
         }
     }
 
-    // These tests stringify and then parse from string, so need "from_string" feature.
-    #[cfg(feature = "from_string")]
+    // These tests stringify and then parse from string, so need "from-string" feature.
+    #[cfg(feature = "from-string")]
     mod from_to {
         use super::*;
 
-        fn assert_from_to<T: std::fmt::Debug + PartialEq>(val: Value<T>) {
+        fn assert_from_to<T: core::fmt::Debug + PartialEq>(val: Value<T>) {
             let s = val.to_string();
             match crate::stringify::from_str(&s) {
                 (Err(e), _) => {

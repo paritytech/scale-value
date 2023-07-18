@@ -16,8 +16,9 @@
 #![allow(clippy::enum_variant_names)]
 
 use super::string_helpers;
+use crate::prelude::*;
 use crate::value_type::{BitSequence, Composite, Primitive, Value, Variant};
-use std::num::ParseIntError;
+use core::num::ParseIntError;
 use yap::{types::StrTokens, IntoTokens, TokenLocation, Tokens};
 
 /// A struct which will try to parse a string into a [`Value`].
@@ -65,7 +66,7 @@ impl FromStrBuilder {
 }
 
 /// An error parsing the provided string into a Value
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ParseError {
     /// Byte offset into the provided string that the error begins.
     pub start_loc: usize,
@@ -75,6 +76,9 @@ pub struct ParseError {
     /// Details about the error that occurred.
     pub err: ParseErrorKind,
 }
+
+#[cfg(feature = "std")]
+impl std::error::Error for ParseError {}
 
 impl ParseError {
     /// Construct a new `ParseError` for tokens at the given location.
@@ -87,8 +91,8 @@ impl ParseError {
     }
 }
 
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         if let Some(end_loc) = self.end_loc {
             write!(f, "Error from char {} to {}: {}", self.start_loc, end_loc, self.err)
         } else {
@@ -118,88 +122,93 @@ macro_rules! at_between {
 }
 
 /// Details about the error that occurred.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, derive_more::Display, derive_more::From, PartialEq, Eq)]
 #[allow(missing_docs)]
 pub enum ParseErrorKind {
-    #[error("Expected a value")]
+    #[display(fmt = "Expected a value")]
     ExpectedValue,
-    #[error("{0}")]
-    Complex(#[from] ParseComplexError),
-    #[error("{0}")]
-    Char(#[from] ParseCharError),
-    #[error("{0}")]
-    String(#[from] ParseStringError),
-    #[error("{0}")]
-    Number(#[from] ParseNumberError),
-    #[error("{0}")]
-    BitSequence(#[from] ParseBitSequenceError),
-    #[error("{0}")]
-    Custom(ParseCustomError),
+    #[from]
+    Complex(ParseComplexError),
+    #[from]
+    Char(ParseCharError),
+    #[from]
+    String(ParseStringError),
+    #[from]
+    Number(ParseNumberError),
+    #[from]
+    BitSequence(ParseBitSequenceError),
+    #[from]
+    Custom(String),
 }
 at_between!(ParseErrorKind);
 
 impl ParseErrorKind {
-    /// Construct a custom error.
-    pub fn custom<E: Into<ParseCustomError>>(e: E) -> Self {
-        ParseErrorKind::Custom(e.into())
+    /// Construct a custom error from a type implementing [`core::fmt::Display`].
+    pub fn custom<T: core::fmt::Display>(value: T) -> Self {
+        ParseErrorKind::Custom(format!("{value}"))
+    }
+
+    /// Construct a custom error from a type implementing [`Debug`].
+    /// Prefer [`ParseErrorKind::custom`] where possible.
+    pub fn custom_debug<T: core::fmt::Debug>(value: T) -> Self {
+        ParseErrorKind::Custom(format!("{value:?}"))
     }
 }
 
-/// An arbitrary custom error.
-pub type ParseCustomError = Box<dyn std::error::Error + Send + Sync + 'static>;
-
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseComplexError {
-    #[error("The first character in a field name should be alphabetic")]
+    #[display(fmt = "The first character in a field name should be alphabetic")]
     InvalidStartingCharacterInIdent,
-    #[error("Field name is not valid (it should begin with an alphabetical char and then consist only of alphanumeric chars)")]
+    #[display(
+        fmt = "Field name is not valid (it should begin with an alphabetical char and then consist only of alphanumeric chars)"
+    )]
     InvalidFieldName,
-    #[error("Missing field separator; expected {0}")]
+    #[display(fmt = "Missing field separator; expected {_0}")]
     MissingFieldSeparator(char),
-    #[error("Missing closing '{0}'")]
+    #[display(fmt = "Missing closing '{_0}'")]
     ExpectedCloserToMatch(char, usize),
 }
 at_between!(ParseComplexError);
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseCharError {
-    #[error("Expected a single character")]
+    #[display(fmt = "Expected a single character")]
     ExpectedValidCharacter,
-    #[error("Expected an escape code to follow the '\\'")]
+    #[display(fmt = "Expected an escape code to follow the '\\'")]
     ExpectedValidEscapeCode,
-    #[error("Expected a closing quote to match the opening quote at position {0}")]
+    #[display(fmt = "Expected a closing quote to match the opening quote at position {_0}")]
     ExpectedClosingQuoteToMatch(usize),
 }
 at_between!(ParseCharError);
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseStringError {
-    #[error("Expected a closing quote to match the opening quote at position {0}")]
+    #[display(fmt = "Expected a closing quote to match the opening quote at position {_0}")]
     ExpectedClosingQuoteToMatch(usize),
-    #[error("Expected an escape code to follow the '\\'")]
+    #[display(fmt = "Expected an escape code to follow the '\\'")]
     ExpectedValidEscapeCode,
 }
 at_between!(ParseStringError);
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseNumberError {
-    #[error("Expected one or more digits")]
+    #[display(fmt = "Expected one or more digits")]
     ExpectedDigit,
-    #[error("Failed to parse digits into an integer: {0}")]
+    #[display(fmt = "Failed to parse digits into an integer: {_0}")]
     ParsingFailed(ParseIntError),
 }
 at_between!(ParseNumberError);
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseBitSequenceError {
-    #[error("Expected a closing bracket ('>') to match the opening one at position {0}")]
+    #[display(fmt = "Expected a closing bracket ('>') to match the opening one at position {_0}")]
     ExpectedClosingBracketToMatch(usize),
-    #[error("Invalid character; expecting a 0 or 1")]
+    #[display(fmt = "Invalid character; expecting a 0 or 1")]
     InvalidCharacter,
 }
 at_between!(ParseBitSequenceError);
@@ -597,49 +606,14 @@ mod test {
 
     use super::*;
 
-    // Wrap our error type to impl PartialEq on it for tests,
-    // which we otherwise don't want to have to implement in
-    // production code.
-    #[derive(Debug)]
-    pub struct E(ParseError);
-
-    impl From<ParseError> for E {
-        fn from(value: ParseError) -> Self {
-            E(value)
-        }
-    }
-    impl PartialEq for E {
-        fn eq(&self, other: &Self) -> bool {
-            let (a, b) = (&self.0, &other.0);
-
-            // locations should match in tests.
-            if (a.start_loc, a.end_loc) != (b.start_loc, b.end_loc) {
-                return false;
-            }
-
-            // error kinds should match; only bother to impl the ones we want to compare for tests.
-            match (&a.err, &b.err) {
-                (ParseErrorKind::String(a), ParseErrorKind::String(b)) => a == b,
-                (ParseErrorKind::Char(a), ParseErrorKind::Char(b)) => a == b,
-                (ParseErrorKind::Number(a), ParseErrorKind::Number(b)) => a == b,
-                (ParseErrorKind::Custom(a), ParseErrorKind::Custom(b)) => {
-                    a.to_string() == b.to_string()
-                }
-                _ => {
-                    panic!("PartialEq not implemented for these variants yet.")
-                }
-            }
-        }
-    }
-
-    fn from(s: &str) -> Result<Value<()>, E> {
+    fn from(s: &str) -> Result<Value<()>, ParseError> {
         let (res, remaining) = FromStrBuilder::new().parse(s);
         match res {
             Ok(value) => {
                 assert_eq!(remaining.len(), 0, "was not expecting any unparsed output");
                 Ok(value)
             }
-            Err(e) => Err(E(e)),
+            Err(e) => Err(e),
         }
     }
 
@@ -655,7 +629,7 @@ mod test {
         assert_eq!(from("1_234_56"), Ok(Value::u128(123_456)));
         assert_eq!(from("+1_234_56"), Ok(Value::u128(123_456)));
         assert_eq!(from("-123_4"), Ok(Value::i128(-1234)));
-        assert_eq!(from("-abc"), Err(E(ParseNumberError::ExpectedDigit.between(1, 2))));
+        assert_eq!(from("-abc"), Err(ParseNumberError::ExpectedDigit.between(1, 2)));
     }
 
     #[test]
@@ -669,7 +643,7 @@ mod test {
         assert_eq!(from("'\\r'"), Ok(Value::char('\r')));
         assert_eq!(from("'\\\\'"), Ok(Value::char('\\')));
         assert_eq!(from("'\\0'"), Ok(Value::char('\0')));
-        assert_eq!(from("'a"), Err(E(ParseCharError::ExpectedClosingQuoteToMatch(0).at_one(2))));
+        assert_eq!(from("'a"), Err(ParseCharError::ExpectedClosingQuoteToMatch(0).at_one(2)));
     }
 
     #[test]
@@ -680,12 +654,9 @@ mod test {
         assert_eq!(from("\"Hello\\\\ there\""), Ok(Value::string("Hello\\ there")));
         assert_eq!(
             from("\"Hello\\p there\""),
-            Err(E(ParseStringError::ExpectedValidEscapeCode.between(7, 8)))
+            Err(ParseStringError::ExpectedValidEscapeCode.between(7, 8))
         );
-        assert_eq!(
-            from("\"Hi"),
-            Err(E(ParseStringError::ExpectedClosingQuoteToMatch(0).at_one(3)))
-        );
+        assert_eq!(from("\"Hi"), Err(ParseStringError::ExpectedClosingQuoteToMatch(0).at_one(3)));
     }
 
     #[test]
@@ -814,9 +785,9 @@ mod test {
         ];
 
         for (s, v) in expected {
-            let (expected_res, expected_leftover) = (v.0.map_err(E), v.1);
+            let (expected_res, expected_leftover) = (v.0, v.1);
             let (res, leftover) = custom_parser.parse(s);
-            assert_eq!(res.map_err(E), expected_res, "result isn't what we expected for: {s}");
+            assert_eq!(res, expected_res, "result isn't what we expected for: {s}");
             assert_eq!(leftover, expected_leftover, "wrong number of leftover bytes for: {s}");
         }
     }

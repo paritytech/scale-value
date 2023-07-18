@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::prelude::*;
 use crate::{stringify::ParseError, Value};
 
 /// Attempt to parse an ss58 address into a [`Value<()>`] (or more specifically,

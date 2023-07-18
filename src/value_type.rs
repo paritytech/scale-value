@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::prelude::*;
 use either::Either;
-use std::convert::From;
 
 // We use this to represent BitSequence values, so expose it here.
 pub use scale_bits::Bits as BitSequence;

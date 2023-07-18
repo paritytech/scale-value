@@ -20,7 +20,7 @@ of JSON data).
 
 [`Value`]'s can be:
 
-- Encoded and decoded from SCALE bytes via [`scale_encode::EncodeAsType`] and [`scale_decode::DecodeAsType`]
+- Encoded and decoded from SCALE bytes via [`::scale_encode::EncodeAsType`] and [`::scale_decode::DecodeAsType`]
   traits (or by calling [`crate::scale::decode_as_type`] and [`crate::scale::encode_as_type`]).
 - Parsed to and from strings by calling [`crate::stringify::from_str`] and [`crate::stringify::to_string`]).
   Parsing from strings requires the `from_string` feature to be enabled.
@@ -29,9 +29,13 @@ of JSON data).
 - Accessed ergonomically via the [`At`] trait.
 */
 #![deny(missing_docs)]
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
 
 mod at;
 mod macros;
+mod prelude;
 mod scale_impls;
 #[cfg(feature = "serde")]
 mod serde_impls;
@@ -47,6 +51,7 @@ pub use value_type::{BitSequence, Composite, Primitive, Value, ValueDef, Variant
 /// Serializing and deserializing a [`crate::Value`] into/from other types via serde.
 #[cfg(feature = "serde")]
 pub mod serde {
+    use crate::prelude::*;
     pub use crate::serde_impls::{DeserializerError, SerializerError, ValueSerializer};
 
     /// Attempt to convert a [`crate::Value`] into another type via serde.
@@ -186,8 +191,10 @@ pub mod serde {
 /// assert_eq!(value, new_value.remove_context());
 /// ```
 pub mod scale {
-    pub use crate::scale_impls::{DecodeError, TypeId};
+    use crate::prelude::*;
     use scale_encode::EncodeAsType;
+
+    pub use crate::scale_impls::{DecodeError, TypeId};
     pub use scale_encode::Error as EncodeError;
     pub use scale_info::PortableRegistry;
 
@@ -217,16 +224,18 @@ pub mod scale {
 
 /// Converting a [`crate::Value`] to or from strings.
 pub mod stringify {
-    #[cfg(feature = "from_string")]
+    use crate::prelude::*;
+
+    #[cfg(feature = "from-string")]
     pub use crate::string_impls::{
-        FromStrBuilder, ParseBitSequenceError, ParseCharError, ParseComplexError, ParseCustomError,
-        ParseError, ParseErrorKind, ParseNumberError, ParseStringError,
+        FromStrBuilder, ParseBitSequenceError, ParseCharError, ParseComplexError, ParseError,
+        ParseErrorKind, ParseNumberError, ParseStringError,
     };
 
     /// This module provides custom parsers that work alongside [`crate::stringify::from_str_custom`]
     /// and extend the syntax to support parsing common formats into [`crate::Value`]'s. See
     /// [`crate::stringify::from_str_custom`] for a usage example.
-    #[cfg(feature = "from_string")]
+    #[cfg(feature = "from-string")]
     pub mod custom_parsers {
         #[cfg(feature = "parser-ss58")]
         pub use crate::string_impls::parse_ss58;
@@ -295,7 +304,7 @@ pub mod stringify {
     ///     Value::bit_sequence(scale_bits::Bits::from_iter([false, true, false, true]))
     /// );
     /// ```
-    #[cfg(feature = "from_string")]
+    #[cfg(feature = "from-string")]
     pub fn from_str(s: &str) -> (Result<crate::Value<()>, ParseError>, &str) {
         crate::string_impls::FromStrBuilder::new().parse(s)
     }
@@ -306,6 +315,12 @@ pub mod stringify {
     /// # Example
     ///
     /// ```rust
+    /// # // Example only runs when parser-ss58 feature is enabled:
+    /// # #[cfg(not(feature = "parser-ss58"))]
+    /// # fn main() {}
+    /// # #[cfg(feature = "parser-ss58")]
+    /// # fn main() {
+    /// #
     /// use scale_value::Value;
     /// use scale_value::stringify::custom_parsers;
     ///
@@ -314,6 +329,7 @@ pub mod stringify {
     ///         // You can write your own custom parser, but for
     ///         // this example, we just use some provided ones.
     ///         .add_custom_parser(custom_parsers::parse_hex)
+    ///         // Requires the parser-ss58 feature:
     ///         .add_custom_parser(custom_parsers::parse_ss58)
     ///         .parse(str)
     ///         .0
@@ -355,8 +371,10 @@ pub mod stringify {
     ///         ("address", Value::unnamed_composite(addr))
     ///     ])
     /// )
+    /// #
+    /// # }
     /// ```
-    #[cfg(feature = "from_string")]
+    #[cfg(feature = "from-string")]
     pub fn from_str_custom() -> FromStrBuilder {
         crate::string_impls::FromStrBuilder::new()
     }

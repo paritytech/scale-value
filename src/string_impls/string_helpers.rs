@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::prelude::*;
+
 /// Return the escape code for a given char, or None
 /// if there is no escape code for it.
 pub fn to_escape_code(c: char) -> Option<char> {
@@ -32,7 +34,7 @@ pub fn to_escape_code(c: char) -> Option<char> {
 /// Given some escape code (char following a '\'), return the
 /// unescaped char that it represents, or None if it is not a
 /// valid escape code.
-#[cfg(feature = "from_string")]
+#[cfg(feature = "from-string")]
 pub fn from_escape_code(c: char) -> Option<char> {
     let unescaped = match c {
         'n' => '\n',

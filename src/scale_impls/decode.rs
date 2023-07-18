@@ -14,6 +14,7 @@
 // limitations under the License.
 
 use super::TypeId;
+use crate::prelude::*;
 use crate::value_type::{Composite, Primitive, Value, ValueDef, Variant};
 use scale_decode::FieldIter;
 use scale_info::{form::PortableForm, Path, PortableRegistry};

@@ -23,6 +23,7 @@
 //! not going to work out.
 
 use super::deserializer::DeserializerError;
+use crate::prelude::*;
 use crate::{BitSequence, Composite, ValueDef};
 use serde::{
     de::{value::MapDeserializer, MapAccess, Visitor},
@@ -57,7 +58,7 @@ pub struct MapOrBitSeqVisitor;
 impl<'de> Visitor<'de> for MapOrBitSeqVisitor {
     type Value = ValueDef<()>;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
         formatter.write_str(
             "a map-like type that can be decoded into a Value::BitSequence or Value::Composite",
         )

@@ -20,6 +20,7 @@
 //! serde data model that we're serializing things into.
 
 use super::bitvec_helpers;
+use crate::prelude::*;
 use crate::{Composite, Primitive, Value, ValueDef, Variant};
 use serde::{
     ser::{SerializeMap, SerializeSeq},

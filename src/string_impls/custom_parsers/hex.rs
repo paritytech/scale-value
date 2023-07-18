@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::prelude::*;
 use crate::{
     stringify::{ParseError, ParseErrorKind},
     Value,
@@ -87,18 +88,21 @@ pub fn parse_hex(s: &mut &str) -> Option<Result<Value<()>, ParseError>> {
     //
     // We have consumed only ASCII chars to get this far, so
     // we know the bytes following them make up a valid str.
-    *s = unsafe { std::str::from_utf8_unchecked(&bytes[idx..]) };
+    *s = unsafe { core::str::from_utf8_unchecked(&bytes[idx..]) };
     Some(Ok(Value::unnamed_composite(composite_values)))
 }
 
-#[derive(Debug, PartialEq, Clone, thiserror::Error)]
+#[derive(Debug, PartialEq, Clone, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseHexError {
-    #[error("Invalid hex character: {0}")]
+    #[display(fmt = "Invalid hex character: {_0}")]
     InvalidChar(char),
-    #[error("Hex string is the wrong length; should be an even length")]
+    #[display(fmt = "Hex string is the wrong length; should be an even length")]
     WrongLength,
 }
+
+#[cfg(feature = "std")]
+impl std::error::Error for ParseHexError {}
 
 #[cfg(test)]
 mod test {
@@ -146,8 +150,7 @@ mod test {
                 panic!("expected custom error")
             };
 
-            let concrete_err: Box<ParseHexError> = err.downcast().unwrap();
-            assert_eq!(&*concrete_err, &ParseHexError::WrongLength);
+            assert_eq!(err, ParseHexError::WrongLength.to_string());
             assert_eq!(input, *cursor);
         }
     }
@@ -168,8 +171,7 @@ mod test {
                 panic!("expected custom error")
             };
 
-            let concrete_err: Box<ParseHexError> = err.downcast().unwrap();
-            assert_eq!(&*concrete_err, &ParseHexError::InvalidChar(bad_char));
+            assert_eq!(err, ParseHexError::InvalidChar(bad_char).to_string());
             assert_eq!(input, *cursor);
         }
     }

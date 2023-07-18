@@ -19,9 +19,10 @@
 // to in these cases, but we have a generic `Ctx` and can't do that ourselves).
 
 use super::{Composite, Value, ValueDef, Variant};
+use crate::prelude::*;
 
 /// This trait allows indexing into [`Value`]s (and options of [`Value`]s)
-/// using the [`At::at()`] function. It's a little like Rust's [`std::ops::Index`]
+/// using the [`At::at()`] function. It's a little like Rust's [`::std::ops::Index`]
 /// trait, but adapted so that we can return and work with optionals.
 ///
 /// Indexing into a [`Value`] never panics; instead it will return `None` if a
