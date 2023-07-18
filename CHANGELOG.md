@@ -4,6 +4,21 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.11.0 (18-07-2023)
+
+## Added
+
+- Adds support for `no_std` environments; disable the "std" feature flag for this. ([#38](https://github.com/paritytech/scale-value/pull/38))
+  This PR makes a couple of small breaking changes:
+  - The `from_string` feature flag is now `from-string`.
+  - Some sub-`ErrorKind`'s in `from_string` no logner impl `std::error::Error`.
+  - `ParseErrorKind::Custom` errors are now strings rather than boxed `std::error::Error`s to play nicer with `no_std`.
+- Adds a `value!` macro to make constructing `Value`'s much easier; think `serde_json::value!`. ([#36](https://github.com/paritytech/scale-value/pull/36))
+
+## Changed
+
+- Bumps `scale-encode` and `scale-decode` to their latest versions (0.4 and 0.8 respectively).
+
 ## 0.10.0
 
 This release:
@@ -17,7 +32,7 @@ This release:
 ## 0.8.1
 
 This patch release:
-- Changes how composite `Value`'s are encoded to improve the likelihood that values will encode correctly. ([#32](https://github.com/paritytech/scale-value/pull/32)) .
+- Changes how composite `Value`'s are encoded to improve the likelihood that values will encode correctly. ([#32](https://github.com/paritytech/scale-value/pull/32))
 
 ## 0.8.0
 
