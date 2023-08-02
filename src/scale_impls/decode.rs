@@ -371,7 +371,10 @@ mod test {
             }
         }
 
-        encode_decode_check(Compact(MyWrapper { inner: 123 }), Value::u128(123));
+        encode_decode_check(
+            Compact(MyWrapper { inner: 123 }),
+            Value::named_composite(vec![("inner", Value::u128(123))]),
+        );
     }
 
     #[test]
@@ -400,7 +403,10 @@ mod test {
             }
         }
 
-        encode_decode_check(Compact(MyWrapper(123)), Value::u128(123));
+        encode_decode_check(
+            Compact(MyWrapper(123)),
+            Value::unnamed_composite(vec![Value::u128(123)]),
+        );
     }
 
     #[test]

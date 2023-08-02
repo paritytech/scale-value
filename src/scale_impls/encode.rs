@@ -245,7 +245,7 @@ fn encode_vals_to_bitsequence<'a, T: 'a>(
     types: &PortableRegistry,
     out: &mut Vec<u8>,
 ) -> Result<(), Error> {
-    let format = scale_bits::Format::from_metadata(bits, types).map_err(|e| Error::custom(e))?;
+    let format = scale_bits::Format::from_metadata(bits, types).map_err(Error::custom)?;
     let mut bools = Vec::with_capacity(vals.len());
     for (idx, value) in vals.enumerate() {
         if let Some(v) = value.as_bool() {
