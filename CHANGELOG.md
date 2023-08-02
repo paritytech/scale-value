@@ -6,9 +6,11 @@ The format is based on [Keep a Changelog].
 
 ## 0.12.0 (2023-08-02)
 
-- Bumps `scale-encode` and `scale-decode` to their latest versions (0.5 and 0.9 respectively). One effect that this has is that structs
-  containing compact encoded values, after being encoded, now decode to composite types and not directly to the underlying compact
-  encoded values. This should better mirror the original type.
+Bumps `scale-encode` and `scale-decode` to their latest versions (0.5 and 0.9 respectively).
+
+One effect that this has is that structs containing compact encoded values, after being encoded, now decode to composite types that better
+reflect their original shape. For example, `Compact(MyWrapper { inner: 123 })`, when encoded, used to decode to `Value::u128(123)`,
+but now it decodes to `Value::named_composite(vec![("inner", Value::u128(123))]).`
 
 ## 0.11.0 (2023-07-18)
 
