@@ -55,7 +55,7 @@ impl scale_decode::DecodeAsFields for Composite<TypeId> {
         // Build a Composite type to pass to a one-off visitor:
         static EMPTY_PATH: &Path<PortableForm> = &Path { segments: Vec::new() };
         let mut composite =
-            scale_decode::visitor::types::Composite::new(input, EMPTY_PATH, fields, types);
+            scale_decode::visitor::types::Composite::new(input, EMPTY_PATH, fields, types, false);
         // Decode into a Composite value from this:
         let val = visit_composite(&mut composite);
         // Consume remaining bytes and update input cursor:
