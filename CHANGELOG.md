@@ -4,7 +4,15 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
-## 0.11.0 (18-07-2023)
+## 0.12.0 (2023-08-02)
+
+Bumps `scale-encode` and `scale-decode` to their latest versions (0.5 and 0.9 respectively).
+
+One effect that this has is that structs containing compact encoded values, after being encoded, now decode to composite types that better
+reflect their original shape. For example, `Compact(MyWrapper { inner: 123 })`, when encoded, used to decode to `Value::u128(123)`,
+but now it decodes to `Value::named_composite(vec![("inner", Value::u128(123))]).`
+
+## 0.11.0 (2023-07-18)
 
 ## Added
 
