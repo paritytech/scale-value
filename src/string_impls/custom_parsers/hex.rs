@@ -146,9 +146,7 @@ mod test {
             assert_eq!(err.start_loc, 0);
             assert_eq!(err.end_loc, Some(input.len()));
 
-            let ParseErrorKind::Custom(err) = err.err else {
-                panic!("expected custom error")
-            };
+            let ParseErrorKind::Custom(err) = err.err else { panic!("expected custom error") };
 
             assert_eq!(err, ParseHexError::WrongLength.to_string());
             assert_eq!(input, *cursor);
@@ -167,9 +165,7 @@ mod test {
             assert_eq!(err.start_loc, pos);
             assert!(err.end_loc.is_none());
 
-            let ParseErrorKind::Custom(err) = err.err else {
-                panic!("expected custom error")
-            };
+            let ParseErrorKind::Custom(err) = err.err else { panic!("expected custom error") };
 
             assert_eq!(err, ParseHexError::InvalidChar(bad_char).to_string());
             assert_eq!(input, *cursor);
