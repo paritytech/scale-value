@@ -59,9 +59,7 @@ fn parse_ss58_bytes(s: &mut &str) -> Option<Vec<u8>> {
 
     // Attempt to base58-decode these chars.
     use base58::FromBase58;
-    let Ok(bytes) = maybe_ss58.from_base58() else {
-        return None
-    };
+    let Ok(bytes) = maybe_ss58.from_base58() else { return None };
 
     // decode length of address prefix.
     let prefix_len = match bytes.first() {
