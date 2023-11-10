@@ -4,6 +4,11 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.13.0 (2023-11-10)
+
+This release:
+- Bumps `scale-decode` to its latest version.
+
 ## 0.12.0 (2023-08-02)
 
 Bumps `scale-encode` and `scale-decode` to their latest versions (0.5 and 0.9 respectively).

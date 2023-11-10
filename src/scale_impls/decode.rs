@@ -70,9 +70,9 @@ impl scale_decode::DecodeAsFields for Composite<TypeId> {
 pub struct DecodeValueVisitor;
 
 impl scale_decode::IntoVisitor for Value<TypeId> {
-    type Visitor = DecodeValueVisitor;
+    type Visitor = scale_decode::visitor::VisitorWithCrateError<DecodeValueVisitor>;
     fn into_visitor() -> Self::Visitor {
-        DecodeValueVisitor
+        scale_decode::visitor::VisitorWithCrateError(DecodeValueVisitor)
     }
 }
 
