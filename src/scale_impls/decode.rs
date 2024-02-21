@@ -23,7 +23,7 @@ use scale_info::PortableRegistry;
 // This is emitted if something goes wrong decoding into a Value.
 pub use scale_decode::visitor::DecodeError;
 
-/// Decode data according to the [`TypeId`] provided.
+/// Decode data according to the type id provided.
 /// The provided pointer to the data slice will be moved forwards as needed
 /// depending on what was decoded.
 pub fn decode_value_as_type(
@@ -40,8 +40,8 @@ pub fn decode_value_as_type(
     )
 }
 
-/// A more generic version of [`decode_value_as_type`], but in most cases you should
-/// just use [`decode_value_as_type`] because then no type params need to be configured.
+/// A more generic version of [`crate::scale::decode_as_type`], but in most cases you should
+/// just use [`crate::scale::decode_as_type`] because then no type params need to be configured.
 pub fn decode_any_value_as_type<T, R: TypeResolver>(
     data: &mut &[u8],
     ty_id: R::TypeId,
