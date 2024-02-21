@@ -13,23 +13,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use core::fmt::Display;
+
 use crate::prelude::*;
 use crate::value_type::{Composite, Primitive, Value, ValueDef, Variant};
 use codec::{Compact, Encode};
 use scale_bits::Bits;
+use scale_decode::{TypeResolver, Visitor};
 use scale_encode::error::ErrorKind;
 use scale_encode::{error::Kind, EncodeAsFields, EncodeAsType, Error};
-use scale_encode::{Composite as EncodeComposite, FieldIter, Variant as EncodeVariant};
+use scale_encode::{
+    Composite as EncodeComposite, CompositeField, FieldIter, Variant as EncodeVariant,
+};
 use scale_info::form::PortableForm;
 use scale_info::{PortableRegistry, TypeDef, TypeDefBitSequence};
 
 pub use scale_encode::Error as EncodeError;
+use scale_type_resolver::visitor::ConcreteResolvedTypeVisitor;
+use scale_type_resolver::UnhandledKind;
 
 impl<T> EncodeAsType for Value<T> {
-    fn encode_as_type_to(
+    fn encode_as_type_to<R: TypeResolver>(
         &self,
-        type_id: u32,
-        types: &PortableRegistry,
+        type_id: &R::TypeId,
+        types: &R,
         out: &mut Vec<u8>,
     ) -> Result<(), Error> {
         match &self.value {
@@ -42,10 +49,10 @@ impl<T> EncodeAsType for Value<T> {
 }
 
 impl<T> EncodeAsFields for Value<T> {
-    fn encode_as_fields_to(
+    fn encode_as_fields_to<R: TypeResolver>(
         &self,
-        fields: &mut dyn FieldIter<'_>,
-        types: &PortableRegistry,
+        fields: &mut dyn FieldIter<'_, R::TypeId>,
+        types: &R,
         out: &mut Vec<u8>,
     ) -> Result<(), Error> {
         match &self.value {
@@ -56,21 +63,21 @@ impl<T> EncodeAsFields for Value<T> {
 }
 
 impl<T> EncodeAsFields for Composite<T> {
-    fn encode_as_fields_to(
+    fn encode_as_fields_to<R: TypeResolver>(
         &self,
-        fields: &mut dyn FieldIter<'_>,
-        types: &PortableRegistry,
+        fields: &mut dyn FieldIter<'_, R::TypeId>,
+        types: &R,
         out: &mut Vec<u8>,
     ) -> Result<(), Error> {
         match self {
             Composite::Named(vals) => {
                 let keyvals =
-                    vals.iter().map(|(key, val)| (Some(&**key), val as &dyn EncodeAsType));
-                EncodeComposite(keyvals).encode_as_fields_to(fields, types, out)
+                    vals.iter().map(|(key, val)| (Some(&**key), CompositeField::new(val)));
+                EncodeComposite::new(keyvals).encode_composite_fields_to(fields, types, out)
             }
             Composite::Unnamed(vals) => {
-                let vals = vals.iter().map(|val| (None, val as &dyn EncodeAsType));
-                EncodeComposite(vals).encode_as_fields_to(fields, types, out)
+                let vals = vals.iter().map(|val| (None, CompositeField::new(val)));
+                EncodeComposite::new(vals).encode_composite_fields_to(fields, types, out)
             }
         }
     }
@@ -80,82 +87,157 @@ impl<T> EncodeAsFields for Composite<T> {
 // can't handle encoding to sequences/arrays. However, we can encode safely into sequences here because we can inspect the
 // values we have and more safely skip newtype wrappers without also skipping through types that might represent 1-value
 // sequences/arrays for instance.
-fn encode_composite<T>(
+fn encode_composite<'a, T, R: TypeResolver>(
     value: &Composite<T>,
-    mut type_id: u32,
-    types: &PortableRegistry,
+    mut type_id: &'a R::TypeId,
+    types: &'a R,
     out: &mut Vec<u8>,
 ) -> Result<(), Error> {
     // Encode our composite Value as-is (pretty much; we will try to
     // unwrap the Value only if we need primitives).
-    fn do_encode_composite<T>(
+    fn do_encode_composite<T, R: TypeResolver>(
         value: &Composite<T>,
-        type_id: u32,
-        types: &PortableRegistry,
+        type_id: &R::TypeId,
+        types: &R,
         out: &mut Vec<u8>,
     ) -> Result<(), Error> {
-        let ty =
-            types.resolve(type_id).ok_or_else(|| Error::new(ErrorKind::TypeNotFound(type_id)))?;
-        match &ty.type_def {
-            TypeDef::Tuple(_) | TypeDef::Composite(_) => match value {
-                Composite::Named(vals) => {
-                    let keyvals =
-                        vals.iter().map(|(key, val)| (Some(&**key), val as &dyn EncodeAsType));
-                    EncodeComposite(keyvals).encode_as_type_to(type_id, types, out)
+        // let mut visit_tuple_or_composite = || match value {
+        //     Composite::Named(vals) => {
+        //         let keyvals =
+        //             vals.iter().map(|(key, val)| (Some(&**key), CompositeField::new(val)));
+        //         EncodeComposite::new(keyvals).encode_composite_as_type_to(type_id, types, out)
+        //     }
+        //     Composite::Unnamed(vals) => {
+        //         let vals = vals.iter().map(|val| (None, CompositeField::new(val)));
+        //         EncodeComposite::new(vals).encode_composite_as_type_to(type_id, types, out)
+        //     }
+        // };
+
+        // let visitor = scale_type_resolver::visitor::new::<'_, (), R::TypeId, Result<(), Error>, _>(
+        //     (),
+        //     |_: (), err: UnhandledKind| {
+        //         Err(Error::new(ErrorKind::Custom(Box::new(StringError(format!("{:?}", err))))))
+        //     },
+        // )
+        // .visit_tuple(|_, _| visit_tuple_or_composite())
+        // .visit_composite(|_, _| visit_tuple_or_composite());
+
+        struct EncodingVisitor<'a, T, R: TypeResolver> {
+            value: &'a Composite<T>,
+            out: &'a mut Vec<u8>,
+            types: &'a R,
+            type_id: &'a R::TypeId,
+        }
+
+        impl<'a, T, R: TypeResolver> EncodingVisitor<'a, T, R> {
+            fn visit_composite_or_tuple(self) -> Result<(), Error> {
+                match self.value {
+                    Composite::Named(vals) => {
+                        let keyvals =
+                            vals.iter().map(|(key, val)| (Some(&**key), CompositeField::new(val)));
+                        EncodeComposite::new(keyvals).encode_composite_as_type_to(
+                            self.type_id,
+                            self.types,
+                            self.out,
+                        )
+                    }
+                    Composite::Unnamed(vals) => {
+                        let vals = vals.iter().map(|val| (None, CompositeField::new(val)));
+                        EncodeComposite::new(vals).encode_composite_as_type_to(
+                            self.type_id,
+                            self.types,
+                            self.out,
+                        )
+                    }
                 }
-                Composite::Unnamed(vals) => {
-                    let vals = vals.iter().map(|val| (None, val as &dyn EncodeAsType));
-                    EncodeComposite(vals).encode_as_type_to(type_id, types, out)
+            }
+        }
+
+        impl<'a, T, R: TypeResolver> scale_type_resolver::ResolvedTypeVisitor<'a>
+            for EncodingVisitor<'a, T, R>
+        {
+            type TypeId = R::TypeId;
+            type Value = Result<(), Error>;
+
+            fn visit_unhandled(self, _: UnhandledKind) -> Self::Value {
+                let mut values = self.value.values();
+                match (values.next(), values.next()) {
+                    // Exactly one value:
+                    (Some(value), None) => {
+                        value.encode_as_type_to(self.type_id, self.types, self.out)
+                    }
+                    // Some other number of values:
+                    _ => Err(Error::new(ErrorKind::WrongShape {
+                        actual: Kind::Tuple,
+                        expected_id: format!("{:?}", self.type_id),
+                    })),
                 }
-            },
-            TypeDef::Sequence(seq) => {
+            }
+
+            fn visit_tuple<TypeIds>(self, _type_ids: TypeIds) -> Self::Value
+            where
+                TypeIds: ExactSizeIterator<Item = &'a Self::TypeId>,
+            {
+                self.visit_composite_or_tuple()
+            }
+
+            fn visit_composite<Fields>(self, _: Fields) -> Self::Value
+            where
+                Fields: FieldIter<'a, Self::TypeId>,
+            {
+                self.visit_composite_or_tuple()
+            }
+
+            fn visit_sequence(self, type_id: &'a Self::TypeId) -> Self::Value {
                 // sequences start with compact encoded length:
-                Compact(value.len() as u32).encode_to(out);
-                match value {
+                Compact(self.value.len() as u32).encode_to(self.out);
+                match self.value {
                     Composite::Named(named_vals) => {
                         for (name, val) in named_vals {
-                            val.encode_as_type_to(seq.type_param.id, types, out)
+                            val.encode_as_type_to(type_id, self.types, self.out)
                                 .map_err(|e| e.at_field(name.to_string()))?;
                         }
                     }
                     Composite::Unnamed(vals) => {
                         for (idx, val) in vals.iter().enumerate() {
-                            val.encode_as_type_to(seq.type_param.id, types, out)
+                            val.encode_as_type_to(type_id, self.types, self.out)
                                 .map_err(|e| e.at_idx(idx))?;
                         }
                     }
                 }
                 Ok(())
             }
-            TypeDef::Array(array) => {
-                let arr_ty = array.type_param.id;
-                if value.len() != array.len as usize {
+
+            fn visit_array(self, array_ty_id: &'a Self::TypeId, array_len: usize) -> Self::Value {
+                if self.value.len() != array_len as usize {
                     return Err(Error::new(ErrorKind::WrongLength {
-                        actual_len: value.len(),
-                        expected_len: array.len as usize,
+                        actual_len: self.value.len(),
+                        expected_len: array_len as usize,
                     }));
                 }
-
-                for (idx, val) in value.values().enumerate() {
-                    val.encode_as_type_to(arr_ty, types, out).map_err(|e| e.at_idx(idx))?;
+                for (idx, val) in self.value.values().enumerate() {
+                    val.encode_as_type_to(array_ty_id, self.types, self.out)
+                        .map_err(|e| e.at_idx(idx))?;
                 }
                 Ok(())
             }
-            TypeDef::BitSequence(seq) => {
-                encode_vals_to_bitsequence(value.values(), seq, types, out)
+
+            fn visit_bit_sequence(
+                self,
+                store: scale_type_resolver::BitsStoreFormat,
+                order: scale_type_resolver::BitsOrderFormat,
+            ) -> Self::Value {
+                let format = scale_bits::Format { store, order };
+                encode_vals_to_bitsequence(self.value.values(), self.out, format)
             }
-            // For other types, skip our value past a 1-value composite and try again, else error.
-            _ => {
-                let mut values = value.values();
-                match (values.next(), values.next()) {
-                    // Exactly one value:
-                    (Some(value), None) => value.encode_as_type_to(type_id, types, out),
-                    // Some other number of values:
-                    _ => Err(Error::new(ErrorKind::WrongShape {
-                        actual: Kind::Tuple,
-                        expected: type_id,
-                    })),
-                }
+        }
+
+        let visitor = EncodingVisitor { value, out, types, type_id };
+        match types.resolve_type(type_id, visitor) {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(err)) => Err(err),
+            Err(err) => {
+                Err(Error::new(ErrorKind::Custom(Box::new(StringError(format!("{:?}", err))))))
             }
         }
     }
@@ -180,8 +262,10 @@ fn encode_composite<T>(
     // if the Value provided already ignored all newtype wrappers). If we have nothing
     // to unwrap then ignore this extra encode attempt.
     {
-        let inner_type_id = find_single_entry_with_same_repr(type_id, types);
-        if inner_type_id != type_id {
+        let inner_type_id = find_single_entry_with_same_repr::<R>(type_id, types)
+            .map_err(|err| Error::new(ErrorKind::TypeNotFound(format!("{:?}", err))))?;
+        // Todo/Question: Of course this is completely stupid, we should probably add `PartialEq` bound for R::TypeId in general;
+        if format!("{inner_type_id:?}") != format!("{type_id:?}") {
             let mut temp_out = Vec::new();
             if let Ok(()) = do_encode_composite(value, inner_type_id, types, &mut temp_out) {
                 out.extend_from_slice(&temp_out);
@@ -210,20 +294,36 @@ fn encode_composite<T>(
 }
 
 // skip into the target type past any newtype wrapper like things:
-fn find_single_entry_with_same_repr(type_id: u32, types: &PortableRegistry) -> u32 {
-    let Some(ty) = types.resolve(type_id) else { return type_id };
-    match &ty.type_def {
-        TypeDef::Tuple(tuple) if tuple.fields.len() == 1 => {
-            find_single_entry_with_same_repr(tuple.fields[0].id, types)
-        }
-        TypeDef::Composite(composite) if composite.fields.len() == 1 => {
-            find_single_entry_with_same_repr(composite.fields[0].ty.id, types)
-        }
-        TypeDef::Array(arr) if arr.len == 1 => {
-            find_single_entry_with_same_repr(arr.type_param.id, types)
-        }
-        _ => type_id,
-    }
+fn find_single_entry_with_same_repr<'a, R: TypeResolver>(
+    type_id: &'a R::TypeId,
+    types: &'a R,
+) -> Result<&'a R::TypeId, R::Error> {
+    let visitor = scale_type_resolver::visitor::new(type_id, |original, _| original)
+        .visit_tuple(|original, fields| {
+            if fields.len() == 1 {
+                let ty = fields.next().expect("has 1 item; qed;");
+                find_single_entry_with_same_repr(ty, types).unwrap_or(original)
+            } else {
+                original
+            }
+        })
+        .visit_composite(|original, fields| {
+            if fields.len() == 1 {
+                let ty = fields.next().expect("has 1 item; qed;").id;
+                find_single_entry_with_same_repr(ty, types).unwrap_or(original)
+            } else {
+                original
+            }
+        })
+        .visit_array(|original, ty_id, len| {
+            if len == 1 {
+                find_single_entry_with_same_repr(ty_id, types).unwrap_or(original)
+            } else {
+                original
+            }
+        });
+
+    types.resolve_type(type_id, visitor)
 }
 
 // if the composite type has exactly one value, return that Value, else return None.
@@ -235,15 +335,30 @@ fn get_only_value_from_composite<T>(value: &'_ Composite<T>) -> Option<&'_ Value
     }
 }
 
+/// Error type for any string.
+// Note:
+#[derive(Debug, Clone)]
+pub struct StringError(String);
+
+impl Display for StringError {
+    fn fmt(
+        &self,
+        f: &mut scale_info::prelude::fmt::Formatter<'_>,
+    ) -> scale_info::prelude::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for StringError {}
+
 // It's likely that people will use a composite to represen bit sequences,
 // so support encoding to them in this way too.
 fn encode_vals_to_bitsequence<'a, T: 'a>(
     vals: impl ExactSizeIterator<Item = &'a Value<T>>,
-    bits: &TypeDefBitSequence<PortableForm>,
-    types: &PortableRegistry,
     out: &mut Vec<u8>,
+    format: scale_bits::Format,
 ) -> Result<(), Error> {
-    let format = scale_bits::Format::from_metadata(bits, types).map_err(Error::custom)?;
     let mut bools = Vec::with_capacity(vals.len());
     for (idx, value) in vals.enumerate() {
         if let Some(v) = value.as_bool() {
@@ -282,30 +397,30 @@ fn encode_vals_to_bitsequence<'a, T: 'a>(
     Ok(())
 }
 
-fn encode_variant<T>(
+fn encode_variant<T, R: TypeResolver>(
     value: &Variant<T>,
-    type_id: u32,
-    types: &PortableRegistry,
+    type_id: &R::TypeId,
+    types: &R,
     out: &mut Vec<u8>,
 ) -> Result<(), Error> {
     match &value.values {
         Composite::Named(vals) => {
-            let keyvals = vals.iter().map(|(key, val)| (Some(&**key), val as &dyn EncodeAsType));
-            EncodeVariant { name: &value.name, fields: EncodeComposite(keyvals) }
-                .encode_as_type_to(type_id, types, out)
+            let keyvals = vals.iter().map(|(key, val)| (Some(&**key), CompositeField::new(val)));
+            EncodeVariant { name: &value.name, fields: EncodeComposite::new(keyvals) }
+                .encode_variant_as_type_to(type_id, types, out)
         }
         Composite::Unnamed(vals) => {
-            let vals = vals.iter().map(|val| (None, val as &dyn EncodeAsType));
-            EncodeVariant { name: &value.name, fields: EncodeComposite(vals) }
-                .encode_as_type_to(type_id, types, out)
+            let vals = vals.iter().map(|val| (None, CompositeField::new(val)));
+            EncodeVariant { name: &value.name, fields: EncodeComposite::new(vals) }
+                .encode_variant_as_type_to(type_id, types, out)
         }
     }
 }
 
-fn encode_primitive(
+fn encode_primitive<R: TypeResolver>(
     value: &Primitive,
-    type_id: u32,
-    types: &PortableRegistry,
+    type_id: &R::TypeId,
+    types: &R,
     bytes: &mut Vec<u8>,
 ) -> Result<(), Error> {
     match value {
@@ -319,10 +434,10 @@ fn encode_primitive(
     }
 }
 
-fn encode_bitsequence(
+fn encode_bitsequence<R: TypeResolver>(
     value: &Bits,
-    type_id: u32,
-    types: &PortableRegistry,
+    type_id: &R::TypeId,
+    types: &R,
     bytes: &mut Vec<u8>,
 ) -> Result<(), Error> {
     value.encode_as_type_to(type_id, types, bytes)
@@ -356,7 +471,7 @@ mod test {
 
         let (ty_id, types) = make_type::<T>();
 
-        value.encode_as_type_to(ty_id, &types, &mut buf).expect("error encoding value as type");
+        value.encode_as_type_to(&ty_id, &types, &mut buf).expect("error encoding value as type");
         assert_eq!(expected, buf);
     }
 

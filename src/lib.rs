@@ -194,7 +194,7 @@ pub mod scale {
     use crate::prelude::*;
     use scale_encode::EncodeAsType;
 
-    pub use crate::scale_impls::{DecodeError, TypeId};
+    pub use crate::scale_impls::DecodeError;
     pub use scale_encode::Error as EncodeError;
     pub use scale_info::PortableRegistry;
 
@@ -203,9 +203,9 @@ pub mod scale {
     /// a type ID, and a type registry from which we'll look up the relevant type information.
     pub fn decode_as_type(
         data: &mut &[u8],
-        ty_id: TypeId,
+        ty_id: u32,
         types: &PortableRegistry,
-    ) -> Result<crate::Value<TypeId>, DecodeError> {
+    ) -> Result<crate::Value<u32>, DecodeError> {
         crate::scale_impls::decode_value_as_type(data, ty_id, types)
     }
 
@@ -214,11 +214,11 @@ pub mod scale {
     /// up the relevant type information, and a buffer to encode the bytes to.
     pub fn encode_as_type<T: Clone>(
         value: &crate::Value<T>,
-        ty_id: TypeId,
+        ty_id: u32,
         types: &PortableRegistry,
         buf: &mut Vec<u8>,
     ) -> Result<(), EncodeError> {
-        value.encode_as_type_to(ty_id, types, buf)
+        value.encode_as_type_to(&ty_id, types, buf)
     }
 }
 
