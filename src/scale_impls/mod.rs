@@ -16,6 +16,6 @@
 mod decode;
 mod encode;
 
-pub use decode::{decode_value_as_type, DecodeError};
+pub use decode::{decode_any_value_as_type, decode_value_as_type, DecodeError};
 
 // pub type TypeId = u32;

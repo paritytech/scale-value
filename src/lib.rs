@@ -194,7 +194,7 @@ pub mod scale {
     use crate::prelude::*;
     use scale_encode::EncodeAsType;
 
-    pub use crate::scale_impls::DecodeError;
+    pub use crate::scale_impls::{decode_any_value_as_type, DecodeError};
     pub use scale_encode::Error as EncodeError;
     pub use scale_info::PortableRegistry;
 

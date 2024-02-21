@@ -40,6 +40,26 @@ pub fn decode_value_as_type(
     )
 }
 
+/// A more generic version of [`decode_value_as_type`], but in most cases you should
+/// just use [`decode_value_as_type`] because then no type params need to be configured.
+pub fn decode_any_value_as_type<T, R: TypeResolver>(
+    data: &mut &[u8],
+    ty_id: R::TypeId,
+    types: &R,
+) -> Result<Value<T>, DecodeError>
+where
+    T: From<R::TypeId>,
+    R::TypeId: Copy,
+{
+    scale_decode::visitor::decode_with_visitor(
+        data,
+        &ty_id,
+        types,
+        // note: in this case the `FromMapper` converts the u32 into a u32, and is just an identity mapping.
+        DecodeValueVisitor::<R, T, FromMapper>::new(),
+    )
+}
+
 // Sequences, Tuples and Arrays all have the same methods, so decode them in the same way:
 macro_rules! to_unnamed_composite {
     ($value:ident, $type_id:ident) => {{
