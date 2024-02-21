@@ -19,17 +19,13 @@ use crate::prelude::*;
 use crate::value_type::{Composite, Primitive, Value, ValueDef, Variant};
 use codec::{Compact, Encode};
 use scale_bits::Bits;
-use scale_decode::{TypeResolver, Visitor};
+use scale_decode::TypeResolver;
 use scale_encode::error::ErrorKind;
 use scale_encode::{error::Kind, EncodeAsFields, EncodeAsType, Error};
 use scale_encode::{
     Composite as EncodeComposite, CompositeField, FieldIter, Variant as EncodeVariant,
 };
-use scale_info::form::PortableForm;
-use scale_info::{PortableRegistry, TypeDef, TypeDefBitSequence};
 
-pub use scale_encode::Error as EncodeError;
-use scale_type_resolver::visitor::ConcreteResolvedTypeVisitor;
 use scale_type_resolver::UnhandledKind;
 
 impl<T> EncodeAsType for Value<T> {
@@ -209,10 +205,10 @@ fn encode_composite<'a, T, R: TypeResolver>(
             }
 
             fn visit_array(self, array_ty_id: &'a Self::TypeId, array_len: usize) -> Self::Value {
-                if self.value.len() != array_len as usize {
+                if self.value.len() != array_len {
                     return Err(Error::new(ErrorKind::WrongLength {
                         actual_len: self.value.len(),
-                        expected_len: array_len as usize,
+                        expected_len: array_len,
                     }));
                 }
                 for (idx, val) in self.value.values().enumerate() {
@@ -449,6 +445,7 @@ mod test {
 
     use super::*;
     use codec::{Compact, Encode};
+    use scale_info::PortableRegistry;
 
     /// Given a type definition, return the PortableType and PortableRegistry
     /// that our decode functions expect.

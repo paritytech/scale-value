@@ -182,7 +182,7 @@ mod test {
         // References to valid locations are fine too:
         #[allow(clippy::needless_borrow)]
         {
-            assert_eq!(val.at(&"hello").at(&0), Some(&Value::u128(1)));
+            assert_eq!(val.at("hello").at(0), Some(&Value::u128(1)));
         }
     }
 

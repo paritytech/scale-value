@@ -18,7 +18,7 @@ use core::marker::PhantomData;
 use crate::prelude::*;
 use crate::value_type::{Composite, Primitive, Value, ValueDef, Variant};
 use scale_decode::{FieldIter, TypeResolver};
-use scale_info::{form::PortableForm, Path, PortableRegistry};
+use scale_info::PortableRegistry;
 
 // This is emitted if something goes wrong decoding into a Value.
 pub use scale_decode::visitor::DecodeError;
@@ -78,6 +78,12 @@ impl scale_decode::DecodeAsFields for Composite<()> {
 pub struct DecodeValueVisitor<R: TypeResolver, T, F> {
     resolver: PhantomData<(R, T, F)>,
 }
+impl<R: TypeResolver, T, F> Default for DecodeValueVisitor<R, T, F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<R: TypeResolver, T, F> DecodeValueVisitor<R, T, F> {
     pub fn new() -> Self {
         DecodeValueVisitor { resolver: PhantomData }
@@ -100,7 +106,7 @@ pub trait TypeIdMapper<From, To> {
 
 pub struct DefaultMapper;
 impl<From, To: Default> TypeIdMapper<From, To> for DefaultMapper {
-    fn map(from: &From) -> To {
+    fn map(_from: &From) -> To {
         Default::default()
     }
 }
