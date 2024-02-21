@@ -97,27 +97,6 @@ fn encode_composite<'a, T, R: TypeResolver>(
         types: &R,
         out: &mut Vec<u8>,
     ) -> Result<(), Error> {
-        // let mut visit_tuple_or_composite = || match value {
-        //     Composite::Named(vals) => {
-        //         let keyvals =
-        //             vals.iter().map(|(key, val)| (Some(&**key), CompositeField::new(val)));
-        //         EncodeComposite::new(keyvals).encode_composite_as_type_to(type_id, types, out)
-        //     }
-        //     Composite::Unnamed(vals) => {
-        //         let vals = vals.iter().map(|val| (None, CompositeField::new(val)));
-        //         EncodeComposite::new(vals).encode_composite_as_type_to(type_id, types, out)
-        //     }
-        // };
-
-        // let visitor = scale_type_resolver::visitor::new::<'_, (), R::TypeId, Result<(), Error>, _>(
-        //     (),
-        //     |_: (), err: UnhandledKind| {
-        //         Err(Error::new(ErrorKind::Custom(Box::new(StringError(format!("{:?}", err))))))
-        //     },
-        // )
-        // .visit_tuple(|_, _| visit_tuple_or_composite())
-        // .visit_composite(|_, _| visit_tuple_or_composite());
-
         struct EncodingVisitor<'a, T, R: TypeResolver> {
             value: &'a Composite<T>,
             out: &'a mut Vec<u8>,
