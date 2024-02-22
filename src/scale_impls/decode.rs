@@ -18,7 +18,6 @@ use core::marker::PhantomData;
 use crate::prelude::*;
 use crate::value_type::{Composite, Primitive, Value, ValueDef, Variant};
 use scale_decode::{FieldIter, TypeResolver};
-use scale_info::PortableRegistry;
 
 // This is emitted if something goes wrong decoding into a Value.
 pub use scale_decode::visitor::DecodeError;
@@ -26,29 +25,12 @@ pub use scale_decode::visitor::DecodeError;
 /// Decode data according to the type id provided.
 /// The provided pointer to the data slice will be moved forwards as needed
 /// depending on what was decoded.
-pub fn decode_value_as_type(
-    data: &mut &[u8],
-    ty_id: u32,
-    types: &PortableRegistry,
-) -> Result<Value<u32>, DecodeError> {
-    scale_decode::visitor::decode_with_visitor(
-        data,
-        &ty_id,
-        types,
-        // note: in this case the `FromMapper` converts the u32 into a u32, and is just an identity mapping.
-        DecodeValueVisitor::<PortableRegistry, u32, FromMapper>::new(),
-    )
-}
-
-/// A more generic version of [`crate::scale::decode_as_type`], but in most cases you should
-/// just use [`crate::scale::decode_as_type`] because then no type params need to be configured.
-pub fn decode_any_value_as_type<T, R: TypeResolver>(
+pub fn decode_value_as_type<R: TypeResolver>(
     data: &mut &[u8],
     ty_id: R::TypeId,
     types: &R,
-) -> Result<Value<T>, DecodeError>
+) -> Result<Value<R::TypeId>, DecodeError>
 where
-    T: From<R::TypeId>,
     R::TypeId: Clone,
 {
     scale_decode::visitor::decode_with_visitor(
@@ -56,7 +38,7 @@ where
         &ty_id,
         types,
         // note: in this case the `FromMapper` converts the u32 into a u32, and is just an identity mapping.
-        DecodeValueVisitor::<R, T, FromMapper>::new(),
+        DecodeValueVisitor::<R, R::TypeId, FromMapper>::new(),
     )
 }
 
@@ -111,7 +93,7 @@ impl<R: TypeResolver, T, F> DecodeValueVisitor<R, T, F> {
 }
 
 impl scale_decode::IntoVisitor for Value<()> {
-    // Note: the ToDefaultMapping just removes all type ids here.
+    // Note: the DefaultMapper just removes all type ids here.
     type AnyVisitor<R: scale_decode::TypeResolver> =
         scale_decode::visitor::VisitorWithCrateError<DecodeValueVisitor<R, (), DefaultMapper>>;
 
@@ -344,6 +326,7 @@ mod test {
 
     use super::*;
     use codec::{Compact, Encode};
+    use scale_info::PortableRegistry;
 
     /// Given a type definition, return the PortableType and PortableRegistry
     /// that our decode functions expect.
