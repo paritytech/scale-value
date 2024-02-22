@@ -49,7 +49,7 @@ pub fn decode_any_value_as_type<T, R: TypeResolver>(
 ) -> Result<Value<T>, DecodeError>
 where
     T: From<R::TypeId>,
-    R::TypeId: Copy,
+    R::TypeId: Clone,
 {
     scale_decode::visitor::decode_with_visitor(
         data,
@@ -132,12 +132,12 @@ impl<From, To: Default> TypeIdMapper<From, To> for DefaultMapper {
 }
 
 pub struct FromMapper;
-impl<Fr: Copy, To> TypeIdMapper<Fr, To> for FromMapper
+impl<Fr: Clone, To> TypeIdMapper<Fr, To> for FromMapper
 where
     To: From<Fr>,
 {
     fn map(from: &Fr) -> To {
-        From::from(*from)
+        From::from(from.clone())
     }
 }
 
