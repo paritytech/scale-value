@@ -212,7 +212,6 @@ fn encode_composite<'a, T, R: TypeResolver>(
         let (inner_type_id, inner_is_different) =
             find_single_entry_with_same_repr::<R>(type_id, types)
                 .map_err(|err| Error::new(ErrorKind::TypeNotFound(format!("{:?}", err))))?;
-        // Todo/Question: Of course this is completely stupid, we should probably add `PartialEq` bound for R::TypeId in general;
         if inner_is_different {
             let mut temp_out = Vec::new();
             if let Ok(()) = do_encode_composite(value, inner_type_id, types, &mut temp_out) {
@@ -241,8 +240,9 @@ fn encode_composite<'a, T, R: TypeResolver>(
     Err(original_error)
 }
 
-/// skip into the target type past any newtype wrapper like things.
+/// Skip into the target type past any newtype wrapper like things.
 /// Also returns a bool indicating whether we skipped into something or not.
+/// This bool is true when the returned id is different from the id that was passed in.
 fn find_single_entry_with_same_repr<'a, R: TypeResolver>(
     type_id: &'a R::TypeId,
     types: &'a R,
