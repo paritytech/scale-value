@@ -189,8 +189,7 @@ fn encode_composite<'a, T, R: TypeResolver>(
     // to unwrap then ignore this extra encode attempt.
     {
         let (inner_type_id, inner_is_different) =
-            find_single_entry_with_same_repr::<R>(type_id, types)
-                .map_err(|err| Error::new(ErrorKind::TypeNotFound(format!("{:?}", err))))?;
+            find_single_entry_with_same_repr::<R>(type_id, types);
         if inner_is_different {
             let mut temp_out = Vec::new();
             if let Ok(()) = do_encode_composite(value, inner_type_id, types, &mut temp_out) {
@@ -225,43 +224,44 @@ fn encode_composite<'a, T, R: TypeResolver>(
 fn find_single_entry_with_same_repr<'a, R: TypeResolver>(
     type_id: &'a R::TypeId,
     types: &'a R,
-) -> Result<(&'a R::TypeId, bool), R::Error> {
+) -> (&'a R::TypeId, bool) {
     fn do_find<'a, R: TypeResolver>(
         type_id: &'a R::TypeId,
         types: &'a R,
         type_id_has_changed: bool,
-    ) -> Result<(&'a R::TypeId, bool), R::Error> {
+    ) -> (&'a R::TypeId, bool) {
         let return_unchanged = (type_id, type_id_has_changed);
-        let visitor =
-            scale_type_resolver::visitor::new((), |_, _| Ok(return_unchanged))
-                .visit_tuple(|_, fields| {
-                    if fields.len() == 1 {
-                        let ty = fields.next().expect("has 1 item; qed;");
-                        do_find(ty, types, true)
-                    } else {
-                        Ok(return_unchanged)
-                    }
-                })
-                .visit_composite(|_, fields| {
-                    if fields.len() == 1 {
-                        let ty = fields.next().expect("has 1 item; qed;").id;
-                        do_find(ty, types, true)
-                    } else {
-                        Ok(return_unchanged)
-                    }
-                })
-                .visit_array(|_, ty_id, len| {
+        let visitor = scale_type_resolver::visitor::new((), |_, _| return_unchanged)
+            .visit_tuple(|_, fields| {
+                if fields.len() == 1 {
+                    let ty = fields.next().expect("has 1 item; qed;");
+                    do_find(ty, types, true)
+                } else {
+                    return_unchanged
+                }
+            })
+            .visit_composite(|_, fields| {
+                if fields.len() == 1 {
+                    let ty = fields.next().expect("has 1 item; qed;").id;
+                    do_find(ty, types, true)
+                } else {
+                    return_unchanged
+                }
+            })
+            .visit_array(
+                |_, ty_id, len| {
                     if len == 1 {
                         do_find(ty_id, types, true)
                     } else {
-                        Ok(return_unchanged)
+                        return_unchanged
                     }
-                });
-        types.resolve_type(type_id, visitor)?
+                },
+            );
+        types.resolve_type(type_id, visitor).unwrap_or(return_unchanged)
     }
-
     do_find(type_id, types, false)
 }
+
 // if the composite type has exactly one value, return that Value, else return None.
 fn get_only_value_from_composite<T>(value: &'_ Composite<T>) -> Option<&'_ Value<T>> {
     let mut values = value.values();
