@@ -27,7 +27,7 @@ pub use scale_decode::visitor::DecodeError;
 /// depending on what was decoded.
 pub fn decode_value_as_type<R: TypeResolver>(
     data: &mut &[u8],
-    ty_id: R::TypeId,
+    ty_id: &R::TypeId,
     types: &R,
 ) -> Result<Value<R::TypeId>, DecodeError>
 where
@@ -35,9 +35,8 @@ where
 {
     scale_decode::visitor::decode_with_visitor(
         data,
-        &ty_id,
+        ty_id,
         types,
-        // note: in this case the `FromMapper` converts the u32 into a u32, and is just an identity mapping.
         DecodeValueVisitor::<R, R::TypeId, FromMapper>::new(),
     )
 }
@@ -358,7 +357,7 @@ mod test {
         let (id, portable_registry) = make_type::<Ty>();
 
         // Can we decode?
-        let val = decode_value_as_type(encoded, id, &portable_registry).expect("decoding failed");
+        let val = decode_value_as_type(encoded, &id, &portable_registry).expect("decoding failed");
         // Is the decoded value what we expected?
         assert_eq!(val.remove_context(), ex, "decoded value does not look like what we expected");
         // Did decoding consume all of the encoded bytes, as expected?
