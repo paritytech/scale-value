@@ -13,8 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core::fmt::Display;
-
 use crate::prelude::*;
 use crate::value_type::{Composite, Primitive, Value, ValueDef, Variant};
 use codec::{Compact, Encode};
@@ -25,8 +23,6 @@ use scale_encode::{error::Kind, EncodeAsFields, EncodeAsType, Error};
 use scale_encode::{
     Composite as EncodeComposite, CompositeField, FieldIter, Variant as EncodeVariant,
 };
-
-use scale_type_resolver::UnhandledKind;
 
 impl<T> EncodeAsType for Value<T> {
     fn encode_as_type_to<R: TypeResolver>(
@@ -97,19 +93,6 @@ fn encode_composite<'a, T, R: TypeResolver>(
         types: &R,
         out: &mut Vec<u8>,
     ) -> Result<(), Error> {
-        let visit_unhandled = |out: &mut Vec<u8>, _: UnhandledKind| -> Result<(), Error> {
-            let mut values = value.values();
-            match (values.next(), values.next()) {
-                // Exactly one value:
-                (Some(value), None) => value.encode_as_type_to(type_id, types, out),
-                // Some other number of values:
-                _ => Err(Error::new(ErrorKind::WrongShape {
-                    actual: Kind::Tuple,
-                    expected_id: format!("{:?}", type_id),
-                })),
-            }
-        };
-
         let visit_composite_or_tuple = |out: &mut Vec<u8>| -> Result<(), Error> {
             match value {
                 Composite::Named(vals) => {
@@ -124,68 +107,64 @@ fn encode_composite<'a, T, R: TypeResolver>(
             }
         };
 
-        let visit_sequence = |out: &mut Vec<u8>,
-                              type_id: &<R as TypeResolver>::TypeId|
-         -> Result<(), Error> {
-            // sequences start with compact encoded length:
-            Compact(value.len() as u32).encode_to(out);
-            match value {
-                Composite::Named(named_vals) => {
-                    for (name, val) in named_vals {
-                        val.encode_as_type_to(type_id, types, out)
-                            .map_err(|e| e.at_field(name.to_string()))?;
-                    }
-                }
-                Composite::Unnamed(vals) => {
-                    for (idx, val) in vals.iter().enumerate() {
-                        val.encode_as_type_to(type_id, types, out).map_err(|e| e.at_idx(idx))?;
-                    }
-                }
-            }
-            Ok(())
-        };
-
-        let visit_array = |out: &mut Vec<u8>,
-                           type_id: &<R as TypeResolver>::TypeId,
-                           array_len: usize|
-         -> Result<(), Error> {
-            if value.len() != array_len {
-                return Err(Error::new(ErrorKind::WrongLength {
-                    actual_len: value.len(),
-                    expected_len: array_len,
-                }));
-            }
-            for (idx, val) in value.values().enumerate() {
-                val.encode_as_type_to(type_id, types, out).map_err(|e| e.at_idx(idx))?;
-            }
-            Ok(())
-        };
-
-        let visit_bit_sequence =
-            |out: &mut Vec<u8>,
-             store: scale_type_resolver::BitsStoreFormat,
-             order: scale_type_resolver::BitsOrderFormat| {
-                let format = scale_bits::Format { store, order };
-                encode_vals_to_bitsequence(value.values(), out, format)
-            };
-
         let visitor =
             scale_type_resolver::visitor::new::<'_, &mut Vec<u8>, R::TypeId, Result<(), Error>, _>(
                 out,
-                visit_unhandled,
+                |out, _| {
+                    let mut values = value.values();
+                    match (values.next(), values.next()) {
+                        // Exactly one value:
+                        (Some(value), None) => value.encode_as_type_to(type_id, types, out),
+                        // Some other number of values:
+                        _ => Err(Error::new(ErrorKind::WrongShape {
+                            actual: Kind::Tuple,
+                            expected_id: format!("{:?}", type_id),
+                        })),
+                    }
+                },
             )
             .visit_composite(|out, _| visit_composite_or_tuple(out))
             .visit_tuple(|out, _| visit_composite_or_tuple(out))
-            .visit_sequence(visit_sequence)
-            .visit_array(visit_array)
-            .visit_bit_sequence(visit_bit_sequence);
+            .visit_sequence(|out, type_id| {
+                // sequences start with compact encoded length:
+                Compact(value.len() as u32).encode_to(out);
+                match value {
+                    Composite::Named(named_vals) => {
+                        for (name, val) in named_vals {
+                            val.encode_as_type_to(type_id, types, out)
+                                .map_err(|e| e.at_field(name.to_string()))?;
+                        }
+                    }
+                    Composite::Unnamed(vals) => {
+                        for (idx, val) in vals.iter().enumerate() {
+                            val.encode_as_type_to(type_id, types, out)
+                                .map_err(|e| e.at_idx(idx))?;
+                        }
+                    }
+                }
+                Ok(())
+            })
+            .visit_array(|out, type_id, array_len| {
+                if value.len() != array_len {
+                    return Err(Error::new(ErrorKind::WrongLength {
+                        actual_len: value.len(),
+                        expected_len: array_len,
+                    }));
+                }
+                for (idx, val) in value.values().enumerate() {
+                    val.encode_as_type_to(type_id, types, out).map_err(|e| e.at_idx(idx))?;
+                }
+                Ok(())
+            })
+            .visit_bit_sequence(|out, store, order| {
+                let format = scale_bits::Format { store, order };
+                encode_vals_to_bitsequence(value.values(), out, format)
+            });
 
         match types.resolve_type(type_id, visitor) {
             Ok(Ok(())) => Ok(()),
             Ok(Err(err)) => Err(err),
-            Err(err) => {
-                Err(Error::new(ErrorKind::Custom(Box::new(StringError(format!("{:?}", err))))))
-            }
+            Err(err) => Err(Error::new(ErrorKind::TypeResolvingError(format!("{:?}", err)))),
         }
     }
 
@@ -247,44 +226,42 @@ fn find_single_entry_with_same_repr<'a, R: TypeResolver>(
     type_id: &'a R::TypeId,
     types: &'a R,
 ) -> Result<(&'a R::TypeId, bool), R::Error> {
-    let return_unchanged = (type_id, false);
-    let visitor = scale_type_resolver::visitor::new((), |_, _| return_unchanged)
-        .visit_tuple(|_, fields| {
-            if fields.len() == 1 {
-                let ty = fields.next().expect("has 1 item; qed;");
-                match find_single_entry_with_same_repr(ty, types) {
-                    Ok((inner, _)) => (inner, true),
-                    Err(_) => return_unchanged,
-                }
-            } else {
-                return_unchanged
-            }
-        })
-        .visit_composite(|_, fields| {
-            if fields.len() == 1 {
-                let ty = fields.next().expect("has 1 item; qed;").id;
-                match find_single_entry_with_same_repr(ty, types) {
-                    Ok((inner, _)) => (inner, true),
-                    Err(_) => return_unchanged,
-                }
-            } else {
-                return_unchanged
-            }
-        })
-        .visit_array(|_, ty_id, len| {
-            if len == 1 {
-                match find_single_entry_with_same_repr(ty_id, types) {
-                    Ok((inner, _)) => (inner, true),
-                    Err(_) => return_unchanged,
-                }
-            } else {
-                return_unchanged
-            }
-        });
+    fn do_find<'a, R: TypeResolver>(
+        type_id: &'a R::TypeId,
+        types: &'a R,
+        type_id_has_changed: bool,
+    ) -> Result<(&'a R::TypeId, bool), R::Error> {
+        let return_unchanged = (type_id, type_id_has_changed);
+        let visitor =
+            scale_type_resolver::visitor::new((), |_, _| Ok(return_unchanged))
+                .visit_tuple(|_, fields| {
+                    if fields.len() == 1 {
+                        let ty = fields.next().expect("has 1 item; qed;");
+                        do_find(ty, types, true)
+                    } else {
+                        Ok(return_unchanged)
+                    }
+                })
+                .visit_composite(|_, fields| {
+                    if fields.len() == 1 {
+                        let ty = fields.next().expect("has 1 item; qed;").id;
+                        do_find(ty, types, true)
+                    } else {
+                        Ok(return_unchanged)
+                    }
+                })
+                .visit_array(|_, ty_id, len| {
+                    if len == 1 {
+                        do_find(ty_id, types, true)
+                    } else {
+                        Ok(return_unchanged)
+                    }
+                });
+        types.resolve_type(type_id, visitor)?
+    }
 
-    types.resolve_type(type_id, visitor)
+    do_find(type_id, types, false)
 }
-
 // if the composite type has exactly one value, return that Value, else return None.
 fn get_only_value_from_composite<T>(value: &'_ Composite<T>) -> Option<&'_ Value<T>> {
     let mut values = value.values();
@@ -293,23 +270,6 @@ fn get_only_value_from_composite<T>(value: &'_ Composite<T>) -> Option<&'_ Value
         _ => None,
     }
 }
-
-/// Error type for any string.
-// Note:
-#[derive(Debug, Clone)]
-pub struct StringError(String);
-
-impl Display for StringError {
-    fn fmt(
-        &self,
-        f: &mut scale_info::prelude::fmt::Formatter<'_>,
-    ) -> scale_info::prelude::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for StringError {}
 
 // It's likely that people will use a composite to represen bit sequences,
 // so support encoding to them in this way too.
