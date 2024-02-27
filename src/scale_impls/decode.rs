@@ -25,12 +25,13 @@ pub use scale_decode::visitor::DecodeError;
 /// Decode data according to the type id provided.
 /// The provided pointer to the data slice will be moved forwards as needed
 /// depending on what was decoded.
-pub fn decode_value_as_type<R: TypeResolver>(
+pub fn decode_value_as_type<R>(
     data: &mut &[u8],
     ty_id: &R::TypeId,
     types: &R,
 ) -> Result<Value<R::TypeId>, DecodeError>
 where
+    R: TypeResolver,
     R::TypeId: Clone,
 {
     scale_decode::visitor::decode_with_visitor(
@@ -113,8 +114,9 @@ impl<From, To: Default> TypeIdMapper<From, To> for DefaultMapper {
 }
 
 pub struct FromMapper;
-impl<Fr: Clone, To> TypeIdMapper<Fr, To> for FromMapper
+impl<Fr, To> TypeIdMapper<Fr, To> for FromMapper
 where
+    Fr: Clone,
     To: From<Fr>,
 {
     fn map(from: &Fr) -> To {
@@ -122,8 +124,9 @@ where
     }
 }
 
-impl<R: TypeResolver, T, F> scale_decode::visitor::Visitor for DecodeValueVisitor<R, T, F>
+impl<R, T, F> scale_decode::visitor::Visitor for DecodeValueVisitor<R, T, F>
 where
+    R: TypeResolver,
     F: TypeIdMapper<R::TypeId, T>,
 {
     type Value<'scale, 'info> = Value<T>;
@@ -288,10 +291,11 @@ where
 }
 
 /// Extract a named/unnamed Composite type out of scale_decode's Composite.
-fn visit_composite<R: TypeResolver, T, F>(
+fn visit_composite<R, T, F>(
     value: &mut scale_decode::visitor::types::Composite<'_, '_, R>,
 ) -> Result<Composite<T>, DecodeError>
 where
+    R: TypeResolver,
     F: TypeIdMapper<R::TypeId, T>,
 {
     let len = value.remaining();

@@ -202,12 +202,13 @@ pub mod scale {
     /// Attempt to decode some SCALE encoded bytes into a value, by providing a pointer
     /// to the bytes (which will be moved forwards as bytes are used in the decoding),
     /// a type ID, and a type registry from which we'll look up the relevant type information.
-    pub fn decode_as_type<R: TypeResolver>(
+    pub fn decode_as_type<R>(
         data: &mut &[u8],
         ty_id: &R::TypeId,
         types: &R,
     ) -> Result<crate::Value<R::TypeId>, DecodeError>
     where
+        R: TypeResolver,
         R::TypeId: Clone,
     {
         crate::scale_impls::decode_value_as_type(data, ty_id, types)
