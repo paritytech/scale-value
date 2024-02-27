@@ -4,6 +4,14 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.14.0 (2024-02-27)
+
+## Changed
+
+The crate now uses [`scale-type-resolver`](https://github.com/paritytech/scale-type-resolver) to be generic over the provider of type information that is used when encoding and decoding `Value`s.
+
+One implication is that `scale_decode::IntoVisitor` is now only implemented for `Value<()>` and no longer for `Value<u32>`. So `Value::decode_from_type()` cannot be used anymore to create a `Value<u32>` that keeps type id information. Instead you now use `scale_value::scale::decode_as_type()` which can return the desired `Value<u32>`.
+
 ## 0.13.0 (2023-11-10)
 
 This release:
