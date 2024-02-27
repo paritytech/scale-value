@@ -181,12 +181,12 @@ pub mod serde {
 ///
 /// // Encode the Value to bytes:
 /// let mut bytes = Vec::new();
-/// scale_value::scale::encode_as_type(&value, type_id, &registry, &mut bytes).unwrap();
+/// scale_value::scale::encode_as_type(&value, &type_id, &registry, &mut bytes).unwrap();
 ///
 /// // Decode the bytes back into a matching Value.
 /// // This value contains contextual information about which type was used
 /// // to decode each part of it, which we can throw away with `.remove_context()`.
-/// let new_value = scale_value::scale::decode_as_type(&mut &*bytes, type_id, &registry).unwrap();
+/// let new_value = scale_value::scale::decode_as_type(&mut &*bytes, &type_id, &registry).unwrap();
 ///
 /// assert_eq!(value, new_value.remove_context());
 /// ```
@@ -194,28 +194,33 @@ pub mod scale {
     use crate::prelude::*;
     use scale_encode::EncodeAsType;
 
-    pub use crate::scale_impls::{DecodeError, TypeId};
+    pub use crate::scale_impls::DecodeError;
     pub use scale_encode::Error as EncodeError;
     pub use scale_info::PortableRegistry;
+    pub use scale_type_resolver::TypeResolver;
 
     /// Attempt to decode some SCALE encoded bytes into a value, by providing a pointer
     /// to the bytes (which will be moved forwards as bytes are used in the decoding),
     /// a type ID, and a type registry from which we'll look up the relevant type information.
-    pub fn decode_as_type(
+    pub fn decode_as_type<R>(
         data: &mut &[u8],
-        ty_id: TypeId,
-        types: &PortableRegistry,
-    ) -> Result<crate::Value<TypeId>, DecodeError> {
+        ty_id: &R::TypeId,
+        types: &R,
+    ) -> Result<crate::Value<R::TypeId>, DecodeError>
+    where
+        R: TypeResolver,
+        R::TypeId: Clone,
+    {
         crate::scale_impls::decode_value_as_type(data, ty_id, types)
     }
 
     /// Attempt to encode some [`crate::Value<T>`] into SCALE bytes, by providing a pointer to the
     /// type ID that we'd like to encode it as, a type registry from which we'll look
     /// up the relevant type information, and a buffer to encode the bytes to.
-    pub fn encode_as_type<T: Clone>(
+    pub fn encode_as_type<R: TypeResolver, T>(
         value: &crate::Value<T>,
-        ty_id: TypeId,
-        types: &PortableRegistry,
+        ty_id: &R::TypeId,
+        types: &R,
         buf: &mut Vec<u8>,
     ) -> Result<(), EncodeError> {
         value.encode_as_type_to(ty_id, types, buf)
