@@ -4,6 +4,13 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+
+## 0.14.0 (2024-03-04)
+
+## Added
+
+A `scale_value::decode_as_fields` function was added that can decode a series of values from some bytes given an iterator of type ids. Previously it was only possible through the `scale_decode::DecodeAsFields` implementation of `scale_value::Composite<()>`. With the new function `scale_value::Composite<R::TypeId>`'s can be decoded for any type resolver `R`.
+
 ## 0.14.0 (2024-02-27)
 
 ## Changed

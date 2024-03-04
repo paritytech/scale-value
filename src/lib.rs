@@ -192,6 +192,7 @@ pub mod serde {
 /// ```
 pub mod scale {
     use crate::prelude::*;
+    use scale_decode::FieldIter;
     use scale_encode::EncodeAsType;
 
     pub use crate::scale_impls::DecodeError;
@@ -212,6 +213,21 @@ pub mod scale {
         R::TypeId: Clone,
     {
         crate::scale_impls::decode_value_as_type(data, ty_id, types)
+    }
+
+    /// Attempt to decode some SCALE encoded bytes into multiple values, by providing a pointer
+    /// to the bytes (which will be moved forwards as bytes are used in the decoding),
+    /// and an iterator of fields, where each field contains a  type ID and optionally a field name.
+    pub fn decode_as_fields<'resolver, R>(
+        input: &mut &[u8],
+        fields: &mut dyn FieldIter<'resolver, R::TypeId>,
+        types: &'resolver R,
+    ) -> Result<crate::Composite<R::TypeId>, DecodeError>
+    where
+        R: TypeResolver,
+        R::TypeId: Clone,
+    {
+        crate::scale_impls::decode_composite_as_fields(input, fields, types)
     }
 
     /// Attempt to encode some [`crate::Value<T>`] into SCALE bytes, by providing a pointer to the
