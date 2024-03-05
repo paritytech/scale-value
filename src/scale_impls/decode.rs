@@ -22,9 +22,9 @@ use scale_decode::{FieldIter, TypeResolver};
 // This is emitted if something goes wrong decoding into a Value.
 pub use scale_decode::visitor::DecodeError;
 
-/// Decode data according to the type id provided.
-/// The provided pointer to the data slice will be moved forwards as needed
-/// depending on what was decoded.
+/// Attempt to decode some SCALE encoded bytes into a value, by providing a pointer
+/// to the bytes (which will be moved forwards as bytes are used in the decoding),
+/// a type ID, and a type registry from which we'll look up the relevant type information.
 pub fn decode_value_as_type<R>(
     data: &mut &[u8],
     ty_id: &R::TypeId,
@@ -40,6 +40,27 @@ where
         types,
         DecodeValueVisitor::<R, R::TypeId, FromMapper>::new(),
     )
+}
+
+/// Decode data into a [`Composite`] according to a series of fields.
+/// Each field contains a type id and optionally a field name.
+pub fn decode_composite_as_fields<'resolver, R>(
+    input: &mut &[u8],
+    fields: &mut dyn FieldIter<'resolver, R::TypeId>,
+    types: &'resolver R,
+) -> Result<Composite<R::TypeId>, DecodeError>
+where
+    R: TypeResolver,
+    R::TypeId: Clone,
+{
+    // Build a Composite type to pass to a one-off visitor:
+    let mut composite = scale_decode::visitor::types::Composite::new(input, fields, types, false);
+    // Decode into a Composite value from this:
+    let val = visit_composite::<R, R::TypeId, FromMapper>(&mut composite)?;
+    // Consume remaining bytes and update input cursor:
+    composite.skip_decoding()?;
+    *input = composite.bytes_from_undecoded();
+    Ok(val)
 }
 
 // Sequences, Tuples and Arrays all have the same methods, so decode them in the same way:

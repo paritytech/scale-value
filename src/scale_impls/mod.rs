@@ -16,4 +16,4 @@
 mod decode;
 mod encode;
 
-pub use decode::{decode_value_as_type, DecodeError};
+pub use decode::{decode_composite_as_fields, decode_value_as_type, DecodeError};

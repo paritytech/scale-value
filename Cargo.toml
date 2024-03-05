@@ -1,6 +1,6 @@
 [package]
 name = "scale-value"
-version = "0.14.0"
+version = "0.14.1"
 authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2021"
 
@@ -17,15 +17,7 @@ include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE"]
 default = ["std", "serde", "from-string", "parser-ss58"]
 
 # Only work in "std" environments:
-std = [
-    "scale-decode/std",
-    "scale-encode/std",
-    "scale-bits/std",
-    "scale-info/std",
-    "either/use_std",
-    "serde?/std",
-    "serde_json/std"
-]
+std = ["scale-decode/std", "scale-encode/std", "scale-bits/std", "scale-info/std", "either/use_std", "serde?/std", "serde_json/std"]
 
 # Enable support for parsing strings into Values.
 from-string = ["dep:yap"]
