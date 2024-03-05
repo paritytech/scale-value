@@ -217,7 +217,7 @@ pub mod scale {
 
     /// Attempt to decode some SCALE encoded bytes into multiple values, by providing a pointer
     /// to the bytes (which will be moved forwards as bytes are used in the decoding),
-    /// and an iterator of fields, where each field contains a  type ID and optionally a field name.
+    /// and an iterator of fields, where each field contains a type ID and optionally a field name.
     pub fn decode_as_fields<'resolver, R>(
         input: &mut &[u8],
         fields: &mut dyn FieldIter<'resolver, R::TypeId>,
