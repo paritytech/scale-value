@@ -27,7 +27,7 @@ pub use scale_decode::visitor::DecodeError;
 /// a type ID, and a type registry from which we'll look up the relevant type information.
 pub fn decode_value_as_type<R>(
     data: &mut &[u8],
-    ty_id: &R::TypeId,
+    ty_id: R::TypeId,
     types: &R,
 ) -> Result<Value<R::TypeId>, DecodeError>
 where
@@ -38,7 +38,7 @@ where
         data,
         ty_id,
         types,
-        DecodeValueVisitor::<R, R::TypeId, FromMapper>::new(),
+        DecodeValueVisitor::<R, R::TypeId, TypeIdContext>::new(),
     )
 }
 
@@ -56,7 +56,7 @@ where
     // Build a Composite type to pass to a one-off visitor:
     let mut composite = scale_decode::visitor::types::Composite::new(input, fields, types, false);
     // Decode into a Composite value from this:
-    let val = visit_composite::<R, R::TypeId, FromMapper>(&mut composite)?;
+    let val = visit_composite::<R, R::TypeId, TypeIdContext>(&mut composite)?;
     // Consume remaining bytes and update input cursor:
     composite.skip_decoding()?;
     *input = composite.bytes_from_undecoded();
@@ -73,7 +73,7 @@ macro_rules! to_unnamed_composite {
         }
         Ok(Value {
             value: ValueDef::Composite(Composite::Unnamed(vals)),
-            context: F::map($type_id),
+            context: F::context_from_type_id(&$type_id),
         })
     }};
 }
@@ -89,11 +89,51 @@ impl scale_decode::DecodeAsFields for Composite<()> {
         let mut composite =
             scale_decode::visitor::types::Composite::new(input, fields, types, false);
         // Decode into a Composite value from this:
-        let val = visit_composite::<R, (), DefaultMapper>(&mut composite);
+        let val = visit_composite::<R, (), EmptyContext>(&mut composite);
         // Consume remaining bytes and update input cursor:
         composite.skip_decoding()?;
         *input = composite.bytes_from_undecoded();
         val.map_err(From::from).map(|v| v.map_context(|_| {}))
+    }
+}
+
+impl scale_decode::IntoVisitor for Value<()> {
+    // Note: the DefaultMapper just removes all type ids here.
+    type AnyVisitor<R: scale_decode::TypeResolver> =
+        scale_decode::visitor::VisitorWithCrateError<DecodeValueVisitor<R, (), EmptyContext>>;
+
+    fn into_visitor<R: scale_decode::TypeResolver>() -> Self::AnyVisitor<R> {
+        scale_decode::visitor::VisitorWithCrateError(DecodeValueVisitor::new())
+    }
+}
+
+/// We can use [`DecodeValueVisitor`] to decode values, but have two cases to handle:
+///
+/// - We need to be able to decode into [`Value<()>`] for our [`scale_decode::IntoVisitor`]
+///   implementation above (because that trait is agnostic over which visitor is used, and thus
+///   can't have any knowledge on the TypeId type).
+/// - We need to be able to decode into [`Value<TypeId>`] via the [`decode_value_as_type`] fn
+///   above.
+///
+/// This trait basically allows us to handle each case by havign a function that is given a
+/// `TypeId` and decides whether to hand back `()` or the `TypeId`.
+trait ContextFromTypeId<TypeId, Output> {
+    fn context_from_type_id(type_id: &TypeId) -> Output;
+}
+
+/// Return () for our value context.
+pub struct EmptyContext;
+impl<TypeId> ContextFromTypeId<TypeId, ()> for EmptyContext {
+    fn context_from_type_id(_type_id: &TypeId) -> () {
+        ()
+    }
+}
+
+/// Return the type ID for our value context.
+struct TypeIdContext;
+impl<TypeId: Clone> ContextFromTypeId<TypeId, TypeId> for TypeIdContext {
+    fn context_from_type_id(type_id: &TypeId) -> TypeId {
+        type_id.clone()
     }
 }
 
@@ -113,42 +153,10 @@ impl<R: TypeResolver, T, F> DecodeValueVisitor<R, T, F> {
     }
 }
 
-impl scale_decode::IntoVisitor for Value<()> {
-    // Note: the DefaultMapper just removes all type ids here.
-    type AnyVisitor<R: scale_decode::TypeResolver> =
-        scale_decode::visitor::VisitorWithCrateError<DecodeValueVisitor<R, (), DefaultMapper>>;
-
-    fn into_visitor<R: scale_decode::TypeResolver>() -> Self::AnyVisitor<R> {
-        scale_decode::visitor::VisitorWithCrateError(DecodeValueVisitor::new())
-    }
-}
-
-pub trait TypeIdMapper<From, To> {
-    fn map(from: &From) -> To;
-}
-
-pub struct DefaultMapper;
-impl<From, To: Default> TypeIdMapper<From, To> for DefaultMapper {
-    fn map(_from: &From) -> To {
-        Default::default()
-    }
-}
-
-pub struct FromMapper;
-impl<Fr, To> TypeIdMapper<Fr, To> for FromMapper
-where
-    Fr: Clone,
-    To: From<Fr>,
-{
-    fn map(from: &Fr) -> To {
-        From::from(from.clone())
-    }
-}
-
 impl<R, T, F> scale_decode::visitor::Visitor for DecodeValueVisitor<R, T, F>
 where
     R: TypeResolver,
-    F: TypeIdMapper<R::TypeId, T>,
+    F: ContextFromTypeId<R::TypeId, T>,
 {
     type Value<'scale, 'info> = Value<T>;
     type Error = DecodeError;
@@ -157,156 +165,156 @@ where
     fn visit_bool<'scale, 'info>(
         self,
         value: bool,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-        Ok(Value::bool(value).map_context(|_| F::map(type_id)))
+        Ok(Value::bool(value).map_context(|_| F::context_from_type_id(&type_id)))
     }
     fn visit_char<'scale, 'info>(
         self,
         value: char,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-        Ok(Value::char(value).map_context(|_| F::map(type_id)))
+        Ok(Value::char(value).map_context(|_| F::context_from_type_id(&type_id)))
     }
     fn visit_u8<'scale, 'info>(
         self,
         value: u8,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         self.visit_u128(value as u128, type_id)
     }
     fn visit_u16<'scale, 'info>(
         self,
         value: u16,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         self.visit_u128(value as u128, type_id)
     }
     fn visit_u32<'scale, 'info>(
         self,
         value: u32,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         self.visit_u128(value as u128, type_id)
     }
     fn visit_u64<'scale, 'info>(
         self,
         value: u64,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         self.visit_u128(value as u128, type_id)
     }
     fn visit_u128<'scale, 'info>(
         self,
         value: u128,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-        Ok(Value::u128(value).map_context(|_| F::map(type_id)))
+        Ok(Value::u128(value).map_context(|_| F::context_from_type_id(&type_id)))
     }
     fn visit_u256<'scale, 'info>(
         self,
         value: &'scale [u8; 32],
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-        Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: F::map(type_id) })
+        Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: F::context_from_type_id(&type_id) })
     }
     fn visit_i8<'scale, 'info>(
         self,
         value: i8,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         self.visit_i128(value as i128, type_id)
     }
     fn visit_i16<'scale, 'info>(
         self,
         value: i16,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         self.visit_i128(value as i128, type_id)
     }
     fn visit_i32<'scale, 'info>(
         self,
         value: i32,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         self.visit_i128(value as i128, type_id)
     }
     fn visit_i64<'scale, 'info>(
         self,
         value: i64,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         self.visit_i128(value as i128, type_id)
     }
     fn visit_i128<'scale, 'info>(
         self,
         value: i128,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-        Ok(Value::i128(value).map_context(|_| F::map(type_id)))
+        Ok(Value::i128(value).map_context(|_| F::context_from_type_id(&type_id)))
     }
     fn visit_i256<'scale, 'info>(
         self,
         value: &'scale [u8; 32],
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-        Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: F::map(type_id) })
+        Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: F::context_from_type_id(&type_id) })
     }
     fn visit_sequence<'scale, 'info>(
         self,
         value: &mut scale_decode::visitor::types::Sequence<'scale, 'info, R>,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         to_unnamed_composite!(value, type_id)
     }
     fn visit_tuple<'scale, 'info>(
         self,
         value: &mut scale_decode::visitor::types::Tuple<'scale, 'info, R>,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         to_unnamed_composite!(value, type_id)
     }
     fn visit_array<'scale, 'info>(
         self,
         value: &mut scale_decode::visitor::types::Array<'scale, 'info, R>,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         to_unnamed_composite!(value, type_id)
     }
     fn visit_bitsequence<'scale, 'info>(
         self,
         value: &mut scale_decode::visitor::types::BitSequence<'scale>,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         let bits: Result<_, _> = value.decode()?.collect();
-        Ok(Value { value: ValueDef::BitSequence(bits?), context: F::map(type_id) })
+        Ok(Value { value: ValueDef::BitSequence(bits?), context: F::context_from_type_id(&type_id) })
     }
     fn visit_str<'scale, 'info>(
         self,
         value: &mut scale_decode::visitor::types::Str<'scale>,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-        Ok(Value::string(value.as_str()?).map_context(|_| F::map(type_id)))
+        Ok(Value::string(value.as_str()?).map_context(|_| F::context_from_type_id(&type_id)))
     }
     fn visit_variant<'scale, 'info>(
         self,
         value: &mut scale_decode::visitor::types::Variant<'scale, 'info, R>,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         let values = visit_composite::<R, T, F>(value.fields())?;
         Ok(Value {
             value: ValueDef::Variant(Variant { name: value.name().to_owned(), values }),
-            context: F::map(type_id),
+            context: F::context_from_type_id(&type_id),
         })
     }
     fn visit_composite<'scale, 'info>(
         self,
         value: &mut scale_decode::visitor::types::Composite<'scale, 'info, R>,
-        type_id: &R::TypeId,
+        type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         Ok(Value {
             value: ValueDef::Composite(visit_composite::<R, T, F>(value)?),
-            context: F::map(type_id),
+            context: F::context_from_type_id(&type_id),
         })
     }
 }
@@ -317,7 +325,7 @@ fn visit_composite<R, T, F>(
 ) -> Result<Composite<T>, DecodeError>
 where
     R: TypeResolver,
-    F: TypeIdMapper<R::TypeId, T>,
+    F: ContextFromTypeId<R::TypeId, T>,
 {
     let len = value.remaining();
     // if no fields, we'll always assume unnamed.
@@ -382,7 +390,7 @@ mod test {
         let (id, portable_registry) = make_type::<Ty>();
 
         // Can we decode?
-        let val = decode_value_as_type(encoded, &id, &portable_registry).expect("decoding failed");
+        let val = decode_value_as_type(encoded, id, &portable_registry).expect("decoding failed");
         // Is the decoded value what we expected?
         assert_eq!(val.remove_context(), ex, "decoded value does not look like what we expected");
         // Did decoding consume all of the encoded bytes, as expected?
@@ -583,7 +591,7 @@ mod test {
             panic!("Couldn't get fields");
         };
         let mut fields =
-            c.fields.iter().map(|f| scale_decode::Field::new(&f.ty.id, f.name.as_deref()));
+            c.fields.iter().map(|f| scale_decode::Field::new(f.ty.id, f.name.as_deref()));
 
         // get some bytes to decode from:
         let foo = Foo { a: "Hello".to_owned(), b: true, c: 123 };

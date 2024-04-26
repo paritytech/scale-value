@@ -47,3 +47,8 @@ scale-type-resolver = "0.1.1"
 hex = "0.4.3"
 serde_json = { version = "1.0.64", default-features = false, features = ["alloc"] }
 scale-decode = { version = "0.11.1", default-features = false, features = ["derive"] }
+
+[patch.crates-io]
+scale-type-resolver = { path = "../scale-type-resolver" }
+scale-encode = { path = "../scale-encode/scale-encode" }
+scale-decode = { path = "../scale-decode/scale-decode" }

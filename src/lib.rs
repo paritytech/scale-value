@@ -205,7 +205,7 @@ pub mod scale {
     /// a type ID, and a type registry from which we'll look up the relevant type information.
     pub fn decode_as_type<R>(
         data: &mut &[u8],
-        ty_id: &R::TypeId,
+        ty_id: R::TypeId,
         types: &R,
     ) -> Result<crate::Value<R::TypeId>, DecodeError>
     where
@@ -235,7 +235,7 @@ pub mod scale {
     /// up the relevant type information, and a buffer to encode the bytes to.
     pub fn encode_as_type<R: TypeResolver, T>(
         value: &crate::Value<T>,
-        ty_id: &R::TypeId,
+        ty_id: R::TypeId,
         types: &R,
         buf: &mut Vec<u8>,
     ) -> Result<(), EncodeError> {
