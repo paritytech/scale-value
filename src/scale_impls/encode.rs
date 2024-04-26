@@ -96,73 +96,77 @@ fn encode_composite<'a, T, R: TypeResolver>(
         // context to hand to visitor functions:
         let ctx = (type_id.clone(), out);
 
-        let visit_composite_or_tuple = |(type_id,out): (R::TypeId, &mut Vec<u8>)| -> Result<(), Error> {
-            match value {
-                Composite::Named(vals) => {
-                    let keyvals =
-                        vals.iter().map(|(key, val)| (Some(&**key), CompositeField::new(val)));
-                    EncodeComposite::new(keyvals).encode_composite_as_type_to(type_id, types, out)
-                }
-                Composite::Unnamed(vals) => {
-                    let vals = vals.iter().map(|val| (None, CompositeField::new(val)));
-                    EncodeComposite::new(vals).encode_composite_as_type_to(type_id, types, out)
-                }
-            }
-        };
-
-        let visitor =
-            scale_type_resolver::visitor::new::<'_, (R::TypeId,&mut Vec<u8>), R::TypeId, Result<(), Error>, _>(
-                ctx,
-                |(type_id, out), _| {
-                    let mut values = value.values();
-                    match (values.next(), values.next()) {
-                        // Exactly one value:
-                        (Some(value), None) => value.encode_as_type_to(type_id, types, out),
-                        // Some other number of values:
-                        _ => Err(Error::new(ErrorKind::WrongShape {
-                            actual: Kind::Tuple,
-                            expected_id: format!("{:?}", type_id),
-                        })),
-                    }
-                },
-            )
-            .visit_composite(|ctx, _, _| visit_composite_or_tuple(ctx))
-            .visit_tuple(|ctx, _| visit_composite_or_tuple(ctx))
-            .visit_sequence(|(_, out), _path, type_id| {
-                // sequences start with compact encoded length:
-                Compact(value.len() as u32).encode_to(out);
+        let visit_composite_or_tuple =
+            |(type_id, out): (R::TypeId, &mut Vec<u8>)| -> Result<(), Error> {
                 match value {
-                    Composite::Named(named_vals) => {
-                        for (name, val) in named_vals {
-                            val.encode_as_type_to(type_id.clone(), types, out)
-                                .map_err(|e| e.at_field(name.to_string()))?;
-                        }
+                    Composite::Named(vals) => {
+                        let keyvals =
+                            vals.iter().map(|(key, val)| (Some(&**key), CompositeField::new(val)));
+                        EncodeComposite::new(keyvals)
+                            .encode_composite_as_type_to(type_id, types, out)
                     }
                     Composite::Unnamed(vals) => {
-                        for (idx, val) in vals.iter().enumerate() {
-                            val.encode_as_type_to(type_id.clone(), types, out)
-                                .map_err(|e| e.at_idx(idx))?;
-                        }
+                        let vals = vals.iter().map(|val| (None, CompositeField::new(val)));
+                        EncodeComposite::new(vals).encode_composite_as_type_to(type_id, types, out)
                     }
                 }
-                Ok(())
-            })
-            .visit_array(|(_, out), type_id, array_len| {
-                if value.len() != array_len {
-                    return Err(Error::new(ErrorKind::WrongLength {
-                        actual_len: value.len(),
-                        expected_len: array_len,
-                    }));
+            };
+
+        let visitor = scale_type_resolver::visitor::new::<
+            '_,
+            (R::TypeId, &mut Vec<u8>),
+            R::TypeId,
+            Result<(), Error>,
+            _,
+        >(ctx, |(type_id, out), _| {
+            let mut values = value.values();
+            match (values.next(), values.next()) {
+                // Exactly one value:
+                (Some(value), None) => value.encode_as_type_to(type_id, types, out),
+                // Some other number of values:
+                _ => Err(Error::new(ErrorKind::WrongShape {
+                    actual: Kind::Tuple,
+                    expected_id: format!("{:?}", type_id),
+                })),
+            }
+        })
+        .visit_composite(|ctx, _, _| visit_composite_or_tuple(ctx))
+        .visit_tuple(|ctx, _| visit_composite_or_tuple(ctx))
+        .visit_sequence(|(_, out), _path, type_id| {
+            // sequences start with compact encoded length:
+            Compact(value.len() as u32).encode_to(out);
+            match value {
+                Composite::Named(named_vals) => {
+                    for (name, val) in named_vals {
+                        val.encode_as_type_to(type_id.clone(), types, out)
+                            .map_err(|e| e.at_field(name.to_string()))?;
+                    }
                 }
-                for (idx, val) in value.values().enumerate() {
-                    val.encode_as_type_to(type_id.clone(), types, out).map_err(|e| e.at_idx(idx))?;
+                Composite::Unnamed(vals) => {
+                    for (idx, val) in vals.iter().enumerate() {
+                        val.encode_as_type_to(type_id.clone(), types, out)
+                            .map_err(|e| e.at_idx(idx))?;
+                    }
                 }
-                Ok(())
-            })
-            .visit_bit_sequence(|(_, out), store, order| {
-                let format = scale_bits::Format { store, order };
-                encode_vals_to_bitsequence(value.values(), out, format)
-            });
+            }
+            Ok(())
+        })
+        .visit_array(|(_, out), type_id, array_len| {
+            if value.len() != array_len {
+                return Err(Error::new(ErrorKind::WrongLength {
+                    actual_len: value.len(),
+                    expected_len: array_len,
+                }));
+            }
+            for (idx, val) in value.values().enumerate() {
+                val.encode_as_type_to(type_id.clone(), types, out).map_err(|e| e.at_idx(idx))?;
+            }
+            Ok(())
+        })
+        .visit_bit_sequence(|(_, out), store, order| {
+            let format = scale_bits::Format { store, order };
+            encode_vals_to_bitsequence(value.values(), out, format)
+        });
 
         match types.resolve_type(type_id, visitor) {
             Ok(Ok(())) => Ok(()),
@@ -195,7 +199,8 @@ fn encode_composite<'a, T, R: TypeResolver>(
             find_single_entry_with_same_repr::<R>(type_id.clone(), types);
         if inner_is_different {
             let mut temp_out = Vec::new();
-            if let Ok(()) = do_encode_composite(value, inner_type_id.clone(), types, &mut temp_out) {
+            if let Ok(()) = do_encode_composite(value, inner_type_id.clone(), types, &mut temp_out)
+            {
                 out.extend_from_slice(&temp_out);
                 return Ok(());
             }

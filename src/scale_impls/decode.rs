@@ -54,7 +54,13 @@ where
     R::TypeId: Clone,
 {
     // Build a Composite type to pass to a one-off visitor:
-    let mut composite = scale_decode::visitor::types::Composite::new(input, fields, types, false);
+    let mut composite = scale_decode::visitor::types::Composite::new(
+        std::iter::empty(),
+        input,
+        fields,
+        types,
+        false,
+    );
     // Decode into a Composite value from this:
     let val = visit_composite::<R, R::TypeId, TypeIdContext>(&mut composite)?;
     // Consume remaining bytes and update input cursor:
@@ -86,8 +92,13 @@ impl scale_decode::DecodeAsFields for Composite<()> {
         types: &'resolver R,
     ) -> Result<Self, scale_decode::Error> {
         // Build a Composite type to pass to a one-off visitor:
-        let mut composite =
-            scale_decode::visitor::types::Composite::new(input, fields, types, false);
+        let mut composite = scale_decode::visitor::types::Composite::new(
+            std::iter::empty(),
+            input,
+            fields,
+            types,
+            false,
+        );
         // Decode into a Composite value from this:
         let val = visit_composite::<R, (), EmptyContext>(&mut composite);
         // Consume remaining bytes and update input cursor:
@@ -216,7 +227,10 @@ where
         value: &'scale [u8; 32],
         type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-        Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: F::context_from_type_id(&type_id) })
+        Ok(Value {
+            value: ValueDef::Primitive(Primitive::U256(*value)),
+            context: F::context_from_type_id(&type_id),
+        })
     }
     fn visit_i8<'scale, 'info>(
         self,
@@ -258,7 +272,10 @@ where
         value: &'scale [u8; 32],
         type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-        Ok(Value { value: ValueDef::Primitive(Primitive::U256(*value)), context: F::context_from_type_id(&type_id) })
+        Ok(Value {
+            value: ValueDef::Primitive(Primitive::U256(*value)),
+            context: F::context_from_type_id(&type_id),
+        })
     }
     fn visit_sequence<'scale, 'info>(
         self,
@@ -287,7 +304,10 @@ where
         type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         let bits: Result<_, _> = value.decode()?.collect();
-        Ok(Value { value: ValueDef::BitSequence(bits?), context: F::context_from_type_id(&type_id) })
+        Ok(Value {
+            value: ValueDef::BitSequence(bits?),
+            context: F::context_from_type_id(&type_id),
+        })
     }
     fn visit_str<'scale, 'info>(
         self,

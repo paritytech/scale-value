@@ -181,12 +181,12 @@ pub mod serde {
 ///
 /// // Encode the Value to bytes:
 /// let mut bytes = Vec::new();
-/// scale_value::scale::encode_as_type(&value, &type_id, &registry, &mut bytes).unwrap();
+/// scale_value::scale::encode_as_type(&value, type_id, &registry, &mut bytes).unwrap();
 ///
 /// // Decode the bytes back into a matching Value.
 /// // This value contains contextual information about which type was used
 /// // to decode each part of it, which we can throw away with `.remove_context()`.
-/// let new_value = scale_value::scale::decode_as_type(&mut &*bytes, &type_id, &registry).unwrap();
+/// let new_value = scale_value::scale::decode_as_type(&mut &*bytes, type_id, &registry).unwrap();
 ///
 /// assert_eq!(value, new_value.remove_context());
 /// ```
