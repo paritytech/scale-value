@@ -55,7 +55,7 @@ where
 {
     // Build a Composite type to pass to a one-off visitor:
     let mut composite = scale_decode::visitor::types::Composite::new(
-        std::iter::empty(),
+        core::iter::empty(),
         input,
         fields,
         types,
@@ -93,7 +93,7 @@ impl scale_decode::DecodeAsFields for Composite<()> {
     ) -> Result<Self, scale_decode::Error> {
         // Build a Composite type to pass to a one-off visitor:
         let mut composite = scale_decode::visitor::types::Composite::new(
-            std::iter::empty(),
+            core::iter::empty(),
             input,
             fields,
             types,
@@ -126,7 +126,7 @@ impl scale_decode::IntoVisitor for Value<()> {
 /// - We need to be able to decode into [`Value<TypeId>`] via the [`decode_value_as_type`] fn
 ///   above.
 ///
-/// This trait basically allows us to handle each case by havign a function that is given a
+/// This trait basically allows us to handle each case by having a function that is given a
 /// `TypeId` and decides whether to hand back `()` or the `TypeId`.
 trait ContextFromTypeId<TypeId, Output> {
     fn context_from_type_id(type_id: &TypeId) -> Output;
