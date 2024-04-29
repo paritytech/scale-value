@@ -181,12 +181,12 @@ pub mod serde {
 ///
 /// // Encode the Value to bytes:
 /// let mut bytes = Vec::new();
-/// scale_value::scale::encode_as_type(&value, &type_id, &registry, &mut bytes).unwrap();
+/// scale_value::scale::encode_as_type(&value, type_id, &registry, &mut bytes).unwrap();
 ///
 /// // Decode the bytes back into a matching Value.
 /// // This value contains contextual information about which type was used
 /// // to decode each part of it, which we can throw away with `.remove_context()`.
-/// let new_value = scale_value::scale::decode_as_type(&mut &*bytes, &type_id, &registry).unwrap();
+/// let new_value = scale_value::scale::decode_as_type(&mut &*bytes, type_id, &registry).unwrap();
 ///
 /// assert_eq!(value, new_value.remove_context());
 /// ```
@@ -205,7 +205,7 @@ pub mod scale {
     /// a type ID, and a type registry from which we'll look up the relevant type information.
     pub fn decode_as_type<R>(
         data: &mut &[u8],
-        ty_id: &R::TypeId,
+        ty_id: R::TypeId,
         types: &R,
     ) -> Result<crate::Value<R::TypeId>, DecodeError>
     where
@@ -235,7 +235,7 @@ pub mod scale {
     /// up the relevant type information, and a buffer to encode the bytes to.
     pub fn encode_as_type<R: TypeResolver, T>(
         value: &crate::Value<T>,
-        ty_id: &R::TypeId,
+        ty_id: R::TypeId,
         types: &R,
         buf: &mut Vec<u8>,
     ) -> Result<(), EncodeError> {

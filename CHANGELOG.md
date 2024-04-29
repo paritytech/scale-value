@@ -4,16 +4,19 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.15.0 (2024-04-29)
 
-## 0.14.0 (2024-03-04)
+This release bumps `scale-type-resolver`, `scale-encode`, `scale-decode` and `scale-bits` to their latest versions.
 
-## Added
+## 0.14.1 (2024-03-04)
+
+### Added
 
 A `scale_value::decode_as_fields` function was added that can decode a series of values from some bytes given an iterator of type ids. Previously it was only possible through the `scale_decode::DecodeAsFields` implementation of `scale_value::Composite<()>`. With the new function `scale_value::Composite<R::TypeId>`'s can be decoded for any type resolver `R`.
 
 ## 0.14.0 (2024-02-27)
 
-## Changed
+### Changed
 
 The crate now uses [`scale-type-resolver`](https://github.com/paritytech/scale-type-resolver) to be generic over the provider of type information that is used when encoding and decoding `Value`s.
 
@@ -34,7 +37,7 @@ but now it decodes to `Value::named_composite(vec![("inner", Value::u128(123))])
 
 ## 0.11.0 (2023-07-18)
 
-## Added
+### Added
 
 - Adds support for `no_std` environments; disable the "std" feature flag for this. ([#38](https://github.com/paritytech/scale-value/pull/38))
   This PR makes a couple of small breaking changes:
@@ -43,7 +46,7 @@ but now it decodes to `Value::named_composite(vec![("inner", Value::u128(123))])
   - `ParseErrorKind::Custom` errors are now strings rather than boxed `std::error::Error`s to play nicer with `no_std`.
 - Adds a `value!` macro to make constructing `Value`'s much easier; think `serde_json::value!`. ([#36](https://github.com/paritytech/scale-value/pull/36))
 
-## Changed
+### Changed
 
 - Bumps `scale-encode` and `scale-decode` to their latest versions (0.4 and 0.8 respectively).
 
