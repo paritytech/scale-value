@@ -79,10 +79,10 @@ impl<T> EncodeAsFields for Composite<T> {
 // can't handle encoding to sequences/arrays. However, we can encode safely into sequences here because we can inspect the
 // values we have and more safely skip newtype wrappers without also skipping through types that might represent 1-value
 // sequences/arrays for instance.
-fn encode_composite<'a, T, R: TypeResolver>(
+fn encode_composite<T, R: TypeResolver>(
     value: &Composite<T>,
     mut type_id: R::TypeId,
-    types: &'a R,
+    types: &R,
     out: &mut Vec<u8>,
 ) -> Result<(), Error> {
     // Encode our composite Value as-is (pretty much; we will try to
@@ -229,13 +229,13 @@ fn encode_composite<'a, T, R: TypeResolver>(
 /// Skip into the target type past any newtype wrapper like things.
 /// Also returns a bool indicating whether we skipped into something or not.
 /// This bool is true when the returned id is different from the id that was passed in.
-fn find_single_entry_with_same_repr<'a, R: TypeResolver>(
+fn find_single_entry_with_same_repr<R: TypeResolver>(
     type_id: R::TypeId,
-    types: &'a R,
+    types: &R,
 ) -> (R::TypeId, bool) {
-    fn do_find<'a, R: TypeResolver>(
+    fn do_find<R: TypeResolver>(
         type_id: R::TypeId,
-        types: &'a R,
+        types: &R,
         type_id_has_changed: bool,
     ) -> (R::TypeId, bool) {
         let ctx = (type_id.clone(), type_id_has_changed);

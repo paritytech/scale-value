@@ -135,8 +135,8 @@ trait ContextFromTypeId<TypeId, Output> {
 /// Return () for our value context.
 pub struct EmptyContext;
 impl<TypeId> ContextFromTypeId<TypeId, ()> for EmptyContext {
-    fn context_from_type_id(_type_id: &TypeId) -> () {
-        ()
+    fn context_from_type_id(_type_id: &TypeId) {
+        
     }
 }
 
@@ -222,11 +222,11 @@ where
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         Ok(Value::u128(value).map_context(|_| F::context_from_type_id(&type_id)))
     }
-    fn visit_u256<'scale, 'info>(
+    fn visit_u256<'info>(
         self,
-        value: &'scale [u8; 32],
+        value: &[u8; 32],
         type_id: R::TypeId,
-    ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
+    ) -> Result<Self::Value<'_, 'info>, Self::Error> {
         Ok(Value {
             value: ValueDef::Primitive(Primitive::U256(*value)),
             context: F::context_from_type_id(&type_id),
@@ -267,11 +267,11 @@ where
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         Ok(Value::i128(value).map_context(|_| F::context_from_type_id(&type_id)))
     }
-    fn visit_i256<'scale, 'info>(
+    fn visit_i256<'info>(
         self,
-        value: &'scale [u8; 32],
+        value: &[u8; 32],
         type_id: R::TypeId,
-    ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
+    ) -> Result<Self::Value<'_, 'info>, Self::Error> {
         Ok(Value {
             value: ValueDef::Primitive(Primitive::U256(*value)),
             context: F::context_from_type_id(&type_id),
