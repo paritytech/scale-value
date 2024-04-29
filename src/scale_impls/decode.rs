@@ -135,9 +135,7 @@ trait ContextFromTypeId<TypeId, Output> {
 /// Return () for our value context.
 pub struct EmptyContext;
 impl<TypeId> ContextFromTypeId<TypeId, ()> for EmptyContext {
-    fn context_from_type_id(_type_id: &TypeId) {
-        
-    }
+    fn context_from_type_id(_type_id: &TypeId) {}
 }
 
 /// Return the type ID for our value context.
