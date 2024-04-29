@@ -38,7 +38,7 @@ where
         data,
         ty_id,
         types,
-        DecodeValueVisitor::<R, R::TypeId, TypeIdContext>::new(),
+        DecodeValueVisitor::<R, TypeIdContext>::new(),
     )
 }
 
@@ -62,7 +62,7 @@ where
         false,
     );
     // Decode into a Composite value from this:
-    let val = visit_composite::<R, R::TypeId, TypeIdContext>(&mut composite)?;
+    let val = visit_composite::<R, TypeIdContext>(&mut composite)?;
     // Consume remaining bytes and update input cursor:
     composite.skip_decoding()?;
     *input = composite.bytes_from_undecoded();
@@ -73,7 +73,7 @@ where
 macro_rules! to_unnamed_composite {
     ($value:ident, $type_id:ident) => {{
         let mut vals = Vec::with_capacity($value.remaining());
-        while let Some(val) = $value.decode_item(DecodeValueVisitor::<R, T, F>::new()) {
+        while let Some(val) = $value.decode_item(DecodeValueVisitor::<R, F>::new()) {
             let val = val?;
             vals.push(val);
         }
@@ -100,7 +100,7 @@ impl scale_decode::DecodeAsFields for Composite<()> {
             false,
         );
         // Decode into a Composite value from this:
-        let val = visit_composite::<R, (), EmptyContext>(&mut composite);
+        let val = visit_composite::<R, EmptyContext>(&mut composite);
         // Consume remaining bytes and update input cursor:
         composite.skip_decoding()?;
         *input = composite.bytes_from_undecoded();
@@ -111,7 +111,7 @@ impl scale_decode::DecodeAsFields for Composite<()> {
 impl scale_decode::IntoVisitor for Value<()> {
     // Note: the DefaultMapper just removes all type ids here.
     type AnyVisitor<R: scale_decode::TypeResolver> =
-        scale_decode::visitor::VisitorWithCrateError<DecodeValueVisitor<R, (), EmptyContext>>;
+        scale_decode::visitor::VisitorWithCrateError<DecodeValueVisitor<R, EmptyContext>>;
 
     fn into_visitor<R: scale_decode::TypeResolver>() -> Self::AnyVisitor<R> {
         scale_decode::visitor::VisitorWithCrateError(DecodeValueVisitor::new())
@@ -128,46 +128,49 @@ impl scale_decode::IntoVisitor for Value<()> {
 ///
 /// This trait basically allows us to handle each case by having a function that is given a
 /// `TypeId` and decides whether to hand back `()` or the `TypeId`.
-trait ContextFromTypeId<TypeId, Output> {
-    fn context_from_type_id(type_id: &TypeId) -> Output;
+pub trait ContextFromTypeId<TypeId> {
+    type Output;
+    fn context_from_type_id(type_id: &TypeId) -> Self::Output;
 }
 
 /// Return () for our value context.
 pub struct EmptyContext;
-impl<TypeId> ContextFromTypeId<TypeId, ()> for EmptyContext {
+impl<TypeId> ContextFromTypeId<TypeId> for EmptyContext {
+    type Output = ();
     fn context_from_type_id(_type_id: &TypeId) {}
 }
 
 /// Return the type ID for our value context.
 struct TypeIdContext;
-impl<TypeId: Clone> ContextFromTypeId<TypeId, TypeId> for TypeIdContext {
+impl<TypeId: Clone> ContextFromTypeId<TypeId> for TypeIdContext {
+    type Output = TypeId;
     fn context_from_type_id(type_id: &TypeId) -> TypeId {
         type_id.clone()
     }
 }
 
 /// A [`scale_decode::Visitor`] implementation for decoding into [`Value`]s.
-pub struct DecodeValueVisitor<R: TypeResolver, T, F> {
-    resolver: PhantomData<(R, T, F)>,
+pub struct DecodeValueVisitor<R: TypeResolver, F> {
+    resolver: PhantomData<(R, F)>,
 }
-impl<R: TypeResolver, T, F> Default for DecodeValueVisitor<R, T, F> {
+impl<R: TypeResolver, F> Default for DecodeValueVisitor<R, F> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<R: TypeResolver, T, F> DecodeValueVisitor<R, T, F> {
+impl<R: TypeResolver, F> DecodeValueVisitor<R, F> {
     pub fn new() -> Self {
         DecodeValueVisitor { resolver: PhantomData }
     }
 }
 
-impl<R, T, F> scale_decode::visitor::Visitor for DecodeValueVisitor<R, T, F>
+impl<R, F> scale_decode::visitor::Visitor for DecodeValueVisitor<R, F>
 where
     R: TypeResolver,
-    F: ContextFromTypeId<R::TypeId, T>,
+    F: ContextFromTypeId<R::TypeId>,
 {
-    type Value<'scale, 'info> = Value<T>;
+    type Value<'scale, 'info> = Value<F::Output>;
     type Error = DecodeError;
     type TypeResolver = R;
 
@@ -319,7 +322,7 @@ where
         value: &mut scale_decode::visitor::types::Variant<'scale, 'info, R>,
         type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
-        let values = visit_composite::<R, T, F>(value.fields())?;
+        let values = visit_composite::<R, F>(value.fields())?;
         Ok(Value {
             value: ValueDef::Variant(Variant { name: value.name().to_owned(), values }),
             context: F::context_from_type_id(&type_id),
@@ -331,19 +334,19 @@ where
         type_id: R::TypeId,
     ) -> Result<Self::Value<'scale, 'info>, Self::Error> {
         Ok(Value {
-            value: ValueDef::Composite(visit_composite::<R, T, F>(value)?),
+            value: ValueDef::Composite(visit_composite::<R, F>(value)?),
             context: F::context_from_type_id(&type_id),
         })
     }
 }
 
 /// Extract a named/unnamed Composite type out of scale_decode's Composite.
-fn visit_composite<R, T, F>(
+fn visit_composite<R, F>(
     value: &mut scale_decode::visitor::types::Composite<'_, '_, R>,
-) -> Result<Composite<T>, DecodeError>
+) -> Result<Composite<F::Output>, DecodeError>
 where
     R: TypeResolver,
-    F: ContextFromTypeId<R::TypeId, T>,
+    F: ContextFromTypeId<R::TypeId>,
 {
     let len = value.remaining();
     // if no fields, we'll always assume unnamed.
@@ -352,7 +355,7 @@ where
     if named {
         let mut vals = Vec::with_capacity(len);
         let mut name = value.peek_name();
-        while let Some(v) = value.decode_item(DecodeValueVisitor::<R, T, F>::new()) {
+        while let Some(v) = value.decode_item(DecodeValueVisitor::<R, F>::new()) {
             let v = v?;
             vals.push((name.expect("all fields should be named; we have checked").to_owned(), v));
             // get the next field name now we've decoded one.
@@ -361,7 +364,7 @@ where
         Ok(Composite::Named(vals))
     } else {
         let mut vals = Vec::with_capacity(len);
-        while let Some(v) = value.decode_item(DecodeValueVisitor::<R, T, F>::new()) {
+        while let Some(v) = value.decode_item(DecodeValueVisitor::<R, F>::new()) {
             let v = v?;
             vals.push(v);
         }
