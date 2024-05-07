@@ -176,7 +176,7 @@ fn encode_composite<T, R: TypeResolver>(
     }
 
     // First, try and encode everything as-is, only writing to the output
-    // byte if the encoding is actually successful. This means that if the
+    // bytes if the encoding is actually successful. This means that if the
     // Value provided matches the structure of the TypeInfo exactly, things
     // should always work.
     let original_error = {
@@ -208,13 +208,12 @@ fn encode_composite<T, R: TypeResolver>(
         }
     }
 
-    // Now, start peeling layers off our Value type in case some newtype wrappers
-    // were provided. We do this one layer at a time because it's difficult or
-    // impossible to know how to line values up with TypeInfo, so we can't just
-    // strip lots of layers from the Value straight away. We continue to ignore
-    // any errors here and will always return the original_error if we can't encode.
-    // Everything past the original attempt is just trying to be flexible, anyway.
-    while let Some(value) = get_only_value_from_composite(value) {
+    // Peel off a single layer from the provided Value (if it appears to be new-type-esque,
+    // ie contains just one value) to see if, after doing so, the thing can be successfully
+    // encoded. The inner `.encode_as_type_to` will loop around and peel off another layer
+    // etc if no luck. Ultimately we'll just return the original error below if this all
+    // fails.
+    if let Some(value) = get_only_value_from_composite(value) {
         let mut temp_out = Vec::new();
         if let Ok(()) = value.encode_as_type_to(type_id.clone(), types, &mut temp_out) {
             out.extend_from_slice(&temp_out);
@@ -372,11 +371,31 @@ fn encode_bitsequence<R: TypeResolver>(
 
 #[cfg(test)]
 mod test {
-    use crate::value;
-
     use super::*;
+    use crate::value;
     use codec::{Compact, Encode};
     use scale_info::PortableRegistry;
+    use std::{sync::mpsc, thread, time::Duration};
+
+    // Panic after some duration.
+    fn panic_after<T, F>(d: Duration, f: F) -> T
+    where
+        T: Send + 'static,
+        F: FnOnce() -> T,
+        F: Send + 'static,
+    {
+        let (done_tx, done_rx) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            let val = f();
+            done_tx.send(()).expect("Unable to send completion signal");
+            val
+        });
+
+        match done_rx.recv_timeout(d) {
+            Ok(_) => handle.join().expect("Thread panicked"),
+            Err(_) => panic!("Thread took too long"),
+        }
+    }
 
     /// Given a type definition, return the PortableType and PortableRegistry
     /// that our decode functions expect.
@@ -556,7 +575,7 @@ mod test {
     }
 
     #[test]
-    fn can_encode_skipping_newtype_wrappers() {
+    fn can_encode_skipping_struct_newtype_wrappers() {
         // One layer of "newtype" can be ignored:
         #[derive(Encode, scale_info::TypeInfo)]
         struct Foo {
@@ -578,5 +597,49 @@ mod test {
             SomeBytes(vec![1, 2, 3, 4, 5]),
         );
         assert_can_encode_to_type(Value::from_bytes([1]), SomeBytes(vec![1]));
+    }
+
+    #[test]
+    fn can_encode_skipping_value_newtype_wrappers() {
+        #[derive(Encode, scale_info::TypeInfo)]
+        struct Foo {
+            inner: u32,
+        }
+
+        // The correct number of layers to match Foo
+        assert_can_encode_to_type(
+            Value::unnamed_composite(vec![Value::u128(32)]),
+            Foo { inner: 32 },
+        );
+        // One layer too many.
+        assert_can_encode_to_type(
+            Value::unnamed_composite(vec![Value::unnamed_composite(vec![Value::u128(32)])]),
+            Foo { inner: 32 },
+        );
+        // Two layers too many.
+        assert_can_encode_to_type(
+            Value::unnamed_composite(vec![Value::unnamed_composite(vec![
+                Value::unnamed_composite(vec![Value::u128(32)]),
+            ])]),
+            Foo { inner: 32 },
+        );
+    }
+
+    // As of https://github.com/paritytech/scale-value/issues/47, this test will
+    // never finish. Keep the test to ensure that things do finish as expected!
+    #[test]
+    fn encoding_shouldnt_take_forever() {
+        panic_after(Duration::from_millis(100), || {
+            #[derive(scale_info::TypeInfo, codec::Encode)]
+            struct A(bool);
+
+            let mut buf = Vec::new();
+            let (ty_id, types) = make_type::<A>();
+            let value = Value::unnamed_composite(vec![Value::from_bytes(0u32.to_le_bytes())]);
+
+            value
+                .encode_as_type_to(ty_id, &types, &mut buf)
+                .expect_err("We tried encoding a Value of the wrong shape so this should fail");
+        })
     }
 }
