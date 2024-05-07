@@ -625,8 +625,8 @@ mod test {
         );
     }
 
-    // As of https://github.com/paritytech/scale-value/issues/47, this test will
-    // never finish. Keep the test to ensure that things do finish as expected!
+    // As of https://github.com/paritytech/scale-value/issues/47, this test will take
+    // too long and time out. Keep the test to ensure that things do finish as expected!
     #[test]
     fn encoding_shouldnt_take_forever() {
         panic_after(Duration::from_millis(100), || {
