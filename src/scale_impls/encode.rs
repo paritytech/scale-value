@@ -374,16 +374,19 @@ mod test {
     use super::*;
     use crate::value;
     use codec::{Compact, Encode};
+    use core::time::Duration;
     use scale_info::PortableRegistry;
-    use std::{sync::mpsc, thread, time::Duration};
 
     // Panic after some duration.
+    #[cfg(feature = "std")]
     fn panic_after<T, F>(d: Duration, f: F) -> T
     where
         T: Send + 'static,
         F: FnOnce() -> T,
         F: Send + 'static,
     {
+        use std::{sync::mpsc, thread};
+
         let (done_tx, done_rx) = mpsc::channel();
         let handle = thread::spawn(move || {
             let val = f();
@@ -628,6 +631,7 @@ mod test {
     // As of https://github.com/paritytech/scale-value/issues/47, this test will take
     // too long and time out. Keep the test to ensure that things do finish as expected!
     #[test]
+    #[cfg(feature = "std")]
     fn encoding_shouldnt_take_forever() {
         panic_after(Duration::from_millis(100), || {
             #[derive(scale_info::TypeInfo, codec::Encode)]
