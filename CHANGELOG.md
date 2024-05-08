@@ -4,6 +4,12 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.15.1 (2024-05-08)
+
+### Fixed
+
+- Fix an infinite loop when trying to encode Composite values of the wrong shape ((#48)[https://github.com/paritytech/scale-value/pull/48])
+
 ## 0.15.0 (2024-04-29)
 
 This release bumps `scale-type-resolver`, `scale-encode`, `scale-decode` and `scale-bits` to their latest versions.
