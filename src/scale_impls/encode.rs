@@ -628,8 +628,8 @@ mod test {
         );
     }
 
-    // As of https://github.com/paritytech/scale-value/issues/47, this test will take
-    // too long and time out. Keep the test to ensure that things do finish as expected!
+    // Prior to https://github.com/paritytech/scale-value/pulls/48, this test will take
+    // too long and panic. #48 should ensure that this doesn't happen.
     #[test]
     #[cfg(feature = "std")]
     fn encoding_shouldnt_take_forever() {
