@@ -374,10 +374,8 @@ where
 
 #[cfg(test)]
 mod test {
-
-    use crate::value;
-
     use super::*;
+    use crate::value;
     use codec::{Compact, Encode};
     use scale_info::PortableRegistry;
 

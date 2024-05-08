@@ -112,9 +112,9 @@ impl Serializer for ValueSerializer {
         Ok(Value::variant("None".to_string(), Composite::Unnamed(Vec::new())))
     }
 
-    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok, Self::Error>
+    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         let inner = value.serialize(ValueSerializer)?;
         Ok(Value::variant("Some".to_string(), Composite::Unnamed(vec![inner])))
@@ -137,19 +137,19 @@ impl Serializer for ValueSerializer {
         Ok(Value::variant(variant.to_string(), Composite::Unnamed(Vec::new())))
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(
+    fn serialize_newtype_struct<T>(
         self,
         _name: &'static str,
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         let inner = value.serialize(ValueSerializer)?;
         Ok(Value::unnamed_composite(vec![inner]))
     }
 
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
         _variant_index: u32,
@@ -157,7 +157,7 @@ impl Serializer for ValueSerializer {
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         let inner = value.serialize(ValueSerializer)?;
         Ok(Value::variant(variant.to_string(), Composite::Unnamed(vec![inner])))
@@ -228,9 +228,9 @@ impl UnnamedCompositeSerializer {
         UnnamedCompositeSerializer { variant_name: Some(variant_name), values: Vec::new() }
     }
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), SerializerError>
+    fn serialize_element<T>(&mut self, value: &T) -> Result<(), SerializerError>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         let inner = value.serialize(ValueSerializer)?;
         self.values.push(inner);
@@ -249,9 +249,9 @@ impl SerializeSeq for UnnamedCompositeSerializer {
     type Ok = Value<()>;
     type Error = SerializerError;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
+    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         self.serialize_element(value)
     }
@@ -265,9 +265,9 @@ impl SerializeTuple for UnnamedCompositeSerializer {
     type Ok = Value<()>;
     type Error = SerializerError;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
+    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         self.serialize_element(value)
     }
@@ -281,9 +281,9 @@ impl SerializeTupleStruct for UnnamedCompositeSerializer {
     type Ok = Value<()>;
     type Error = SerializerError;
 
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         self.serialize_element(value)
     }
@@ -297,9 +297,9 @@ impl SerializeTupleVariant for UnnamedCompositeSerializer {
     type Ok = Value<()>;
     type Error = SerializerError;
 
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         self.serialize_element(value)
     }
@@ -326,9 +326,9 @@ impl NamedCompositeSerializer {
         NamedCompositeSerializer { variant_name: Some(variant_name), values: Vec::new(), key: None }
     }
 
-    fn serialize_field<T: ?Sized>(&mut self, key: &str, value: &T) -> Result<(), SerializerError>
+    fn serialize_field<T>(&mut self, key: &str, value: &T) -> Result<(), SerializerError>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         let key = key.to_string();
         let inner = value.serialize(ValueSerializer)?;
@@ -348,9 +348,9 @@ impl SerializeMap for NamedCompositeSerializer {
     type Ok = Value<()>;
     type Error = SerializerError;
 
-    fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<(), Self::Error>
+    fn serialize_key<T>(&mut self, key: &T) -> Result<(), Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         let inner = key.serialize(ValueSerializer)?;
         // Map keys must be stringish, because named composite values are strings
@@ -365,9 +365,9 @@ impl SerializeMap for NamedCompositeSerializer {
         Ok(())
     }
 
-    fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
+    fn serialize_value<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         let key = self.key.take().expect("serialize_key must be called prior to serialize_value");
         self.serialize_field(&key, value)
@@ -382,13 +382,9 @@ impl SerializeStruct for NamedCompositeSerializer {
     type Ok = Value<()>;
     type Error = SerializerError;
 
-    fn serialize_field<T: ?Sized>(
-        &mut self,
-        key: &'static str,
-        value: &T,
-    ) -> Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         self.serialize_field(key, value)
     }
@@ -402,13 +398,9 @@ impl SerializeStructVariant for NamedCompositeSerializer {
     type Ok = Value<()>;
     type Error = SerializerError;
 
-    fn serialize_field<T: ?Sized>(
-        &mut self,
-        key: &'static str,
-        value: &T,
-    ) -> Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         self.serialize_field(key, value)
     }
