@@ -126,7 +126,7 @@ impl<T> Value<T> {
     /// Map the context to some different type.
     pub fn map_context<F, U>(self, mut f: F) -> Value<U>
     where
-        F: Clone + FnMut(T) -> U,
+        F: Clone + FnOnce(T) -> U,
     {
         Value { context: f(self.context), value: self.value.map_context(f) }
     }
