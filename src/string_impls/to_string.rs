@@ -17,6 +17,9 @@ use super::string_helpers;
 use crate::prelude::*;
 use crate::value_type::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
 use core::fmt::{Display, Write};
+use string_helpers::Formatter;
+
+const INDENT_STEP: usize = 2;
 
 impl<T> Display for Value<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -26,83 +29,127 @@ impl<T> Display for Value<T> {
 
 impl<T> Display for ValueDef<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let mut f = if f.alternate() { Formatter::spaced(f) } else { Formatter::compact(f) };
         match self {
-            ValueDef::Composite(c) => c.fmt(f),
-            ValueDef::Variant(v) => v.fmt(f),
-            ValueDef::BitSequence(b) => fmt_bitsequence(b, f),
-            ValueDef::Primitive(p) => p.fmt(f),
+            ValueDef::Composite(c) => fmt_composite(c, &mut f),
+            ValueDef::Variant(v) => fmt_variant(v, &mut f),
+            ValueDef::BitSequence(b) => fmt_bitsequence(b, &mut f),
+            ValueDef::Primitive(p) => fmt_primitive(p, &mut f),
         }
     }
 }
 
 impl<T> Display for Composite<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Composite::Named(vals) => {
-                f.write_str("{ ")?;
-                for (idx, (name, val)) in vals.iter().enumerate() {
-                    if idx != 0 {
-                        f.write_str(", ")?;
-                    }
-                    if is_ident(name) {
-                        f.write_str(name)?;
-                    } else {
-                        fmt_string(name, f)?;
-                    }
-                    f.write_str(": ")?;
-                    val.fmt(f)?;
-                }
-                f.write_str(" }")?;
-            }
-            Composite::Unnamed(vals) => {
-                f.write_char('(')?;
-                for (idx, val) in vals.iter().enumerate() {
-                    if idx != 0 {
-                        f.write_str(", ")?;
-                    }
-                    val.fmt(f)?;
-                }
-                f.write_char(')')?;
-            }
-        }
-        Ok(())
+        let mut f = if f.alternate() { Formatter::spaced(f) } else { Formatter::compact(f) };
+        fmt_composite(self, &mut f)
     }
 }
 
 impl<T> Display for Variant<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        if is_ident(&self.name) {
-            f.write_str(&self.name)?;
-        } else {
-            // If the variant name isn't a valid ident, we parse it into
-            // a special "v" prefixed string to allow arbitrary content while
-            // keeping it easy to parse variant names with minimal lookahead.
-            // Most use cases should never see or care about this.
-            f.write_char('v')?;
-            fmt_string(&self.name, f)?;
-        }
-        f.write_char(' ')?;
-        self.values.fmt(f)
+        let mut f = if f.alternate() { Formatter::spaced(f) } else { Formatter::compact(f) };
+        fmt_variant(self, &mut f)
     }
 }
 
 impl Display for Primitive {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Primitive::Bool(true) => f.write_str("true"),
-            Primitive::Bool(false) => f.write_str("false"),
-            Primitive::Char(c) => fmt_char(*c, f),
-            Primitive::I128(n) => n.fmt(f),
-            Primitive::U128(n) => n.fmt(f),
-            Primitive::String(s) => fmt_string(s, f),
-            // We don't currently have a sane way to parse into these or
-            // format out of them:
-            Primitive::U256(_) | Primitive::I256(_) => Err(core::fmt::Error),
-        }
+        let mut f: Formatter<_, ()> = if f.alternate() { Formatter::spaced(f) } else { Formatter::compact(f) };
+        fmt_primitive(self, &mut f)
     }
 }
 
-fn fmt_string(s: &str, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+fn fmt_value<T, W: core::fmt::Write>(v: &Value<T>, f: &mut Formatter<W, T>) -> core::fmt::Result {
+    if f.should_print_context() {
+        f.write_char('<')?;
+        f.print_context(&v.context)?;
+        f.write_str("> ")?;
+    }
+
+    match &v.value {
+        ValueDef::Composite(c) => fmt_composite(c, f),
+        ValueDef::Variant(v) => fmt_variant(v, f),
+        ValueDef::BitSequence(b) => fmt_bitsequence(b, f),
+        ValueDef::Primitive(p) => fmt_primitive(p, f),
+    }
+}
+
+fn fmt_variant<T, W: core::fmt::Write>(v: &Variant<T>, f: &mut Formatter<W, T>) -> core::fmt::Result {
+    if is_ident(&v.name) {
+        f.write_str(&v.name)?;
+    } else {
+        // If the variant name isn't a valid ident, we parse it into
+        // a special "v" prefixed string to allow arbitrary content while
+        // keeping it easy to parse variant names with minimal lookahead.
+        // Most use cases should never see or care about this.
+        f.write_char('v')?;
+        fmt_string(&v.name, f)?;
+    }
+    f.write_char(' ')?;
+    fmt_composite(&v.values, f)
+}
+
+fn fmt_composite<T, W: core::fmt::Write>(
+    v: &Composite<T>,
+    f: &mut Formatter<W, T>,
+) -> core::fmt::Result {
+    match v {
+        Composite::Named(vals) => {
+            f.write_str("{")?;
+            f.indent_by(INDENT_STEP);
+            f.newline_or_space()?;
+            for (idx, (name, val)) in vals.iter().enumerate() {
+                if idx != 0 {
+                    f.write_str(",")?;
+                    f.newline_or_space()?;
+                }
+                if is_ident(name) {
+                    f.write_str(name)?;
+                } else {
+                    fmt_string(name, f)?;
+                }
+                f.write_str(": ")?;
+                fmt_value(val, f)?;
+            }
+            f.unindent_by(INDENT_STEP);
+            f.newline_or_space()?;
+            f.write_str("}")?;
+        }
+        Composite::Unnamed(vals) => {
+            f.write_char('(')?;
+            f.indent_by(INDENT_STEP);
+            f.newline_or_nothing()?;
+            for (idx, val) in vals.iter().enumerate() {
+                if idx != 0 {
+                    f.write_str(",")?;
+                    f.newline_or_space()?;
+                }
+                fmt_value(val, f)?;
+            }
+            f.unindent_by(INDENT_STEP);
+            f.newline_or_nothing()?;
+            f.write_char(')')?;
+        }
+    }
+    Ok(())
+}
+
+fn fmt_primitive<T, W: core::fmt::Write>(p: &Primitive, f: &mut Formatter<W, T>) -> core::fmt::Result {
+    match p {
+        Primitive::Bool(true) => f.write_str("true"),
+        Primitive::Bool(false) => f.write_str("false"),
+        Primitive::Char(c) => fmt_char(*c, f),
+        Primitive::I128(n) => write!(f, "{n}"),
+        Primitive::U128(n) => write!(f, "{n}"),
+        Primitive::String(s) => fmt_string(s, f),
+        // We don't currently have a sane way to parse into these or
+        // format out of them:
+        Primitive::U256(_) | Primitive::I256(_) => Err(core::fmt::Error),
+    }
+}
+
+fn fmt_string<T, W: core::fmt::Write>(s: &str, f: &mut Formatter<W, T>) -> core::fmt::Result {
     f.write_char('"')?;
     for char in s.chars() {
         match string_helpers::to_escape_code(char) {
@@ -116,7 +163,7 @@ fn fmt_string(s: &str, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     f.write_char('"')
 }
 
-fn fmt_char(c: char, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+fn fmt_char<T, W: core::fmt::Write>(c: char, f: &mut Formatter<W, T>) -> core::fmt::Result {
     f.write_char('\'')?;
     match string_helpers::to_escape_code(c) {
         Some(escaped) => {
@@ -128,7 +175,10 @@ fn fmt_char(c: char, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     f.write_char('\'')
 }
 
-fn fmt_bitsequence(b: &BitSequence, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+fn fmt_bitsequence<T, W: core::fmt::Write>(
+    b: &BitSequence,
+    f: &mut Formatter<W, T>,
+) -> core::fmt::Result {
     f.write_char('<')?;
     for bit in b.iter() {
         match bit {
@@ -185,6 +235,42 @@ mod test {
         for (value, expected_str) in expected {
             assert_eq!(&value.to_string(), expected_str);
         }
+    }
+
+    #[test]
+    fn expanded_output_works() {
+        let v = value!({
+            hello: true,
+            sequence: (1,2,3),
+            variant: MyVariant (1,2,3),
+            inner: {
+                foo: "hello"
+            }
+        });
+
+        //// The manual way to do this would be:
+        // let mut s = String::new();
+        // fmt_value(&v, &mut Formatter::spaced(&mut s)).unwrap();
+
+        assert_eq!(
+            format!("{v:#}"),
+            "{
+  hello: true,
+  sequence: (
+    1,
+    2,
+    3
+  ),
+  variant: MyVariant (
+    1,
+    2,
+    3
+  ),
+  inner: {
+    foo: \"hello\"
+  }
+}"
+        );
     }
 
     #[test]

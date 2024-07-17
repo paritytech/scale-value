@@ -241,6 +241,33 @@ pub mod scale {
     ) -> Result<(), EncodeError> {
         value.encode_as_type_to(ty_id, types, buf)
     }
+
+    /// A visitor and function to decode some bytes into a [`crate::Value`] while tracing the current
+    /// decoding state so that a more detailed error can be returned in the event of a failure.
+    pub mod tracing {
+        pub use crate::scale_impls::{TraceDecodingError, TraceDecodingVisitor};
+
+        /// Decode a value using the [`TraceDecodingVisitor`], which internally keeps track of the current decoding state, and as
+        /// a result hands back a much more detailed error than [`crate::scale::decode_as_type()`] if decoding fails.
+        ///
+        /// One approach is to use the standard visitor for decoding on the "happy path", and if you need more information about
+        /// the decode error, to try decoding the same bytes again using this function to obtain more information about what failed.
+        pub fn decode_as_type<R>(
+            data: &mut &[u8],
+            ty_id: R::TypeId,
+            types: &R,
+        ) -> Result<crate::Value<R::TypeId>, TraceDecodingError<crate::Value<R::TypeId>>>
+        where
+            R: scale_type_resolver::TypeResolver,
+        {
+            scale_decode::visitor::decode_with_visitor(
+                data,
+                ty_id,
+                types,
+                TraceDecodingVisitor::new(),
+            )
+        }
+    }
 }
 
 /// Converting a [`crate::Value`] to or from strings.
