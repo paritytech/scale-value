@@ -13,11 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core::fmt::Write;
-
 use super::path::Path;
+use crate::prelude::*;
 use crate::scale::DecodeError;
 use crate::{Composite, Primitive, Value, ValueDef};
+use core::fmt::Write;
 
 /// An error encountered when decoding some bytes using the [`crate::scale::tracing`] module.
 #[derive(Clone, Debug)]

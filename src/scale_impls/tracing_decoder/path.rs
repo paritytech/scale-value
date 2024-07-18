@@ -39,7 +39,7 @@ impl Path {
 }
 
 impl core::fmt::Display for Path {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         for segment in &self.0 {
             write!(f, ".")?;
             match segment {
