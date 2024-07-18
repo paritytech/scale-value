@@ -13,13 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::string_helpers;
+use super::formatter::Formatter;
+use super::{string_helpers, FormatOpts};
 use crate::prelude::*;
 use crate::value_type::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
 use core::fmt::{Display, Write};
-use string_helpers::Formatter;
 
-const INDENT_STEP: usize = 2;
+// Make a default formatter to use in the Display impls.
+fn default_formatter<W: core::fmt::Write, T>(alternate: bool, writer: W) -> Formatter<W, T> {
+    let opts = if alternate { FormatOpts::new().spaced() } else { FormatOpts::new().compact() };
+    Formatter::new(writer, opts)
+}
 
 impl<T> Display for Value<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -29,45 +33,51 @@ impl<T> Display for Value<T> {
 
 impl<T> Display for ValueDef<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let mut f = if f.alternate() { Formatter::spaced(f) } else { Formatter::compact(f) };
-        match self {
-            ValueDef::Composite(c) => fmt_composite(c, &mut f),
-            ValueDef::Variant(v) => fmt_variant(v, &mut f),
-            ValueDef::BitSequence(b) => fmt_bitsequence(b, &mut f),
-            ValueDef::Primitive(p) => fmt_primitive(p, &mut f),
-        }
+        let mut f = default_formatter(f.alternate(), f);
+        fmt_valuedef(self, &mut f)
     }
 }
 
 impl<T> Display for Composite<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let mut f = if f.alternate() { Formatter::spaced(f) } else { Formatter::compact(f) };
+        let mut f = default_formatter(f.alternate(), f);
         fmt_composite(self, &mut f)
     }
 }
 
 impl<T> Display for Variant<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let mut f = if f.alternate() { Formatter::spaced(f) } else { Formatter::compact(f) };
+        let mut f = default_formatter(f.alternate(), f);
         fmt_variant(self, &mut f)
     }
 }
 
 impl Display for Primitive {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let mut f: Formatter<_, ()> = if f.alternate() { Formatter::spaced(f) } else { Formatter::compact(f) };
+        let mut f = default_formatter::<_, ()>(f.alternate(), f);
         fmt_primitive(self, &mut f)
     }
 }
 
-fn fmt_value<T, W: core::fmt::Write>(v: &Value<T>, f: &mut Formatter<W, T>) -> core::fmt::Result {
+pub(crate) fn fmt_value<T, W: core::fmt::Write>(
+    v: &Value<T>,
+    f: &mut Formatter<W, T>,
+) -> core::fmt::Result {
     if f.should_print_context() {
         f.write_char('<')?;
         f.print_context(&v.context)?;
         f.write_str("> ")?;
     }
 
-    match &v.value {
+    // Print custom output if there is some, else fall back to the normal logic.
+    f.print_custom_format(v).unwrap_or_else(|| fmt_valuedef(&v.value, f))
+}
+
+fn fmt_valuedef<T, W: core::fmt::Write>(
+    v: &ValueDef<T>,
+    f: &mut Formatter<W, T>,
+) -> core::fmt::Result {
+    match v {
         ValueDef::Composite(c) => fmt_composite(c, f),
         ValueDef::Variant(v) => fmt_variant(v, f),
         ValueDef::BitSequence(b) => fmt_bitsequence(b, f),
@@ -75,7 +85,10 @@ fn fmt_value<T, W: core::fmt::Write>(v: &Value<T>, f: &mut Formatter<W, T>) -> c
     }
 }
 
-fn fmt_variant<T, W: core::fmt::Write>(v: &Variant<T>, f: &mut Formatter<W, T>) -> core::fmt::Result {
+fn fmt_variant<T, W: core::fmt::Write>(
+    v: &Variant<T>,
+    f: &mut Formatter<W, T>,
+) -> core::fmt::Result {
     if is_ident(&v.name) {
         f.write_str(&v.name)?;
     } else {
@@ -96,46 +109,57 @@ fn fmt_composite<T, W: core::fmt::Write>(
 ) -> core::fmt::Result {
     match v {
         Composite::Named(vals) => {
-            f.write_str("{")?;
-            f.indent_by(INDENT_STEP);
-            f.newline_or_space()?;
-            for (idx, (name, val)) in vals.iter().enumerate() {
-                if idx != 0 {
-                    f.write_str(",")?;
-                    f.newline_or_space()?;
+            if vals.is_empty() {
+                f.write_str("{}")?;
+            } else {
+                f.write_str("{")?;
+                f.indent_step();
+                f.newline_or_space()?;
+                for (idx, (name, val)) in vals.iter().enumerate() {
+                    if idx != 0 {
+                        f.write_str(",")?;
+                        f.newline_or_space()?;
+                    }
+                    if is_ident(name) {
+                        f.write_str(name)?;
+                    } else {
+                        fmt_string(name, f)?;
+                    }
+                    f.write_str(": ")?;
+                    fmt_value(val, f)?;
                 }
-                if is_ident(name) {
-                    f.write_str(name)?;
-                } else {
-                    fmt_string(name, f)?;
-                }
-                f.write_str(": ")?;
-                fmt_value(val, f)?;
+                f.unindent_step();
+                f.newline_or_space()?;
+                f.write_str("}")?;
             }
-            f.unindent_by(INDENT_STEP);
-            f.newline_or_space()?;
-            f.write_str("}")?;
         }
         Composite::Unnamed(vals) => {
-            f.write_char('(')?;
-            f.indent_by(INDENT_STEP);
-            f.newline_or_nothing()?;
-            for (idx, val) in vals.iter().enumerate() {
-                if idx != 0 {
-                    f.write_str(",")?;
-                    f.newline_or_space()?;
+            if vals.is_empty() {
+                f.write_str("()")?;
+            } else {
+                f.write_char('(')?;
+                f.indent_step();
+                f.newline_or_nothing()?;
+                for (idx, val) in vals.iter().enumerate() {
+                    if idx != 0 {
+                        f.write_str(",")?;
+                        f.newline_or_space()?;
+                    }
+                    fmt_value(val, f)?;
                 }
-                fmt_value(val, f)?;
+                f.unindent_step();
+                f.newline_or_nothing()?;
+                f.write_char(')')?;
             }
-            f.unindent_by(INDENT_STEP);
-            f.newline_or_nothing()?;
-            f.write_char(')')?;
         }
     }
     Ok(())
 }
 
-fn fmt_primitive<T, W: core::fmt::Write>(p: &Primitive, f: &mut Formatter<W, T>) -> core::fmt::Result {
+fn fmt_primitive<T, W: core::fmt::Write>(
+    p: &Primitive,
+    f: &mut Formatter<W, T>,
+) -> core::fmt::Result {
     match p {
         Primitive::Bool(true) => f.write_str("true"),
         Primitive::Bool(false) => f.write_str("false"),
@@ -241,6 +265,7 @@ mod test {
     fn expanded_output_works() {
         let v = value!({
             hello: true,
+            empty: (),
             sequence: (1,2,3),
             variant: MyVariant (1,2,3),
             inner: {
@@ -256,6 +281,7 @@ mod test {
             format!("{v:#}"),
             "{
   hello: true,
+  empty: (),
   sequence: (
     1,
     2,
