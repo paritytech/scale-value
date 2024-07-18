@@ -1,4 +1,4 @@
-// Copyright (C) 2022-2023 Parity Technologies (UK) Ltd. (admin@parity.io)
+// Copyright (C) 2022-2024 Parity Technologies (UK) Ltd. (admin@parity.io)
 // This file is a part of the scale-value crate.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,9 @@ use crate::Value;
 pub(crate) struct FormatOpts<W, T> {
     style: FormatStyle,
     indent_by: String,
+    #[allow(clippy::type_complexity)]
     custom_formatter: Option<Box<dyn Fn(&Value<T>, &mut W) -> Option<core::fmt::Result>>>,
+    #[allow(clippy::type_complexity)]
     print_context: Option<Box<dyn Fn(&T, &mut W) -> core::fmt::Result>>,
 }
 

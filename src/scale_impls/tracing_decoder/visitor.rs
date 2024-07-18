@@ -1,3 +1,18 @@
+// Copyright (C) 2022-2024 Parity Technologies (UK) Ltd. (admin@parity.io)
+// This file is a part of the scale-value crate.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::prelude::*;
 
 use super::error::TraceDecodingError;
@@ -23,6 +38,12 @@ impl<Resolver> TraceDecodingVisitor<Resolver> {
     }
     fn at_field(&self, field: String) -> Self {
         self.at(PathSegment::Field(field))
+    }
+}
+
+impl<Resolver> Default for TraceDecodingVisitor<Resolver> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -275,7 +296,7 @@ where
                 Err(merged_error)
             }
             Ok(values) => Ok(Value {
-                value: ValueDef::Variant(Variant { name: variant_name.to_owned(), values: values }),
+                value: ValueDef::Variant(Variant { name: variant_name.to_owned(), values }),
                 context: type_id,
             }),
         }
@@ -342,16 +363,3 @@ where
 
     Ok(Composite::Named(vals))
 }
-
-/*
-Error decoding value at .[1].[0].proof.[69]: Not enough data to fill buffer.
-Decoded so far: (Staking (bond { controller: (2...
-
-The type so far
-
-Staking [StakingCall] (
-    bond [BondStaking] {
-        controller [AccountId]:
-    }
-)
-*/
