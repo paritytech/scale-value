@@ -18,6 +18,7 @@ mod custom_parsers;
 #[cfg(feature = "from-string")]
 mod from_string;
 
+mod formatter;
 mod string_helpers;
 mod to_string;
 
@@ -31,3 +32,6 @@ pub use from_string::{
 pub use custom_parsers::parse_ss58;
 #[cfg(feature = "from-string")]
 pub use custom_parsers::{parse_hex, ParseHexError};
+
+pub(crate) use formatter::{FormatOpts, Formatter};
+pub(crate) use to_string::fmt_value;

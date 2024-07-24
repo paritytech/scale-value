@@ -1,4 +1,4 @@
-// Copyright (C) 2022-2023 Parity Technologies (UK) Ltd. (admin@parity.io)
+// Copyright (C) 2022-2024 Parity Technologies (UK) Ltd. (admin@parity.io)
 // This file is a part of the scale-value crate.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,9 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod decode;
-mod encode;
-mod tracing_decoder;
+mod error;
+mod path;
+mod visitor;
 
-pub use decode::{decode_composite_as_fields, decode_value_as_type, DecodeError};
-pub use tracing_decoder::{TraceDecodingError, TraceDecodingVisitor};
+pub use error::TraceDecodingError;
+pub use visitor::TraceDecodingVisitor;
