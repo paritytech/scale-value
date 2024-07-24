@@ -4,6 +4,11 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.16.1 (2024-07-24)
+
+This release:
+- Adds a "tracing decoder" (via `scale_value::scale::tracing::{decode_as_type,*}`), which is like `scale_value::scale::decode_as_type`, but traces and hands back much more detail in case of a decoding failure, so that it's easier to track down where decoding failed. This is particularly useful when working with historic type information, which must be provided independently and could easily be misaligned with reality. ([#52](https://github.com/paritytech/scale-value/pull/52))
+
 ## 0.16.0 (2024-05-15)
 
 This release:
