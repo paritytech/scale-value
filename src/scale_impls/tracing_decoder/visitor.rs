@@ -16,7 +16,7 @@
 use crate::prelude::*;
 
 use super::error::TraceDecodingError;
-use super::path::{Path, PathSegment};
+use super::path::Path;
 use crate::{Composite, Primitive, Value, ValueDef, Variant};
 use core::marker::PhantomData;
 use scale_decode::visitor::TypeIdFor;
@@ -30,14 +30,14 @@ pub struct TraceDecodingVisitor<Resolver> {
 }
 
 impl<Resolver> TraceDecodingVisitor<Resolver> {
-    fn at(&self, segment: PathSegment) -> Self {
-        TraceDecodingVisitor { path: self.path.at(segment), marker: PhantomData }
+    fn at_path(&self, path: Path) -> Self {
+        TraceDecodingVisitor { path, marker: PhantomData }
     }
     fn at_idx(&self, idx: usize) -> Self {
-        self.at(PathSegment::Index(idx))
+        self.at_path(self.path.at_idx(idx))
     }
     fn at_field(&self, field: String) -> Self {
-        self.at(PathSegment::Field(field))
+        self.at_path(self.path.at_field(field))
     }
 }
 

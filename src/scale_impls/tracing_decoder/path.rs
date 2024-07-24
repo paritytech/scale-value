@@ -15,17 +15,15 @@
 
 use crate::prelude::*;
 
+// [jsdw] This could be internally turned into a linkedlist or something
+// to make the "clone and append" faster. Not too concerned right now though
+// since the tracing visitor it's used for isn't built for speed.
 #[derive(Clone, Debug)]
 pub struct Path(Vec<PathSegment>);
 
 impl Path {
     pub fn new() -> Path {
         Path(vec![])
-    }
-    pub fn at(&self, segment: PathSegment) -> Path {
-        let mut p = self.0.clone();
-        p.push(segment);
-        Path(p)
     }
     pub fn at_idx(&self, idx: usize) -> Path {
         self.at(PathSegment::Index(idx))
@@ -35,6 +33,12 @@ impl Path {
     }
     pub fn at_variant(&self, variant: String) -> Path {
         self.at(PathSegment::Variant(variant))
+    }
+
+    fn at(&self, segment: PathSegment) -> Path {
+        let mut p = self.0.clone();
+        p.push(segment);
+        Path(p)
     }
 }
 
@@ -53,7 +57,7 @@ impl core::fmt::Display for Path {
 }
 
 #[derive(Clone, Debug)]
-pub enum PathSegment {
+enum PathSegment {
     Field(String),
     Index(usize),
     Variant(String),
