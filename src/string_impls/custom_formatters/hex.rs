@@ -41,10 +41,7 @@ use core::fmt::Write;
 ///
 /// assert_eq!(s, r#"{ foo: 0x0102030405, bar: (1000, 10) }"#);
 /// ```
-pub fn format_hex<T, W: Write>(
-    value: &Value<T>,
-    writer: W,
-) -> Option<core::fmt::Result> {
+pub fn format_hex<T, W: Write>(value: &Value<T>, writer: W) -> Option<core::fmt::Result> {
     // Print unnamed sequences of u8s as hex strings; ignore anything else.
     if let ValueDef::Composite(Composite::Unnamed(vals)) = &value.value {
         for val in vals {
@@ -76,7 +73,6 @@ fn u4_to_hex(n: u8) -> char {
         ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
     *HEX.get(n as usize).expect("Expected a u4 (value between 0..=15")
 }
-
 
 #[cfg(test)]
 mod test {

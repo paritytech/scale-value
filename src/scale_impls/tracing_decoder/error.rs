@@ -15,8 +15,8 @@
 
 use super::path::Path;
 use crate::prelude::*;
-use crate::string_impls::format_hex;
 use crate::scale::DecodeError;
+use crate::string_impls::format_hex;
 use crate::Value;
 use core::fmt::Write;
 
@@ -130,8 +130,9 @@ fn display_value_with_typeid<Id: core::fmt::Debug>(
 ) -> core::fmt::Result {
     crate::string_impls::ToWriterBuilder::new()
         .spaced()
-        .write_context(|type_id, writer: &mut &mut core::fmt::Formatter| write!(writer, "{type_id:?}"))
+        .write_context(|type_id, writer: &mut &mut core::fmt::Formatter| {
+            write!(writer, "{type_id:?}")
+        })
         .custom_formatter(|value, writer| format_hex(value, writer))
         .write(value, f)
 }
-

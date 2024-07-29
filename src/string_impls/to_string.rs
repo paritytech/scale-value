@@ -30,13 +30,13 @@ pub struct ToWriterBuilder<T, W> {
 type CustomFormatter<T, W> = Box<dyn Fn(&Value<T>, &mut W) -> Option<core::fmt::Result> + 'static>;
 type ContextPrinter<T, W> = Box<dyn Fn(&T, &mut W) -> core::fmt::Result + 'static>;
 
-impl <T, W: core::fmt::Write> ToWriterBuilder<T, W> {
+impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     pub(crate) fn new() -> Self {
         ToWriterBuilder {
             style: FormatStyle::Compact,
             custom_formatters: Vec::new(),
             indent_by: "  ".to_owned(),
-            print_context: None
+            print_context: None,
         }
     }
 
@@ -112,10 +112,7 @@ impl <T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     /// writing the context can be useful for debugging errors and providing more verbose output.
     ///
     ///
-    pub fn write_context<F: Fn(&T, &mut W) -> core::fmt::Result + 'static>(
-        mut self,
-        f: F,
-    ) -> Self {
+    pub fn write_context<F: Fn(&T, &mut W) -> core::fmt::Result + 'static>(mut self, f: F) -> Self {
         self.print_context = Some(Box::new(f));
         self
     }
@@ -131,9 +128,7 @@ impl <T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     /// Custom formatters are tried in the order that they are added here, and when one decides
     /// to write output (signalled by returning `Some(..)`), no others will be tried. Thus, the order
     /// in which they are added is important.
-    pub fn custom_formatter<
-        F: Fn(&Value<T>, &mut W) -> Option<core::fmt::Result> + 'static,
-    >(
+    pub fn custom_formatter<F: Fn(&Value<T>, &mut W) -> Option<core::fmt::Result> + 'static>(
         mut self,
         f: F,
     ) -> Self {
@@ -153,7 +148,7 @@ impl <T, W: core::fmt::Write> ToWriterBuilder<T, W> {
             style: self.style,
             custom_formatters: &self.custom_formatters,
             indent_by: &self.indent_by,
-            print_context: &self.print_context
+            print_context: &self.print_context,
         }
     }
 }
@@ -166,7 +161,7 @@ struct Formatter<'a, T, W> {
     print_context: &'a Option<ContextPrinter<T, W>>,
 }
 
-impl <'a, T, W: core::fmt::Write> Formatter<'a, T, W> {
+impl<'a, T, W: core::fmt::Write> Formatter<'a, T, W> {
     fn indent_step(&mut self) {
         self.style = match &self.style {
             FormatStyle::Compact => FormatStyle::Compact,
@@ -205,7 +200,7 @@ impl <'a, T, W: core::fmt::Write> Formatter<'a, T, W> {
         for formatter in self.custom_formatters {
             // Try each formatter until one "accepts" the value, and then return the result from that.
             if let Some(res) = formatter(value, &mut self.writer) {
-                return Some(res)
+                return Some(res);
             }
         }
         None
@@ -234,7 +229,7 @@ fn write_newline(
 
 /// this defines whether the above [`ToStrBuilder`] will write "newlines" in a
 /// compact style or more spaced out with indentation.
-#[derive(Clone,Copy)]
+#[derive(Clone, Copy)]
 enum FormatStyle {
     Indented(usize),
     Compact,
@@ -283,10 +278,7 @@ impl Display for Primitive {
     }
 }
 
-fn fmt_value<T, W: core::fmt::Write>(
-    v: &Value<T>,
-    f: &mut Formatter<T, W>,
-) -> core::fmt::Result {
+fn fmt_value<T, W: core::fmt::Write>(v: &Value<T>, f: &mut Formatter<T, W>) -> core::fmt::Result {
     if f.should_print_context() {
         f.write_char('<')?;
         f.print_context(&v.context)?;

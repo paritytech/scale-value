@@ -274,10 +274,11 @@ pub mod scale {
 pub mod stringify {
     use crate::prelude::*;
 
+    pub use crate::string_impls::ToWriterBuilder;
     #[cfg(feature = "from-string")]
     pub use crate::string_impls::{
         FromStrBuilder, ParseBitSequenceError, ParseCharError, ParseComplexError, ParseError,
-        ParseErrorKind, ParseNumberError, ParseStringError, ToWriterBuilder,
+        ParseErrorKind, ParseNumberError, ParseStringError,
     };
 
     /// This module provides custom parsers that work alongside [`crate::stringify::from_str_custom`]
@@ -462,7 +463,10 @@ pub mod stringify {
     ///
     /// assert_eq!(s, r#"{ foo: true, bar: "hello" }"#)
     /// ```
-    pub fn to_writer<T, W: core::fmt::Write>(value: &crate::Value<T>, writer: W) -> core::fmt::Result {
+    pub fn to_writer<T, W: core::fmt::Write>(
+        value: &crate::Value<T>,
+        writer: W,
+    ) -> core::fmt::Result {
         crate::string_impls::ToWriterBuilder::new().write(value, writer)
     }
 
