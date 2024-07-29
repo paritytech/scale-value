@@ -505,7 +505,7 @@ pub mod stringify {
     ///     .custom_formatter(|v, w| capitalise_bools(v, w))
     ///     .write(&value, &mut s);
     ///
-    /// assert_eq!(s, r#"{ foo: TRUE, bar: 0x01020304 }"#)
+    /// assert_eq!(s, r#"{foo:TRUE,bar:0x01020304}"#)
     /// ```
     pub fn to_writer_custom<T, W: core::fmt::Write>() -> ToWriterBuilder<T, W> {
         crate::string_impls::ToWriterBuilder::new()

@@ -56,6 +56,7 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     /// let mut s = String::new();
     ///
     /// to_writer_custom()
+    ///     .compact()
     ///     .write(&val, &mut s)
     ///     .unwrap();
     ///
