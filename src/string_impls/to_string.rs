@@ -33,14 +33,14 @@ type ContextPrinter<T, W> = Box<dyn Fn(&T, &mut W) -> core::fmt::Result + 'stati
 impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     pub(crate) fn new() -> Self {
         ToWriterBuilder {
-            style: FormatStyle::Compact,
+            style: FormatStyle::Normal,
             custom_formatters: Vec::new(),
             indent_by: "  ".to_owned(),
             print_context: None,
         }
     }
 
-    /// Write the [`crate::Value`] to a compact string.
+    /// Write the [`crate::Value`] to a compact string, omitting spaces.
     ///
     /// # Example
     ///
@@ -59,7 +59,7 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     ///     .write(&val, &mut s)
     ///     .unwrap();
     ///
-    /// assert_eq!(s, r#"{ foo: (1, 2, 3, 4, 5), bar: true }"#);
+    /// assert_eq!(s, r#"{foo:(1,2,3,4,5),bar:true}"#);
     /// ```
     pub fn compact(mut self) -> Self {
         self.style = FormatStyle::Compact;
@@ -165,24 +165,33 @@ impl<'a, T, W: core::fmt::Write> Formatter<'a, T, W> {
     fn indent_step(&mut self) {
         self.style = match &self.style {
             FormatStyle::Compact => FormatStyle::Compact,
+            FormatStyle::Normal => FormatStyle::Normal,
             FormatStyle::Indented(n) => FormatStyle::Indented(n + 1),
         };
     }
     fn unindent_step(&mut self) {
         self.style = match &self.style {
             FormatStyle::Compact => FormatStyle::Compact,
+            FormatStyle::Normal => FormatStyle::Normal,
             FormatStyle::Indented(n) => FormatStyle::Indented(n.saturating_sub(1)),
         };
     }
-    fn newline_or_nothing(&mut self) -> core::fmt::Result {
+    fn space(&mut self) -> core::fmt::Result {
         match self.style {
             FormatStyle::Compact => Ok(()),
+            FormatStyle::Normal | FormatStyle::Indented(_) => self.writer.write_char(' '),
+        }
+    }
+    fn newline(&mut self) -> core::fmt::Result {
+        match self.style {
+            FormatStyle::Compact | FormatStyle::Normal => Ok(()),
             FormatStyle::Indented(n) => write_newline(&mut self.writer, &self.indent_by, n),
         }
     }
-    fn newline_or_space(&mut self) -> core::fmt::Result {
+    fn item_separator(&mut self) -> core::fmt::Result {
         match self.style {
-            FormatStyle::Compact => self.writer.write_char(' '),
+            FormatStyle::Compact => Ok(()),
+            FormatStyle::Normal => self.writer.write_char(' '),
             FormatStyle::Indented(n) => write_newline(&mut self.writer, &self.indent_by, n),
         }
     }
@@ -232,6 +241,7 @@ fn write_newline(
 #[derive(Clone, Copy)]
 enum FormatStyle {
     Indented(usize),
+    Normal,
     Compact,
 }
 
@@ -315,7 +325,7 @@ fn fmt_variant<T, W: core::fmt::Write>(
         f.write_char('v')?;
         fmt_string(&v.name, f)?;
     }
-    f.write_char(' ')?;
+    f.space()?;
     fmt_composite(&v.values, f)
 }
 
@@ -330,22 +340,23 @@ fn fmt_composite<T, W: core::fmt::Write>(
             } else {
                 f.write_str("{")?;
                 f.indent_step();
-                f.newline_or_space()?;
+                f.item_separator()?;
                 for (idx, (name, val)) in vals.iter().enumerate() {
                     if idx != 0 {
                         f.write_str(",")?;
-                        f.newline_or_space()?;
+                        f.item_separator()?;
                     }
                     if is_ident(name) {
                         f.write_str(name)?;
                     } else {
                         fmt_string(name, f)?;
                     }
-                    f.write_str(": ")?;
+                    f.write_char(':')?;
+                    f.space()?;
                     fmt_value(val, f)?;
                 }
                 f.unindent_step();
-                f.newline_or_space()?;
+                f.item_separator()?;
                 f.write_str("}")?;
             }
         }
@@ -355,16 +366,16 @@ fn fmt_composite<T, W: core::fmt::Write>(
             } else {
                 f.write_char('(')?;
                 f.indent_step();
-                f.newline_or_nothing()?;
+                f.newline()?;
                 for (idx, val) in vals.iter().enumerate() {
                     if idx != 0 {
                         f.write_str(",")?;
-                        f.newline_or_space()?;
+                        f.item_separator()?;
                     }
                     fmt_value(val, f)?;
                 }
                 f.unindent_step();
-                f.newline_or_nothing()?;
+                f.newline()?;
                 f.write_char(')')?;
             }
         }
@@ -489,10 +500,6 @@ mod test {
             }
         });
 
-        //// The manual way to do this would be:
-        // let mut s = String::new();
-        // fmt_value(&v, &mut Formatter::spaced(&mut s)).unwrap();
-
         assert_eq!(
             format!("{v:#}"),
             "{
@@ -512,6 +519,27 @@ mod test {
     foo: \"hello\"
   }
 }"
+        );
+    }
+
+    #[test]
+    fn compact_output_works() {
+        let v = value!({
+            hello: true,
+            empty: (),
+            sequence: (1u8,2u8,3u8),
+            variant: MyVariant (1u8,2u8,3u8),
+            inner: {
+                foo: "hello"
+            }
+        });
+
+        let mut s = String::new();
+        ToWriterBuilder::new().compact().write(&v, &mut s).unwrap();
+
+        assert_eq!(
+            s,
+            "{hello:true,empty:(),sequence:(1,2,3),variant:MyVariant(1,2,3),inner:{foo:\"hello\"}}"
         );
     }
 
