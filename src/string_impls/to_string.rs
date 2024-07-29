@@ -121,9 +121,9 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     /// Custom formatters have the opportunity to read the value at each stage, and:
     ///
     /// - Should output `None` if they do not wish to override the standard formatting (in this case,
-    /// they should also avoid writing anything to the provided writer).
+    ///   they should also avoid writing anything to the provided writer).
     /// - Should output `Some(core::fmt::Result)` if they decide to override the default formatting at
-    /// this point.
+    ///   this point.
     ///
     /// Custom formatters are tried in the order that they are added here, and when one decides
     /// to write output (signalled by returning `Some(..)`), no others will be tried. Thus, the order
@@ -185,14 +185,14 @@ impl<'a, T, W: core::fmt::Write> Formatter<'a, T, W> {
     fn newline(&mut self) -> core::fmt::Result {
         match self.style {
             FormatStyle::Compact | FormatStyle::Normal => Ok(()),
-            FormatStyle::Indented(n) => write_newline(&mut self.writer, &self.indent_by, n),
+            FormatStyle::Indented(n) => write_newline(&mut self.writer, self.indent_by, n),
         }
     }
     fn item_separator(&mut self) -> core::fmt::Result {
         match self.style {
             FormatStyle::Compact => Ok(()),
             FormatStyle::Normal => self.writer.write_char(' '),
-            FormatStyle::Indented(n) => write_newline(&mut self.writer, &self.indent_by, n),
+            FormatStyle::Indented(n) => write_newline(&mut self.writer, self.indent_by, n),
         }
     }
     fn should_print_context(&self) -> bool {
