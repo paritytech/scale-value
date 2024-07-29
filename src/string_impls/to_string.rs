@@ -236,8 +236,9 @@ fn write_newline(
     Ok(())
 }
 
-/// this defines whether the above [`ToStrBuilder`] will write "newlines" in a
-/// compact style or more spaced out with indentation.
+/// this defines whether the above [`ToWriterBuilder`] will write output in a
+/// compact style (no spaces), normal (some spaces) or indented (ie spaced; newlines
+/// between items)
 #[derive(Clone, Copy)]
 enum FormatStyle {
     Indented(usize),
