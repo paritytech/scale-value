@@ -13,16 +13,240 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::formatter::Formatter;
-use super::{string_helpers, FormatOpts};
+use super::string_helpers;
 use crate::prelude::*;
 use crate::value_type::{BitSequence, Composite, Primitive, Value, ValueDef, Variant};
 use core::fmt::{Display, Write};
 
+/// A struct which will try to format a [`Value`] and write the output to a writer.
+/// This can be configured with custom parsers to extend how to write out the value.
+pub struct ToWriterBuilder<T, W> {
+    style: FormatStyle,
+    custom_formatters: Vec<CustomFormatter<T, W>>,
+    indent_by: String,
+    print_context: Option<ContextPrinter<T, W>>,
+}
+
+type CustomFormatter<T, W> = Box<dyn Fn(&Value<T>, &mut W) -> Option<core::fmt::Result> + 'static>;
+type ContextPrinter<T, W> = Box<dyn Fn(&T, &mut W) -> core::fmt::Result + 'static>;
+
+impl <T, W: core::fmt::Write> ToWriterBuilder<T, W> {
+    pub(crate) fn new() -> Self {
+        ToWriterBuilder {
+            style: FormatStyle::Compact,
+            custom_formatters: Vec::new(),
+            indent_by: "  ".to_owned(),
+            print_context: None
+        }
+    }
+
+    /// Write the [`crate::Value`] to a compact string.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use scale_value::{value,Value};
+    /// use scale_value::stringify::to_writer_custom;
+    ///
+    /// let val = value!({
+    ///     foo: (1,2,3,4,5),
+    ///     bar: true
+    /// });
+    ///
+    /// let mut s: String::new();
+    ///
+    /// to_writer_custom()
+    ///     .write(&val, &mut s)
+    ///     .unwrap();
+    ///
+    /// assert_eq!(s, r#"{ foo: (1,2,3,4,5), bar: true }"#);
+    /// ```
+    pub fn compact(mut self) -> Self {
+        self.style = FormatStyle::Compact;
+        self
+    }
+
+    /// Write the [`crate::Value`] to a pretty spaced string.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use scale_value::{value,Value};
+    /// use scale_value::stringify::to_writer_custom;
+    ///
+    /// let val = value!({
+    ///     foo: (1,2,3,4,5),
+    ///     bar: true
+    /// });
+    ///
+    /// let mut s = String::new();
+    ///
+    /// to_writer_custom()
+    ///     .spaced()
+    ///     .write(&val, &mut s)
+    ///     .unwrap();
+    ///
+    /// assert_eq!(s, r#"{
+    ///   foo: (
+    ///     1,
+    ///     2,
+    ///     3,
+    ///     4,
+    ///     5
+    ///   ),
+    ///   bar: true
+    /// }"#);
+    /// ```
+    pub fn spaced(mut self) -> Self {
+        self.style = FormatStyle::Indented(0);
+        self
+    }
+
+    /// Write the context contained in each value out, too. This is prepended to
+    /// each value within angle brackets (`<` and `>`).
+    ///
+    /// # Warning
+    ///
+    /// When this is used, the resulting outpuot cannot then be parsed back into [`Value`]
+    /// (in part since the user can output arbitrary content for the context). Nevertheless,
+    /// writing the context can be useful for debugging errors and providing more verbose output.
+    ///
+    ///
+    pub fn write_context<F: Fn(&T, &mut W) -> core::fmt::Result + 'static>(
+        mut self,
+        f: F,
+    ) -> Self {
+        self.print_context = Some(Box::new(f));
+        self
+    }
+
+    /// Add a custom formatter (for example, [`crate::stringify::custom_formatters::format_hex`]).
+    /// Custom formatters have the opportunity to read the value at each stage, and:
+    ///
+    /// - Should output `None` if they do not wish to override the standard formatting (in this case,
+    /// they should also avoid writing anything to the provided writer).
+    /// - Should output `Some(core::fmt::Result)` if they decide to override the default formatting at
+    /// this point.
+    ///
+    /// Custom formatters are tried in the order that they are added here, and when one decides
+    /// to write output (signalled by returning `Some(..)`), no others will be tried. Thus, the order
+    /// in which they are added is important.
+    pub fn custom_formatter<
+        F: Fn(&Value<T>, &mut W) -> Option<core::fmt::Result> + 'static,
+    >(
+        mut self,
+        f: F,
+    ) -> Self {
+        self.custom_formatters.push(Box::new(f));
+        self
+    }
+
+    /// Write some value to the provided writer, using the currently configured options.
+    pub fn write(&self, value: &Value<T>, writer: W) -> core::fmt::Result {
+        let mut formatter = self.as_formatter(writer);
+        fmt_value(value, &mut formatter)
+    }
+
+    fn as_formatter(&self, writer: W) -> Formatter<'_, T, W> {
+        Formatter {
+            writer,
+            style: self.style,
+            custom_formatters: &self.custom_formatters,
+            indent_by: &self.indent_by,
+            print_context: &self.print_context
+        }
+    }
+}
+
+struct Formatter<'a, T, W> {
+    writer: W,
+    style: FormatStyle,
+    custom_formatters: &'a [CustomFormatter<T, W>],
+    indent_by: &'a str,
+    print_context: &'a Option<ContextPrinter<T, W>>,
+}
+
+impl <'a, T, W: core::fmt::Write> Formatter<'a, T, W> {
+    fn indent_step(&mut self) {
+        self.style = match &self.style {
+            FormatStyle::Compact => FormatStyle::Compact,
+            FormatStyle::Indented(n) => FormatStyle::Indented(n + 1),
+        };
+    }
+    fn unindent_step(&mut self) {
+        self.style = match &self.style {
+            FormatStyle::Compact => FormatStyle::Compact,
+            FormatStyle::Indented(n) => FormatStyle::Indented(n.saturating_sub(1)),
+        };
+    }
+    fn newline_or_nothing(&mut self) -> core::fmt::Result {
+        match self.style {
+            FormatStyle::Compact => Ok(()),
+            FormatStyle::Indented(n) => write_newline(&mut self.writer, &self.indent_by, n),
+        }
+    }
+    fn newline_or_space(&mut self) -> core::fmt::Result {
+        match self.style {
+            FormatStyle::Compact => self.writer.write_char(' '),
+            FormatStyle::Indented(n) => write_newline(&mut self.writer, &self.indent_by, n),
+        }
+    }
+    fn should_print_context(&self) -> bool {
+        self.print_context.is_some()
+    }
+    fn print_context(&mut self, ctx: &T) -> core::fmt::Result {
+        if let Some(f) = &self.print_context {
+            f(ctx, &mut self.writer)
+        } else {
+            Ok(())
+        }
+    }
+    fn print_custom_format(&mut self, value: &Value<T>) -> Option<core::fmt::Result> {
+        for formatter in self.custom_formatters {
+            // Try each formatter until one "accepts" the value, and then return the result from that.
+            if let Some(res) = formatter(value, &mut self.writer) {
+                return Some(res)
+            }
+        }
+        None
+    }
+}
+
+impl<'a, T, W: core::fmt::Write> core::fmt::Write for Formatter<'a, T, W> {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        // For now, we don't apply any formatting to this, and expect
+        // things to manually call `newline` etc to have formatting.
+        self.writer.write_str(s)
+    }
+}
+
+fn write_newline(
+    writer: &mut impl core::fmt::Write,
+    indent_str: &str,
+    indent: usize,
+) -> core::fmt::Result {
+    writer.write_char('\n')?;
+    for _ in 0..indent {
+        writer.write_str(indent_str)?;
+    }
+    Ok(())
+}
+
+/// this defines whether the above [`ToStrBuilder`] will write "newlines" in a
+/// compact style or more spaced out with indentation.
+#[derive(Clone,Copy)]
+enum FormatStyle {
+    Indented(usize),
+    Compact,
+}
+
 // Make a default formatter to use in the Display impls.
-fn default_formatter<W: core::fmt::Write, T>(alternate: bool, writer: W) -> Formatter<W, T> {
-    let opts = if alternate { FormatOpts::new().spaced() } else { FormatOpts::new().compact() };
-    Formatter::new(writer, opts)
+fn default_builder<T, W: core::fmt::Write>(alternate: bool) -> ToWriterBuilder<T, W> {
+    let mut builder = ToWriterBuilder::new();
+    if alternate {
+        builder = builder.spaced();
+    }
+    builder
 }
 
 impl<T> Display for Value<T> {
@@ -33,35 +257,35 @@ impl<T> Display for Value<T> {
 
 impl<T> Display for ValueDef<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let mut f = default_formatter(f.alternate(), f);
-        fmt_valuedef(self, &mut f)
+        let builder = default_builder(f.alternate());
+        fmt_valuedef(self, &mut builder.as_formatter(f))
     }
 }
 
 impl<T> Display for Composite<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let mut f = default_formatter(f.alternate(), f);
-        fmt_composite(self, &mut f)
+        let builder = default_builder(f.alternate());
+        fmt_composite(self, &mut builder.as_formatter(f))
     }
 }
 
 impl<T> Display for Variant<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let mut f = default_formatter(f.alternate(), f);
-        fmt_variant(self, &mut f)
+        let builder = default_builder(f.alternate());
+        fmt_variant(self, &mut builder.as_formatter(f))
     }
 }
 
 impl Display for Primitive {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let mut f = default_formatter::<_, ()>(f.alternate(), f);
-        fmt_primitive(self, &mut f)
+        let builder = default_builder::<(), _>(f.alternate());
+        fmt_primitive(self, &mut builder.as_formatter(f))
     }
 }
 
-pub(crate) fn fmt_value<T, W: core::fmt::Write>(
+fn fmt_value<T, W: core::fmt::Write>(
     v: &Value<T>,
-    f: &mut Formatter<W, T>,
+    f: &mut Formatter<T, W>,
 ) -> core::fmt::Result {
     if f.should_print_context() {
         f.write_char('<')?;
@@ -75,7 +299,7 @@ pub(crate) fn fmt_value<T, W: core::fmt::Write>(
 
 fn fmt_valuedef<T, W: core::fmt::Write>(
     v: &ValueDef<T>,
-    f: &mut Formatter<W, T>,
+    f: &mut Formatter<T, W>,
 ) -> core::fmt::Result {
     match v {
         ValueDef::Composite(c) => fmt_composite(c, f),
@@ -87,7 +311,7 @@ fn fmt_valuedef<T, W: core::fmt::Write>(
 
 fn fmt_variant<T, W: core::fmt::Write>(
     v: &Variant<T>,
-    f: &mut Formatter<W, T>,
+    f: &mut Formatter<T, W>,
 ) -> core::fmt::Result {
     if is_ident(&v.name) {
         f.write_str(&v.name)?;
@@ -105,7 +329,7 @@ fn fmt_variant<T, W: core::fmt::Write>(
 
 fn fmt_composite<T, W: core::fmt::Write>(
     v: &Composite<T>,
-    f: &mut Formatter<W, T>,
+    f: &mut Formatter<T, W>,
 ) -> core::fmt::Result {
     match v {
         Composite::Named(vals) => {
@@ -158,7 +382,7 @@ fn fmt_composite<T, W: core::fmt::Write>(
 
 fn fmt_primitive<T, W: core::fmt::Write>(
     p: &Primitive,
-    f: &mut Formatter<W, T>,
+    f: &mut Formatter<T, W>,
 ) -> core::fmt::Result {
     match p {
         Primitive::Bool(true) => f.write_str("true"),
@@ -173,7 +397,7 @@ fn fmt_primitive<T, W: core::fmt::Write>(
     }
 }
 
-fn fmt_string<T, W: core::fmt::Write>(s: &str, f: &mut Formatter<W, T>) -> core::fmt::Result {
+fn fmt_string<T, W: core::fmt::Write>(s: &str, f: &mut Formatter<T, W>) -> core::fmt::Result {
     f.write_char('"')?;
     for char in s.chars() {
         match string_helpers::to_escape_code(char) {
@@ -187,7 +411,7 @@ fn fmt_string<T, W: core::fmt::Write>(s: &str, f: &mut Formatter<W, T>) -> core:
     f.write_char('"')
 }
 
-fn fmt_char<T, W: core::fmt::Write>(c: char, f: &mut Formatter<W, T>) -> core::fmt::Result {
+fn fmt_char<T, W: core::fmt::Write>(c: char, f: &mut Formatter<T, W>) -> core::fmt::Result {
     f.write_char('\'')?;
     match string_helpers::to_escape_code(c) {
         Some(escaped) => {
@@ -201,7 +425,7 @@ fn fmt_char<T, W: core::fmt::Write>(c: char, f: &mut Formatter<W, T>) -> core::f
 
 fn fmt_bitsequence<T, W: core::fmt::Write>(
     b: &BitSequence,
-    f: &mut Formatter<W, T>,
+    f: &mut Formatter<T, W>,
 ) -> core::fmt::Result {
     f.write_char('<')?;
     for bit in b.iter() {
