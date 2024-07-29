@@ -53,13 +53,13 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     ///     bar: true
     /// });
     ///
-    /// let mut s: String::new();
+    /// let mut s = String::new();
     ///
     /// to_writer_custom()
     ///     .write(&val, &mut s)
     ///     .unwrap();
     ///
-    /// assert_eq!(s, r#"{ foo: (1,2,3,4,5), bar: true }"#);
+    /// assert_eq!(s, r#"{ foo: (1, 2, 3, 4, 5), bar: true }"#);
     /// ```
     pub fn compact(mut self) -> Self {
         self.style = FormatStyle::Compact;
