@@ -130,9 +130,9 @@ fn display_value_with_typeid<Id: core::fmt::Debug>(
 ) -> core::fmt::Result {
     crate::string_impls::ToWriterBuilder::new()
         .spaced()
-        .write_context(|type_id, writer: &mut &mut core::fmt::Formatter| {
+        .format_context(|type_id, writer: &mut &mut core::fmt::Formatter| {
             write!(writer, "{type_id:?}")
         })
-        .custom_formatter(|value, writer| format_hex(value, writer))
+        .add_custom_formatter(|value, writer| format_hex(value, writer))
         .write(value, f)
 }

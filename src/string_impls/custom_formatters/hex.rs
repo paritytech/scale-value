@@ -35,7 +35,7 @@ use core::fmt::Write;
 /// let mut s = String::new();
 ///
 /// to_writer_custom()
-///     .custom_formatter(|v, w| format_hex(v, w))
+///     .add_custom_formatter(|v, w| format_hex(v, w))
 ///     .write(&val, &mut s)
 ///     .unwrap();
 ///

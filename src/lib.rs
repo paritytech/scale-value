@@ -501,8 +501,8 @@ pub mod stringify {
     ///
     /// scale_value::stringify::to_writer_custom()
     ///     .compact()
-    ///     .custom_formatter(|v, w| format_hex(v, w))
-    ///     .custom_formatter(|v, w| capitalise_bools(v, w))
+    ///     .add_custom_formatter(|v, w| format_hex(v, w))
+    ///     .add_custom_formatter(|v, w| capitalise_bools(v, w))
     ///     .write(&value, &mut s);
     ///
     /// assert_eq!(s, r#"{foo:TRUE,bar:0x01020304}"#)

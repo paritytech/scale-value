@@ -72,7 +72,7 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     /// # Example
     ///
     /// ```rust
-    /// use scale_value::{value,Value};
+    /// use scale_value::{value, Value};
     /// use scale_value::stringify::to_writer_custom;
     ///
     /// let val = value!({
@@ -112,8 +112,31 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     /// (in part since the user can output arbitrary content for the context). Nevertheless,
     /// writing the context can be useful for debugging errors and providing more verbose output.
     ///
+    /// # Example
     ///
-    pub fn write_context<F: Fn(&T, &mut W) -> core::fmt::Result + 'static>(mut self, f: F) -> Self {
+    /// ```rust
+    /// use scale_value::{value, Value, ValueDef, Primitive};
+    /// use scale_value::stringify::to_writer_custom;
+    /// use std::fmt::Write;
+    ///
+    /// let val = Value {
+    ///     value: ValueDef::Primitive(Primitive::Bool(true)),
+    ///     context: "hi"
+    /// };
+    ///
+    /// let mut s = String::new();
+    ///
+    /// to_writer_custom()
+    ///     .format_context(|ctx, w: &mut &mut String| write!(w, "context: {ctx}"))
+    ///     .write(&val, &mut s)
+    ///     .unwrap();
+    ///
+    /// assert_eq!(s, r#"<context: hi> true"#);
+    /// ```
+    pub fn format_context<F: Fn(&T, &mut W) -> core::fmt::Result + 'static>(
+        mut self,
+        f: F,
+    ) -> Self {
         self.print_context = Some(Box::new(f));
         self
     }
@@ -129,7 +152,7 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     /// Custom formatters are tried in the order that they are added here, and when one decides
     /// to write output (signalled by returning `Some(..)`), no others will be tried. Thus, the order
     /// in which they are added is important.
-    pub fn custom_formatter<F: Fn(&Value<T>, &mut W) -> Option<core::fmt::Result> + 'static>(
+    pub fn add_custom_formatter<F: Fn(&Value<T>, &mut W) -> Option<core::fmt::Result> + 'static>(
         mut self,
         f: F,
     ) -> Self {
