@@ -17,7 +17,7 @@ use crate::prelude::*;
 use crate::{Composite, Primitive, Value, ValueDef};
 use core::fmt::Write;
 
-/// This can be used alongside [`crate::stringify::ToWriterBuilder::custom_formatter()`] (which
+/// This can be used alongside [`crate::stringify::ToWriterBuilder::add_custom_formatter()`] (which
 /// itself is constructed via [`crate::stringify::to_writer_custom()`]). It will format as a hex
 /// string any unnamed composite whose values are all primitives in the range 0-255 inclusive.
 ///
@@ -44,6 +44,9 @@ use core::fmt::Write;
 pub fn format_hex<T, W: Write>(value: &Value<T>, writer: W) -> Option<core::fmt::Result> {
     // Print unnamed sequences of u8s as hex strings; ignore anything else.
     if let ValueDef::Composite(Composite::Unnamed(vals)) = &value.value {
+        if vals.is_empty() {
+            return None;
+        }
         for val in vals {
             if !matches!(val.value, ValueDef::Primitive(Primitive::U128(n)) if n < 256) {
                 return None;
