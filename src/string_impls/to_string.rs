@@ -24,6 +24,7 @@ pub struct ToWriterBuilder<T, W> {
     style: FormatStyle,
     custom_formatters: Vec<CustomFormatter<T, W>>,
     indent_by: String,
+    leading_indent: String,
     print_context: Option<ContextPrinter<T, W>>,
 }
 
@@ -36,6 +37,7 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
             style: FormatStyle::Normal,
             custom_formatters: Vec::new(),
             indent_by: "  ".to_owned(),
+            leading_indent: String::new(),
             print_context: None,
         }
     }
@@ -100,6 +102,82 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     /// ```
     pub fn spaced(mut self) -> Self {
         self.style = FormatStyle::Indented(0);
+        self
+    }
+
+    /// Write the [`crate::Value`] to a pretty spaced string, indenting
+    /// each new line by applying [`Self::indent_by()`] the number of
+    /// times given here. Defaults to nothing.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use scale_value::{value, Value};
+    /// use scale_value::stringify::to_writer_custom;
+    ///
+    /// let val = value!({
+    ///     foo: (1,2,3,4,5),
+    ///     bar: true
+    /// });
+    ///
+    /// let mut s = String::new();
+    ///
+    /// to_writer_custom()
+    ///     .leading_indent("****")
+    ///     .write(&val, &mut s)
+    ///     .unwrap();
+    ///
+    /// assert_eq!(s, r#"{
+    /// ****  foo: (
+    /// ****    1,
+    /// ****    2,
+    /// ****    3,
+    /// ****    4,
+    /// ****    5
+    /// ****  ),
+    /// ****  bar: true
+    /// ****}"#);
+    /// ```
+    pub fn leading_indent(mut self, s: impl Into<String>) -> Self {
+        self.leading_indent = s.into();
+        self
+    }
+
+    /// When using [`Self::spaced()`], this defines the characters used
+    /// to add each step of indentation to newlines. Defaults to
+    /// two spaces.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use scale_value::{value, Value};
+    /// use scale_value::stringify::to_writer_custom;
+    ///
+    /// let val = value!({
+    ///     foo: (1,2,3,4,5),
+    ///     bar: true
+    /// });
+    ///
+    /// let mut s = String::new();
+    ///
+    /// to_writer_custom()
+    ///     .indent_by("**")
+    ///     .write(&val, &mut s)
+    ///     .unwrap();
+    ///
+    /// assert_eq!(s, r#"{
+    /// **foo: (
+    /// ****1,
+    /// ****2,
+    /// ****3,
+    /// ****4,
+    /// ****5
+    /// **),
+    /// **bar: true
+    /// }"#);
+    /// ```
+    pub fn indent_by(mut self, s: impl Into<String>) -> Self {
+        self.indent_by = s.into();
         self
     }
 
@@ -172,6 +250,7 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
             style: self.style,
             custom_formatters: &self.custom_formatters,
             indent_by: &self.indent_by,
+            leading_indent: &self.leading_indent,
             print_context: &self.print_context,
         }
     }
@@ -182,6 +261,7 @@ struct Formatter<'a, T, W> {
     style: FormatStyle,
     custom_formatters: &'a [CustomFormatter<T, W>],
     indent_by: &'a str,
+    leading_indent: &'a str,
     print_context: &'a Option<ContextPrinter<T, W>>,
 }
 
@@ -209,14 +289,18 @@ impl<'a, T, W: core::fmt::Write> Formatter<'a, T, W> {
     fn newline(&mut self) -> core::fmt::Result {
         match self.style {
             FormatStyle::Compact | FormatStyle::Normal => Ok(()),
-            FormatStyle::Indented(n) => write_newline(&mut self.writer, self.indent_by, n),
+            FormatStyle::Indented(n) => {
+                write_newline(&mut self.writer, self.leading_indent, self.indent_by, n)
+            }
         }
     }
     fn item_separator(&mut self) -> core::fmt::Result {
         match self.style {
             FormatStyle::Compact => Ok(()),
             FormatStyle::Normal => self.writer.write_char(' '),
-            FormatStyle::Indented(n) => write_newline(&mut self.writer, self.indent_by, n),
+            FormatStyle::Indented(n) => {
+                write_newline(&mut self.writer, self.leading_indent, self.indent_by, n)
+            }
         }
     }
     fn should_print_context(&self) -> bool {
@@ -250,10 +334,12 @@ impl<'a, T, W: core::fmt::Write> core::fmt::Write for Formatter<'a, T, W> {
 
 fn write_newline(
     writer: &mut impl core::fmt::Write,
+    leading_indent: &str,
     indent_str: &str,
     indent: usize,
 ) -> core::fmt::Result {
     writer.write_char('\n')?;
+    writer.write_str(leading_indent)?;
     for _ in 0..indent {
         writer.write_str(indent_str)?;
     }
