@@ -123,6 +123,7 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     /// let mut s = String::new();
     ///
     /// to_writer_custom()
+    ///     .spaced()
     ///     .leading_indent("****")
     ///     .write(&val, &mut s)
     ///     .unwrap();
@@ -161,6 +162,7 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     /// let mut s = String::new();
     ///
     /// to_writer_custom()
+    ///     .spaced()
     ///     .indent_by("**")
     ///     .write(&val, &mut s)
     ///     .unwrap();
