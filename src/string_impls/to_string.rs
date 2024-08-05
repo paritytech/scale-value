@@ -69,7 +69,7 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
         self
     }
 
-    /// Write the [`crate::Value`] to a pretty spaced string.
+    /// Write the [`crate::Value`] to a pretty spaced/indented string.
     ///
     /// # Example
     ///
@@ -85,7 +85,7 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     /// let mut s = String::new();
     ///
     /// to_writer_custom()
-    ///     .spaced()
+    ///     .pretty()
     ///     .write(&val, &mut s)
     ///     .unwrap();
     ///
@@ -100,8 +100,8 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     ///   bar: true
     /// }"#);
     /// ```
-    pub fn spaced(mut self) -> Self {
-        self.style = FormatStyle::Indented(0);
+    pub fn pretty(mut self) -> Self {
+        self.style = FormatStyle::Pretty(0);
         self
     }
 
@@ -123,7 +123,7 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     /// let mut s = String::new();
     ///
     /// to_writer_custom()
-    ///     .spaced()
+    ///     .pretty()
     ///     .leading_indent("****")
     ///     .write(&val, &mut s)
     ///     .unwrap();
@@ -144,7 +144,7 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
         self
     }
 
-    /// When using [`Self::spaced()`], this defines the characters used
+    /// When using [`Self::pretty()`], this defines the characters used
     /// to add each step of indentation to newlines. Defaults to
     /// two spaces.
     ///
@@ -162,7 +162,7 @@ impl<T, W: core::fmt::Write> ToWriterBuilder<T, W> {
     /// let mut s = String::new();
     ///
     /// to_writer_custom()
-    ///     .spaced()
+    ///     .pretty()
     ///     .indent_by("**")
     ///     .write(&val, &mut s)
     ///     .unwrap();
@@ -272,26 +272,26 @@ impl<'a, T, W: core::fmt::Write> Formatter<'a, T, W> {
         self.style = match &self.style {
             FormatStyle::Compact => FormatStyle::Compact,
             FormatStyle::Normal => FormatStyle::Normal,
-            FormatStyle::Indented(n) => FormatStyle::Indented(n + 1),
+            FormatStyle::Pretty(n) => FormatStyle::Pretty(n + 1),
         };
     }
     fn unindent_step(&mut self) {
         self.style = match &self.style {
             FormatStyle::Compact => FormatStyle::Compact,
             FormatStyle::Normal => FormatStyle::Normal,
-            FormatStyle::Indented(n) => FormatStyle::Indented(n.saturating_sub(1)),
+            FormatStyle::Pretty(n) => FormatStyle::Pretty(n.saturating_sub(1)),
         };
     }
     fn space(&mut self) -> core::fmt::Result {
         match self.style {
             FormatStyle::Compact => Ok(()),
-            FormatStyle::Normal | FormatStyle::Indented(_) => self.writer.write_char(' '),
+            FormatStyle::Normal | FormatStyle::Pretty(_) => self.writer.write_char(' '),
         }
     }
     fn newline(&mut self) -> core::fmt::Result {
         match self.style {
             FormatStyle::Compact | FormatStyle::Normal => Ok(()),
-            FormatStyle::Indented(n) => {
+            FormatStyle::Pretty(n) => {
                 write_newline(&mut self.writer, self.leading_indent, self.indent_by, n)
             }
         }
@@ -300,7 +300,7 @@ impl<'a, T, W: core::fmt::Write> Formatter<'a, T, W> {
         match self.style {
             FormatStyle::Compact => Ok(()),
             FormatStyle::Normal => self.writer.write_char(' '),
-            FormatStyle::Indented(n) => {
+            FormatStyle::Pretty(n) => {
                 write_newline(&mut self.writer, self.leading_indent, self.indent_by, n)
             }
         }
@@ -353,8 +353,11 @@ fn write_newline(
 /// between items)
 #[derive(Clone, Copy)]
 enum FormatStyle {
-    Indented(usize),
+    /// Pretty (indented/spaced formatting), where amount of current indent is tracked.
+    Pretty(usize),
+    /// Normal (single line but with spacing).
     Normal,
+    /// Compact (no spaces anywhere).
     Compact,
 }
 
@@ -362,7 +365,7 @@ enum FormatStyle {
 fn default_builder<T, W: core::fmt::Write>(alternate: bool) -> ToWriterBuilder<T, W> {
     let mut builder = ToWriterBuilder::new();
     if alternate {
-        builder = builder.spaced();
+        builder = builder.pretty();
     }
     builder
 }

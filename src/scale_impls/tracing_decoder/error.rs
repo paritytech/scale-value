@@ -129,7 +129,7 @@ fn display_value_with_typeid<Id: core::fmt::Debug>(
     value: &Value<Id>,
 ) -> core::fmt::Result {
     crate::string_impls::ToWriterBuilder::new()
-        .spaced()
+        .pretty()
         .format_context(|type_id, writer: &mut &mut core::fmt::Formatter| {
             write!(writer, "{type_id:?}")
         })
