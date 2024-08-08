@@ -16,7 +16,8 @@
 use super::path::Path;
 use crate::prelude::*;
 use crate::scale::DecodeError;
-use crate::{Composite, Primitive, Value, ValueDef};
+use crate::string_impls::format_hex;
+use crate::Value;
 use core::fmt::Write;
 
 /// An error encountered when decoding some bytes using the [`crate::scale::tracing`] module.
@@ -127,72 +128,11 @@ fn display_value_with_typeid<Id: core::fmt::Debug>(
     f: &mut core::fmt::Formatter<'_>,
     value: &Value<Id>,
 ) -> core::fmt::Result {
-    use crate::string_impls::{fmt_value, FormatOpts, Formatter};
-
-    let format_opts = FormatOpts::new()
-        .spaced()
-        .context(|type_id, writer: &mut &mut core::fmt::Formatter| write!(writer, "{type_id:?}"))
-        .custom_formatter(|value, writer| custom_hex_formatter(value, writer));
-    let mut formatter = Formatter::new(f, format_opts);
-
-    fmt_value(value, &mut formatter)
-}
-
-fn custom_hex_formatter<T, W: core::fmt::Write>(
-    value: &Value<T>,
-    writer: W,
-) -> Option<core::fmt::Result> {
-    // Print unnamed sequences of u8s as hex strings; ignore anything else.
-    if let ValueDef::Composite(Composite::Unnamed(vals)) = &value.value {
-        for val in vals {
-            if !matches!(val.value, ValueDef::Primitive(Primitive::U128(n)) if n < 256) {
-                return None;
-            }
-        }
-        Some(value_to_hex(vals, writer))
-    } else {
-        None
-    }
-}
-
-// Just to avoid needing to import the `hex` dependency just for this.
-fn value_to_hex<T, W: core::fmt::Write>(vals: &Vec<Value<T>>, mut writer: W) -> core::fmt::Result {
-    writer.write_str("0x")?;
-    for val in vals {
-        if let ValueDef::Primitive(Primitive::U128(n)) = &val.value {
-            let n = *n as u8;
-            writer.write_char(u4_to_hex(n >> 4))?;
-            writer.write_char(u4_to_hex(n & 0b00001111))?;
-        }
-    }
-    Ok(())
-}
-
-fn u4_to_hex(n: u8) -> char {
-    static HEX: [char; 16] =
-        ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
-    *HEX.get(n as usize).expect("Expected a u4 (value between 0..=15")
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::value;
-
-    #[test]
-    fn test_value_to_hex() {
-        let mut s = String::new();
-        custom_hex_formatter(&value! {(0usize,230usize,255usize,15usize,12usize,4usize)}, &mut s)
-            .expect("decided not to convert to hex")
-            .expect("can't write to writer without issues");
-
-        assert_eq!(s, "0x00E6FF0F0C04");
-    }
-
-    #[test]
-    fn test_value_not_to_hex() {
-        let mut s = String::new();
-        // 256 is too big to be a u8, so this value isn't valid hex.
-        assert_eq!(custom_hex_formatter(&value! {(0usize,230usize,256usize)}, &mut s), None);
-    }
+    crate::string_impls::ToWriterBuilder::new()
+        .pretty()
+        .format_context(|type_id, writer: &mut &mut core::fmt::Formatter| {
+            write!(writer, "{type_id:?}")
+        })
+        .add_custom_formatter(|value, writer| format_hex(value, writer))
+        .write(value, f)
 }

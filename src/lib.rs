@@ -274,6 +274,7 @@ pub mod scale {
 pub mod stringify {
     use crate::prelude::*;
 
+    pub use crate::string_impls::ToWriterBuilder;
     #[cfg(feature = "from-string")]
     pub use crate::string_impls::{
         FromStrBuilder, ParseBitSequenceError, ParseCharError, ParseComplexError, ParseError,
@@ -288,6 +289,12 @@ pub mod stringify {
         #[cfg(feature = "parser-ss58")]
         pub use crate::string_impls::parse_ss58;
         pub use crate::string_impls::{parse_hex, ParseHexError};
+    }
+
+    /// This module provides custom formatters that work alongside [`crate::stringify::to_writer_custom`]
+    /// and allow for the output to be formatted in various ways.
+    pub mod custom_formatters {
+        pub use crate::string_impls::format_hex;
     }
 
     /// Attempt to parse a string into a [`crate::Value<()>`], returning a tuple
@@ -434,7 +441,73 @@ pub mod stringify {
     ///
     /// Panics if a `Primitive::U256`/`Primitive::I256` are a part of the value,
     /// since we cannot properly format and parse those at the moment.
-    pub fn to_string<T>(v: &crate::Value<T>) -> String {
-        v.to_string()
+    pub fn to_string<T>(value: &crate::Value<T>) -> String {
+        value.to_string()
+    }
+
+    /// Format a [`crate::Value`] to a string, writing it to the provided writer.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use scale_value::{Value, value};
+    ///
+    /// let value = value!({
+    ///     foo: true,
+    ///     bar: "hello"
+    /// });
+    ///
+    /// // Write the ourput to a string or any other writer.
+    /// let mut s = String::new();
+    /// scale_value::stringify::to_writer(&value, &mut s).unwrap();
+    ///
+    /// assert_eq!(s, r#"{ foo: true, bar: "hello" }"#)
+    /// ```
+    pub fn to_writer<T, W: core::fmt::Write>(
+        value: &crate::Value<T>,
+        writer: W,
+    ) -> core::fmt::Result {
+        crate::string_impls::ToWriterBuilder::new().write(value, writer)
+    }
+
+    /// Format a [`crate::Value`] to a string. Several options can be configured in the
+    /// process, such as the indentation, custom formatters, printing of context, and
+    /// style (compact or spaced).
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use scale_value::{Value, ValueDef, Primitive, value};
+    /// use scale_value::stringify::custom_formatters::format_hex;
+    /// use core::fmt::Write;
+    ///
+    /// let value = value!({
+    ///     foo: true,
+    ///     bar: (1u8,2u8,3u8,4u8)
+    /// });
+    ///
+    /// let mut s = String::new();
+    ///
+    /// fn capitalise_bools<T, W: Write>(v: &Value<T>, w: &mut W) -> Option<core::fmt::Result> {
+    ///     if let ValueDef::Primitive(Primitive::Bool(b)) = &v.value {
+    ///         match b {
+    ///             true => Some(write!(w, "TRUE")),
+    ///             false => Some(write!(w, "FALSE"))
+    ///         }
+    ///     } else {
+    ///         None
+    ///     }
+    /// }
+    ///
+    /// scale_value::stringify::to_writer_custom()
+    ///     .compact()
+    ///     .add_custom_formatter(|v, w| format_hex(v, w))
+    ///     .add_custom_formatter(|v, w| capitalise_bools(v, w))
+    ///     .write(&value, &mut s);
+    ///
+    /// assert_eq!(s, r#"{foo:TRUE,bar:0x01020304}"#)
+    /// ```
+    pub fn to_writer_custom<T, W: core::fmt::Write>() -> ToWriterBuilder<T, W> {
+        crate::string_impls::ToWriterBuilder::new()
     }
 }
