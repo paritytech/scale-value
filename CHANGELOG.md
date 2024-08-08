@@ -10,6 +10,8 @@ This release adds `scale_value::stringify::to_writer` and `scale_value::stringif
 
 `scale_value::stringify::to_writer_custom` allows for custom formatting of values, including a "pretty" spaced/indented formatting and a "compact" formatting which removes all unnecessary spaces. It also allows customising of the indentation and for custom formatters to be applied, as well as displaying the contexts of values if desired.
 
+See [#52](https://github.com/paritytech/scale-value/pull/52) for more information.
+
 ## 0.16.1 (2024-07-24)
 
 This release:
