@@ -4,6 +4,12 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.16.2 (2024-08-08)
+
+This release adds `scale_value::stringify::to_writer` and `scale_value::stringify::to_writer_custom` (to align with the already present `scale_value::stringify::from_str_custom`), and also exposes a new `scale_value::stringiy::custom_formatters` containing a formatter for displaying things as hex.
+
+`scale_value::stringify::to_writer_custom` allows for custom formatting of values, including a "pretty" spaced/indented formatting and a "compact" formatting which removes all unnecessary spaces. It also allows customising of the indentation and for custom formatters to be applied, as well as displaying the contexts of values if desired.
+
 ## 0.16.1 (2024-07-24)
 
 This release:

@@ -1,6 +1,6 @@
 [package]
 name = "scale-value"
-version = "0.16.1"
+version = "0.16.2"
 authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2021"
 
