@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.16.3 (2024-09-25)
+
+This release exports `scale_value::scale::ValueVisitor<TypeResolver>`, allowing the values to be created from functions like `scale_decode::visitor::decode_with_visitor`.
+
 ## 0.16.2 (2024-08-08)
 
 This release adds `scale_value::stringify::to_writer` and `scale_value::stringify::to_writer_custom` (to align with the already present `scale_value::stringify::from_str_custom`), and also exposes a new `scale_value::stringiy::custom_formatters` containing a formatter for displaying things as hex.

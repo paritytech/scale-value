@@ -17,5 +17,5 @@ mod decode;
 mod encode;
 mod tracing_decoder;
 
-pub use decode::{decode_composite_as_fields, decode_value_as_type, DecodeError};
+pub use decode::{decode_composite_as_fields, decode_value_as_type, DecodeError, ValueVisitor};
 pub use tracing_decoder::{TraceDecodingError, TraceDecodingVisitor};
