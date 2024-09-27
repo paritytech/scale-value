@@ -53,7 +53,7 @@ fn parse_ss58_bytes(s: &mut &str) -> Option<Vec<u8>> {
     // If what we are parsing is a variant ident, a `{` or `(` will follow
     // (eg `Foo { hi: 1 }` or `Foo (1)`). In this case, don't try to parse
     // as an ss58 address, since it would definitely be wrong to do so.
-    if rest.trim_start().starts_with(|c| c == '(' || c == '{') {
+    if rest.trim_start().starts_with(['(', '{']) {
         return None;
     }
 

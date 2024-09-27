@@ -22,6 +22,9 @@ use scale_decode::{FieldIter, TypeResolver};
 // This is emitted if something goes wrong decoding into a Value.
 pub use scale_decode::visitor::DecodeError;
 
+/// A visitor that can be used to decode types into [`Value`]s.
+pub type ValueVisitor<Resolver> = DecodeValueVisitor<Resolver, TypeIdContext>;
+
 /// Attempt to decode some SCALE encoded bytes into a value, by providing a pointer
 /// to the bytes (which will be moved forwards as bytes are used in the decoding),
 /// a type ID, and a type registry from which we'll look up the relevant type information.
@@ -141,7 +144,7 @@ impl<TypeId> ContextFromTypeId<TypeId> for EmptyContext {
 }
 
 /// Return the type ID for our value context.
-struct TypeIdContext;
+pub struct TypeIdContext;
 impl<TypeId: Clone> ContextFromTypeId<TypeId> for TypeIdContext {
     type Output = TypeId;
     fn context_from_type_id(type_id: &TypeId) -> TypeId {
