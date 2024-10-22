@@ -33,7 +33,7 @@ codec = { package = "parity-scale-codec", version = "3.0.0", default-features = 
 serde = { version = "1.0.124", default-features = false, features = ["derive"], optional = true }
 frame-metadata = { version = "15.0.0", default-features = false, features = ["v14"] }
 scale-info = { version = "2.5.0", default-features = false }
-scale-decode = { version = "0.13.0", default-features = false }
+scale-decode = { version = "0.14.0", default-features = false }
 scale-encode = { version = "0.7.0", default-features = false, features = ["bits"] }
 scale-bits = { version = "0.6.0", default-features = false, features = ["serde", "scale-info"] }
 either = { version = "1.6.1", default-features = false }
@@ -46,4 +46,4 @@ scale-type-resolver = "0.2.0"
 [dev-dependencies]
 hex = "0.4.3"
 serde_json = { version = "1.0.64", default-features = false, features = ["alloc"] }
-scale-decode = { version = "0.13.0", default-features = false, features = ["derive"] }
+scale-decode = { version = "0.14.0", default-features = false, features = ["derive"] }
