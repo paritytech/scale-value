@@ -125,7 +125,7 @@ macro_rules! at_between {
 #[derive(Debug, derive_more::Display, derive_more::From, PartialEq, Eq)]
 #[allow(missing_docs)]
 pub enum ParseErrorKind {
-    #[display(fmt = "Expected a value")]
+    #[display("Expected a value")]
     ExpectedValue,
     #[from]
     Complex(ParseComplexError),
@@ -158,15 +158,15 @@ impl ParseErrorKind {
 #[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseComplexError {
-    #[display(fmt = "The first character in a field name should be alphabetic")]
+    #[display("The first character in a field name should be alphabetic")]
     InvalidStartingCharacterInIdent,
     #[display(
-        fmt = "Field name is not valid (it should begin with an alphabetical char and then consist only of alphanumeric chars)"
+        "Field name is not valid (it should begin with an alphabetical char and then consist only of alphanumeric chars)"
     )]
     InvalidFieldName,
-    #[display(fmt = "Missing field separator; expected {_0}")]
+    #[display("Missing field separator; expected {_0}")]
     MissingFieldSeparator(char),
-    #[display(fmt = "Missing closing '{_0}'")]
+    #[display("Missing closing '{_0}'")]
     ExpectedCloserToMatch(char, usize),
 }
 at_between!(ParseComplexError);
@@ -174,11 +174,11 @@ at_between!(ParseComplexError);
 #[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseCharError {
-    #[display(fmt = "Expected a single character")]
+    #[display("Expected a single character")]
     ExpectedValidCharacter,
-    #[display(fmt = "Expected an escape code to follow the '\\'")]
+    #[display("Expected an escape code to follow the '\\'")]
     ExpectedValidEscapeCode,
-    #[display(fmt = "Expected a closing quote to match the opening quote at position {_0}")]
+    #[display("Expected a closing quote to match the opening quote at position {_0}")]
     ExpectedClosingQuoteToMatch(usize),
 }
 at_between!(ParseCharError);
@@ -186,9 +186,9 @@ at_between!(ParseCharError);
 #[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseStringError {
-    #[display(fmt = "Expected a closing quote to match the opening quote at position {_0}")]
+    #[display("Expected a closing quote to match the opening quote at position {_0}")]
     ExpectedClosingQuoteToMatch(usize),
-    #[display(fmt = "Expected an escape code to follow the '\\'")]
+    #[display("Expected an escape code to follow the '\\'")]
     ExpectedValidEscapeCode,
 }
 at_between!(ParseStringError);
@@ -196,9 +196,9 @@ at_between!(ParseStringError);
 #[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseNumberError {
-    #[display(fmt = "Expected one or more digits")]
+    #[display("Expected one or more digits")]
     ExpectedDigit,
-    #[display(fmt = "Failed to parse digits into an integer: {_0}")]
+    #[display("Failed to parse digits into an integer: {_0}")]
     ParsingFailed(ParseIntError),
 }
 at_between!(ParseNumberError);
@@ -206,9 +206,9 @@ at_between!(ParseNumberError);
 #[derive(Debug, Clone, PartialEq, Eq, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseBitSequenceError {
-    #[display(fmt = "Expected a closing bracket ('>') to match the opening one at position {_0}")]
+    #[display("Expected a closing bracket ('>') to match the opening one at position {_0}")]
     ExpectedClosingBracketToMatch(usize),
-    #[display(fmt = "Invalid character; expecting a 0 or 1")]
+    #[display("Invalid character; expecting a 0 or 1")]
     InvalidCharacter,
 }
 at_between!(ParseBitSequenceError);
