@@ -95,9 +95,9 @@ pub fn parse_hex(s: &mut &str) -> Option<Result<Value<()>, ParseError>> {
 #[derive(Debug, PartialEq, Clone, derive_more::Display)]
 #[allow(missing_docs)]
 pub enum ParseHexError {
-    #[display(fmt = "Invalid hex character: {_0}")]
+    #[display("Invalid hex character: {_0}")]
     InvalidChar(char),
-    #[display(fmt = "Hex string is the wrong length; should be an even length")]
+    #[display("Hex string is the wrong length; should be an even length")]
     WrongLength,
 }
 

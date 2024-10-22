@@ -37,13 +37,13 @@ pub enum SerializerError {
     /// SCALE does not support floating point values, and so we'll hit this error if we try to
     /// encode any floats.
     #[display(
-        fmt = "Floats do not have a SCALE compatible representation, and so cannot be serialized to Values"
+        "Floats do not have a SCALE compatible representation, and so cannot be serialized to Values"
     )]
     CannotSerializeFloats,
     /// SCALE encoding is only designed to map from statically known structs to bytes. We use field names
     /// to figure out this mapping between named composite types and structs, so we don't support encoding
     /// maps with non-string keys into [`Value`]s.
-    #[display(fmt = "Map keys must be strings or string-like")]
+    #[display("Map keys must be strings or string-like")]
     MapKeyMustBeStringlike,
 }
 
