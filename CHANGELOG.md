@@ -4,6 +4,14 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.17.0 (2024-10-22)
+
+This release:
+- Bumps `derive_more` from 0.99 to 1.0 ([#57](https://github.com/paritytech/scale-value/pull/57))
+- Bumps `scale-decode` from 0.13 to 0.14 ([#58](https://github.com/paritytech/scale-value/pull/58))
+- Bumps `scale-encode` from 0.7 to 0.8 ([#59](https://github.com/paritytech/scale-value/pull/59))
+- Removes `frame-metadata` dependency ([#60](https://github.com/paritytech/scale-value/pull/60))
+
 ## 0.16.3 (2024-09-25)
 
 This release exports `scale_value::scale::ValueVisitor<TypeResolver>`, allowing the values to be created from functions like `scale_decode::visitor::decode_with_visitor`.
