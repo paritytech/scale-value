@@ -46,4 +46,4 @@ scale-type-resolver = "0.2.0"
 hex = "0.4.3"
 serde_json = { version = "1.0.64", default-features = false, features = ["alloc"] }
 scale-decode = { version = "0.13.0", default-features = false, features = ["derive"] }
-scale-info = { version = "2.5.0", features = ["derive"] }
+scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
