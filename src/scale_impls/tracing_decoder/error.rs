@@ -109,8 +109,7 @@ impl<Ctx: core::fmt::Debug> core::fmt::Display for TraceDecodingError<Value<Ctx>
     }
 }
 
-#[cfg(feature = "std")]
-impl<Ctx: core::fmt::Debug> std::error::Error for TraceDecodingError<Value<Ctx>> {}
+impl<Ctx: core::fmt::Debug> core::error::Error for TraceDecodingError<Value<Ctx>> {}
 
 impl<TypeId> From<DecodeError> for TraceDecodingError<TypeId> {
     fn from(value: DecodeError) -> Self {
