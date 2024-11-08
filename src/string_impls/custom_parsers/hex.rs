@@ -92,17 +92,14 @@ pub fn parse_hex(s: &mut &str) -> Option<Result<Value<()>, ParseError>> {
     Some(Ok(Value::unnamed_composite(composite_values)))
 }
 
-#[derive(Debug, PartialEq, Clone, derive_more::Display)]
+#[derive(Debug, PartialEq, Clone, thiserror::Error)]
 #[allow(missing_docs)]
 pub enum ParseHexError {
-    #[display("Invalid hex character: {_0}")]
+    #[error("Invalid hex character: {0}")]
     InvalidChar(char),
-    #[display("Hex string is the wrong length; should be an even length")]
+    #[error("Hex string is the wrong length; should be an even length")]
     WrongLength,
 }
-
-#[cfg(feature = "std")]
-impl std::error::Error for ParseHexError {}
 
 #[cfg(test)]
 mod test {
