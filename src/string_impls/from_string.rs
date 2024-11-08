@@ -154,6 +154,12 @@ impl ParseErrorKind {
     }
 }
 
+impl From<String> for ParseErrorKind {
+    fn from(s: String) -> Self {
+        ParseErrorKind::Custom(s)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[allow(missing_docs)]
 pub enum ParseComplexError {
