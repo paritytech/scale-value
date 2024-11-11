@@ -18,7 +18,7 @@ rust-version = "1.81.0"
 default = ["std", "serde", "from-string", "parser-ss58"]
 
 # Only work in "std" environments:
-std = ["scale-decode/std", "scale-encode/std", "scale-bits/std", "scale-info/std", "either/use_std", "serde?/std", "serde_json/std"]
+std = ["scale-encode/std", "scale-bits/std", "scale-info/std", "either/use_std", "serde?/std", "serde_json/std"]
 
 # Enable support for parsing strings into Values.
 from-string = ["dep:yap"]
