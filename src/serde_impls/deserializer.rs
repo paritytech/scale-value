@@ -35,11 +35,9 @@ use serde::{
 /// Many internal serialization/deserialization errors are relayed
 /// to this in string form, and so we use basic strings for custom
 /// errors as well for simplicity.
-#[derive(derive_more::Display, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{0}")]
 pub struct DeserializerError(Cow<'static, str>);
-
-#[cfg(feature = "std")]
-impl std::error::Error for DeserializerError {}
 
 impl DeserializerError {
     fn from_string<S: Into<String>>(s: S) -> DeserializerError {

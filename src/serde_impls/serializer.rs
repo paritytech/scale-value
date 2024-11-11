@@ -30,25 +30,23 @@ use serde::{
 pub struct ValueSerializer;
 
 /// An error that can occur when attempting to serialize a type into a [`Value`].
-#[derive(derive_more::Display, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum SerializerError {
     /// Some custom error string.
+    #[error("Custom error: {0}")]
     Custom(String),
     /// SCALE does not support floating point values, and so we'll hit this error if we try to
     /// encode any floats.
-    #[display(
+    #[error(
         "Floats do not have a SCALE compatible representation, and so cannot be serialized to Values"
     )]
     CannotSerializeFloats,
     /// SCALE encoding is only designed to map from statically known structs to bytes. We use field names
     /// to figure out this mapping between named composite types and structs, so we don't support encoding
     /// maps with non-string keys into [`Value`]s.
-    #[display("Map keys must be strings or string-like")]
+    #[error("Map keys must be strings or string-like")]
     MapKeyMustBeStringlike,
 }
-
-#[cfg(feature = "std")]
-impl std::error::Error for SerializerError {}
 
 impl serde::ser::Error for SerializerError {
     fn custom<T>(msg: T) -> Self
