@@ -368,7 +368,7 @@ fn parse_bit_sequence(t: &mut StrTokens) -> Result<BitSequence, Option<ParseErro
     if !t.token('<') {
         return Err(None);
     }
-    let bits = t.tokens_while(|&c| c == '0' || c == '1').map(|c| c == '1');
+    let bits = t.take_while(|&c| c == '0' || c == '1').into_iter().map(|c| c == '1');
     let mut seq = BitSequence::new();
     for bit in bits {
         seq.push(bit);
@@ -436,7 +436,7 @@ fn parse_number(t: &mut StrTokens) -> Result<Primitive, Option<ParseError>> {
     // Now, we expect a digit and then a mix of digits and underscores:
     let mut seen_n = false;
     let digits = t
-        .tokens_while(|c| {
+        .take_while(|c| {
             if c.is_ascii_digit() {
                 seen_n = true;
                 true
@@ -444,6 +444,7 @@ fn parse_number(t: &mut StrTokens) -> Result<Primitive, Option<ParseError>> {
                 seen_n && *c == '_'
             }
         })
+        .into_iter()
         .filter(|c| c.is_ascii_digit());
 
     // Chain sign to digits and attempt to parse into a number.
@@ -573,10 +574,10 @@ fn parse_optional_variant_ident(t: &mut StrTokens) -> Option<String> {
 // Parse an ident like `foo` or `MyVariant`
 fn parse_ident(t: &mut StrTokens) -> Result<String, ParseError> {
     let start = t.location();
-    if t.skip_tokens_while(|c| c.is_alphabetic()) == 0 {
+    if t.skip_while(|c| c.is_alphabetic()) == 0 {
         return Err(ParseComplexError::InvalidStartingCharacterInIdent.at_one(start.offset()));
     }
-    t.skip_tokens_while(|c| c.is_alphanumeric() || *c == '_');
+    t.skip_while(|c| c.is_alphanumeric() || *c == '_');
     let end = t.location();
 
     let ident_str = t.slice(start, end).as_iter().collect();
@@ -585,7 +586,7 @@ fn parse_ident(t: &mut StrTokens) -> Result<String, ParseError> {
 
 // Skip any whitespace characters
 fn skip_whitespace(t: &mut StrTokens) {
-    t.skip_tokens_while(|c| c.is_whitespace());
+    t.skip_while(|c| c.is_whitespace());
 }
 
 // Skip a provided separator, with optional spaces on either side
@@ -754,7 +755,7 @@ mod test {
                 }
 
                 let from = toks.location();
-                let num_hex_chars = toks.skip_tokens_while(|c| {
+                let num_hex_chars = toks.skip_while(|c| {
                     c.is_numeric()
                         || ['a', 'b', 'c', 'd', 'e', 'f'].contains(&c.to_ascii_lowercase())
                 });
