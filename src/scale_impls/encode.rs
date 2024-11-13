@@ -374,7 +374,6 @@ mod test {
     use super::*;
     use crate::value;
     use codec::{Compact, Encode};
-    use core::time::Duration;
     use scale_info::PortableRegistry;
 
     // Panic after some duration.
@@ -635,7 +634,7 @@ mod test {
     #[test]
     #[cfg(feature = "__std")]
     fn encoding_shouldnt_take_forever() {
-        panic_after(Duration::from_millis(100), || {
+        panic_after(core::time::Duration::from_millis(100), || {
             #[derive(scale_info::TypeInfo, codec::Encode)]
             struct A(bool);
 

@@ -612,8 +612,7 @@ mod test {
         let scale_info::TypeDef::Composite(c) = &types.resolve(id).unwrap().type_def else {
             panic!("Couldn't get fields");
         };
-        let mut fields =
-            c.fields.iter().map(|f| scale_decode::Field::new(f.ty.id, f.name.as_deref()));
+        let mut fields = c.fields.iter().map(|f| scale_decode::Field::new(f.ty.id, f.name));
 
         // get some bytes to decode from:
         let foo = Foo { a: "Hello".to_owned(), b: true, c: 123 };
