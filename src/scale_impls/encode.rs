@@ -378,13 +378,15 @@ mod test {
     use scale_info::PortableRegistry;
 
     // Panic after some duration.
-    #[cfg(feature = "std")]
+    #[cfg(feature = "__std")]
     fn panic_after<T, F>(d: Duration, f: F) -> T
     where
         T: Send + 'static,
         F: FnOnce() -> T,
         F: Send + 'static,
     {
+        extern crate std;
+
         use std::{sync::mpsc, thread};
 
         let (done_tx, done_rx) = mpsc::channel();
@@ -631,7 +633,7 @@ mod test {
     // Prior to https://github.com/paritytech/scale-value/pulls/48, this test will take
     // too long and panic. #48 should ensure that this doesn't happen.
     #[test]
-    #[cfg(feature = "std")]
+    #[cfg(feature = "__std")]
     fn encoding_shouldnt_take_forever() {
         panic_after(Duration::from_millis(100), || {
             #[derive(scale_info::TypeInfo, codec::Encode)]

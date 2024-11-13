@@ -15,10 +15,10 @@ include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE"]
 rust-version = "1.81.0"
 
 [features]
-default = ["std", "serde", "from-string", "parser-ss58"]
+default = ["serde", "from-string", "parser-ss58"]
 
-# Only work in "std" environments:
-std = ["scale-bits/std", "either/use_std", "serde?/std", "serde_json/std"]
+# Internal feature for tests that needs std.
+__std = []
 
 # Enable support for parsing strings into Values.
 from-string = ["dep:yap"]
