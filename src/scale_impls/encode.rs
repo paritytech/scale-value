@@ -378,7 +378,7 @@ mod test {
 
     // Panic after some duration.
     #[cfg(feature = "__std")]
-    fn panic_after<T, F>(d: Duration, f: F) -> T
+    fn panic_after<T, F>(d: core::time::Duration, f: F) -> T
     where
         T: Send + 'static,
         F: FnOnce() -> T,
