@@ -197,7 +197,6 @@ pub mod scale {
 
     pub use crate::scale_impls::{DecodeError, ValueVisitor};
     pub use scale_encode::Error as EncodeError;
-    pub use scale_info::PortableRegistry;
     pub use scale_type_resolver::TypeResolver;
 
     /// Attempt to decode some SCALE encoded bytes into a value, by providing a pointer
