@@ -134,7 +134,7 @@ jobs:
         uses: actions-rs/cargo@v1.0.3
         with:
           command: test
-          args: --all-targets --workspace
+          args: --all-targets --all-features --workspace
 
       - name: Cargo test docs
         uses: actions-rs/cargo@v1.0.3
