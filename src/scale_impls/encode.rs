@@ -384,8 +384,6 @@ mod test {
         F: FnOnce() -> T,
         F: Send + 'static,
     {
-        extern crate std;
-
         use std::{sync::mpsc, thread};
 
         let (done_tx, done_rx) = mpsc::channel();

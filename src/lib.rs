@@ -33,6 +33,9 @@ of JSON data).
 
 extern crate alloc;
 
+#[cfg(feature = "__std")]
+extern crate std;
+
 mod at;
 mod macros;
 mod prelude;
