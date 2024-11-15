@@ -4,6 +4,21 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+## 0.18.0 (2024-11-15)
+
+This release makes scale-value entirely no_std which is now using core::error::Error instead of std::error::Error as it was using before behind
+the std feature. Because of that the std feature is now removed and the MSRV is bumped to 1.81.0. In addition it bumps a few dependencies to their latest versions.
+
+### Changed
+- Remove std feature and make the crate fully no_std
+- Update `scale-decode` to v0.16.0
+- Update `scale-encode` to v0.10.0
+- Update `yap` to v0.12.0
+- Update `scale-bits` to v0.7.0
+- Remove `scale-info` dependency and the re-export PortableRegistry
+- Bump MSRV to 1.81.0
+- Replace `derive_more` with `thiserror`
+
 ## 0.17.0 (2024-10-22)
 
 This release:
