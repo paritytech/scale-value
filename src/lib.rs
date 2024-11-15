@@ -29,9 +29,12 @@ of JSON data).
 - Accessed ergonomically via the [`At`] trait.
 */
 #![deny(missing_docs)]
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 
 extern crate alloc;
+
+#[cfg(feature = "__std")]
+extern crate std;
 
 mod at;
 mod macros;

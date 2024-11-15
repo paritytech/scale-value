@@ -374,12 +374,11 @@ mod test {
     use super::*;
     use crate::value;
     use codec::{Compact, Encode};
-    use core::time::Duration;
     use scale_info::PortableRegistry;
 
     // Panic after some duration.
-    #[cfg(feature = "std")]
-    fn panic_after<T, F>(d: Duration, f: F) -> T
+    #[cfg(feature = "__std")]
+    fn panic_after<T, F>(d: core::time::Duration, f: F) -> T
     where
         T: Send + 'static,
         F: FnOnce() -> T,
@@ -631,9 +630,9 @@ mod test {
     // Prior to https://github.com/paritytech/scale-value/pulls/48, this test will take
     // too long and panic. #48 should ensure that this doesn't happen.
     #[test]
-    #[cfg(feature = "std")]
+    #[cfg(feature = "__std")]
     fn encoding_shouldnt_take_forever() {
-        panic_after(Duration::from_millis(100), || {
+        panic_after(core::time::Duration::from_millis(100), || {
             #[derive(scale_info::TypeInfo, codec::Encode)]
             struct A(bool);
 
