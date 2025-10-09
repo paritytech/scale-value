@@ -16,10 +16,10 @@
 /// Construct a `scale_value::Value` using syntax similar to the `serde_jaon::json!` macro.
 ///
 /// Construct values representing structs (SCALE "composite" types with named fields):
-/// 
+///
 /// ```
 /// use scale_value::value;
-/// 
+///
 /// let struct_value = value!({
 ///     name: "foo",
 ///     value: 123,
@@ -29,26 +29,26 @@
 ///     }
 /// });
 /// ```
-/// 
+///
 /// Construct values representing tuples (SCALE composite types with unnamed fields):
-/// 
+///
 /// ```
 /// use scale_value::value;
-/// 
+///
 /// let tuple_value = value!{
 ///     ("foo", 123, (true, false))
 /// };
 /// ```
-/// 
+///
 /// Construct enum variants by prefixing the variant name to either of the above constructions:
-/// 
+///
 /// ```
 /// use scale_value::value;
-/// 
+///
 /// let variant_with_unnamed_fields = value!{
 ///     VariantName("foo", 123)
 /// };
-/// 
+///
 /// let variant_with_named_fields = value!{
 ///     VariantName {
 ///         name: "foo",
@@ -61,16 +61,16 @@
 ///     }
 /// };
 /// ```
-/// 
+///
 /// Values can be nested in each other:
-/// 
+///
 /// ```
 /// use scale_value::value;
 ///
 /// let data_value = value!((1, v1(1, 2), 3));
 /// let val = value!(POST { data: data_value });
 /// ```
-/// 
+///
 /// Trailing commas are optional.
 #[macro_export(local_inner_macros)]
 macro_rules! value {
