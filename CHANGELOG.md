@@ -4,6 +4,12 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+# 0.18.1 (2025-10-09)
+
+A small patch release to impl `DecodeAsFields` for `scale_value::Value<()>`, allowing the `Value` type to be used in more contexts upstream.
+
+Also elaborate on the `value!` macro docs a little.
+
 ## 0.18.0 (2024-11-15)
 
 This release makes scale-value entirely no_std which is now using core::error::Error instead of std::error::Error as it was using before behind
