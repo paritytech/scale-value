@@ -87,7 +87,6 @@ macro_rules! to_unnamed_composite {
     }};
 }
 
-// We can't implement this on `Value<TypeId>` because we have no TypeId to assign to the value.
 impl scale_decode::DecodeAsFields for Composite<()> {
     fn decode_as_fields<'resolver, R: TypeResolver>(
         input: &mut &[u8],
@@ -108,6 +107,17 @@ impl scale_decode::DecodeAsFields for Composite<()> {
         composite.skip_decoding()?;
         *input = composite.bytes_from_undecoded();
         val.map_err(From::from).map(|v| v.map_context(|_| {}))
+    }
+}
+
+impl scale_decode::DecodeAsFields for Value<()> {
+    fn decode_as_fields<'resolver, R: TypeResolver>(
+        input: &mut &[u8],
+        fields: &mut dyn FieldIter<'resolver, R::TypeId>,
+        types: &'resolver R,
+    ) -> Result<Self, scale_decode::Error> {
+        let composite = Composite::<()>::decode_as_fields(input, fields, types)?;
+        Ok(Value { value: ValueDef::Composite(composite), context: () })
     }
 }
 

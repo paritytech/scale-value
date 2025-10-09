@@ -13,30 +13,64 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Construct a `scale_value::Value`
+/// Construct a `scale_value::Value` using syntax similar to the `serde_jaon::json!` macro.
 ///
+/// Construct values representing structs (SCALE "composite" types with named fields):
 ///
-/// Supports unnamed and named composites and variants:
 /// ```
 /// use scale_value::value;
 ///
-/// let val = value!({
-///     name: "localhost",
-///     address: V4(127, 0, 0, 1),
-///     payload: {
-///         bytes: (255, 3, 4, 9),
-///         method: ("Post", 3000),
-///     },
+/// let struct_value = value!({
+///     name: "foo",
+///     value: 123,
+///     sub_fields: {
+///         foo: true,
+///         bar: false
+///     }
 /// });
+/// ```
+///
+/// Construct values representing tuples (SCALE composite types with unnamed fields):
 ///
 /// ```
+/// use scale_value::value;
+///
+/// let tuple_value = value!{
+///     ("foo", 123, (true, false))
+/// };
+/// ```
+///
+/// Construct enum variants by prefixing the variant name to either of the above constructions:
+///
+/// ```
+/// use scale_value::value;
+///
+/// let variant_with_unnamed_fields = value!{
+///     VariantName("foo", 123)
+/// };
+///
+/// let variant_with_named_fields = value!{
+///     VariantName {
+///         name: "foo",
+///         value: 123,
+///         sub_fields: {
+///             foo: true,
+///             bar: false,
+///             other_variant: AnotherVariant(true, 1,2,3)
+///         }
+///     }
+/// };
+/// ```
+///
 /// Values can be nested in each other:
+///
 /// ```
 /// use scale_value::value;
 ///
 /// let data_value = value!((1, v1(1, 2), 3));
 /// let val = value!(POST { data: data_value });
 /// ```
+///
 /// Trailing commas are optional.
 #[macro_export(local_inner_macros)]
 macro_rules! value {
