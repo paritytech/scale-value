@@ -22,6 +22,10 @@ use core::marker::PhantomData;
 use scale_decode::visitor::TypeIdFor;
 use scale_type_resolver::TypeResolver;
 
+// Don't alloc more than 100M entries; error instead if we try to exceed this.
+// Helps to catch issues with bad data which leads panics instead of helpful errors.
+const MAX_CAPACITY: usize = 100_000_000;
+
 /// A visitor that will attempt to decode some bytes into a [`crate::Value`],
 /// returning a detailed error of where the decoding fails if it does.
 pub struct TraceDecodingVisitor<Resolver> {
@@ -58,8 +62,14 @@ macro_rules! to_unnamed_composite {
     ($self:ident, $value:ident) => {{
         let mut f = move || {
             let mut idx = 0;
-            let mut vals = Vec::with_capacity($value.remaining());
 
+            if $value.remaining() > MAX_CAPACITY {
+                let err: codec::Error = "TraceDecodingVisitor is trying to create a Vec with a capacity greater than 100M entries".into();
+                let err: TraceDecodingError<_> = err.into();
+                return Err(err);
+            }
+
+            let mut vals = Vec::with_capacity($value.remaining());
             while let Some(val) = $value.decode_item($self.at_idx(idx)) {
                 match val {
                     Err(e) => {

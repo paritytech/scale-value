@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog].
 
 [Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
 
+# 0.18.2 (2026-02-17)
+
+Update the `TracingDecodeVisitor` to prevent ridiculous allocations in the event that we're given erroneous data to decode, and error gracefully instead of panicking.
+
 # 0.18.1 (2025-10-09)
 
 A small patch release to impl `DecodeAsFields` for `scale_value::Value<()>`, allowing the `Value` type to be used in more contexts upstream.
