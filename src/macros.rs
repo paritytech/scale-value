@@ -327,7 +327,7 @@ macro_rules! literal_aware_stringify {
 #[macro_use]
 mod test {
     use crate::prelude::*;
-    use crate::{value, Value};
+    use crate::Value;
 
     #[test]
     fn macro_tests() {
